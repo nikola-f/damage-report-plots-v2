@@ -194,6 +194,7 @@ GEM
       rspec-expectations (~> 3.13)
       rspec-mocks (~> 3.13)
       rspec-support (~> 3.13)
+    rspec-request_describer (0.8.0)
     rspec-support (3.13.6)
     securerandom (0.4.1)
     stringio (3.1.7)
@@ -219,6 +220,7 @@ DEPENDENCIES
   rack-cors
   rails (~> 8.0.3)
   rspec-rails (~> 7.1)
+  rspec-request_describer
 
 RUBY VERSION
    ruby 3.4.4p34

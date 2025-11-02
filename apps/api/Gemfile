@@ -15,4 +15,6 @@ group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   # RSpec testing framework for Rails
   gem "rspec-rails", "~> 7.1"
+  # Automatically generate descriptions for RSpec request specs
+  gem "rspec-request_describer"
 end
