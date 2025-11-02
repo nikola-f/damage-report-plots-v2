@@ -18,10 +18,11 @@ This is a monorepo project for "damage-report-plots-v2" with a Rails API-only ba
   - Active Model (no Active Record - database-free)
   - Action Controller
   - Action View
-  - Rails Test Unit
+  - RSpec (Rails Test Unit disabled)
   - Excludes: Active Job, Active Record, Active Storage, Action Mailer, Action Mailbox, Action Text, Action Cable
 - **CORS**: rack-cors gem included but not configured (apps/api/config/initializers/cors.rb is commented out)
 - **Ruby version**: 3.4.4
+- **Unit test**: Based on t-wada's TDD, using RSpec for Rails
 
 ## Development Commands
 
@@ -43,13 +44,16 @@ bin/dev
 bin/rails console
 
 # Run tests
-bin/rails test
+bundle exec rspec
 
-# Run specific test file
-bin/rails test test/path/to/test_file.rb
+# Run specific spec file
+bundle exec rspec spec/path/to/spec_file.rb
 
-# Run specific test method
-bin/rails test test/path/to/test_file.rb:line_number
+# Run specific test by line number
+bundle exec rspec spec/path/to/spec_file.rb:line_number
+
+# Run with documentation format (already configured in .rspec)
+bundle exec rspec
 
 # Database commands (if/when added)
 bin/rails db:create
