@@ -45,6 +45,12 @@ module AuthHelpers
     JsonWebToken.encode(test_user_payload(payload), 1.second.ago)
   end
 
+  def tamper_with_token(token)
+    header, payload, _signature = token.split('.')
+    fake_signature = Base64.urlsafe_encode64('tampered_signature', padding: false)
+    "#{header}.#{payload}.#{fake_signature}"
+  end
+
   def mock_google_oauth_success(overrides = {})
     OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new({
       provider: 'google_oauth2',

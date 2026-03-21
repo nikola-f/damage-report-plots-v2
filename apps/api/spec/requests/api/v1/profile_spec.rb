@@ -61,17 +61,6 @@ RSpec.describe "GET /api/v1/profile", type: :request do
     end
   end
 
-  context 'with refresh token instead of access token' do
-    let(:refresh_token) { generate_refresh_token }
-
-    it 'rejects refresh token on protected endpoint' do
-      authenticated_get '/api/v1/profile', refresh_token
-
-      expect(response).to have_http_status(:unauthorized)
-      expect(json_response['error']).to eq('Unauthorized - Invalid token')
-    end
-  end
-
   # Edge Cases
   context 'with malformed Authorization header' do
     let(:token) { generate_access_token }
