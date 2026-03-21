@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
-RSpec.describe "Sessions", type: :request do
+RSpec.describe 'Sessions', type: :request do
   before do
     mock_jwt_credentials
   end
 
-  describe "GET /auth/google_oauth2/callback" do
+  describe 'GET /auth/google_oauth2/callback' do
     context 'with successful OAuth authentication' do
       before do
         mock_google_oauth_success
@@ -56,7 +58,6 @@ RSpec.describe "Sessions", type: :request do
         expect(decoded['name']).to eq(test_user_name)
         expect(decoded['iss']).to eq('damage-report-api')
       end
-
     end
 
     context 'with custom user data from Google' do
@@ -95,7 +96,7 @@ RSpec.describe "Sessions", type: :request do
     end
   end
 
-  describe "DELETE /auth/logout" do
+  describe 'DELETE /auth/logout' do
     it 'returns success message' do
       delete '/auth/logout'
 
@@ -111,7 +112,7 @@ RSpec.describe "Sessions", type: :request do
     end
   end
 
-  describe "GET /auth/failure" do
+  describe 'GET /auth/failure' do
     it 'returns authentication failure message with details' do
       get '/auth/failure', params: { message: 'invalid_credentials', strategy: 'google_oauth2' }
 

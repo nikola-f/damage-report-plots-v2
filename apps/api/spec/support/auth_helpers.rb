@@ -1,12 +1,14 @@
+# frozen_string_literal: true
+
 module AuthHelpers
   # Test secrets
-  TEST_JWT_SECRET = 'test_secret_key'.freeze
+  TEST_JWT_SECRET = 'test_secret_key'
 
   # Test user data constants
-  TEST_USER_ID = '12345'.freeze
-  TEST_USER_EMAIL = 'test@example.com'.freeze
-  TEST_USER_NAME = 'Test User'.freeze
-  TEST_USER_PICTURE = 'https://example.com/pic.jpg'.freeze
+  TEST_USER_ID = '12345'
+  TEST_USER_EMAIL = 'test@example.com'
+  TEST_USER_NAME = 'Test User'
+  TEST_USER_PICTURE = 'https://example.com/pic.jpg'
 
   def test_user_id
     TEST_USER_ID
@@ -53,22 +55,22 @@ module AuthHelpers
 
   def mock_google_oauth_success(overrides = {})
     OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new({
-      provider: 'google_oauth2',
-      uid: overrides[:uid] || TEST_USER_ID,
-      info: {
-        email: overrides[:email] || TEST_USER_EMAIL,
-        name: overrides[:name] || TEST_USER_NAME,
-        image: overrides[:picture] || TEST_USER_PICTURE
-      },
-      credentials: {
-        token: overrides[:google_token] || 'google_access_token_123',
-        refresh_token: overrides[:google_refresh_token] || 'google_refresh_token_456',
-        expires_at: overrides[:expires_at] || 1.hour.from_now.to_i
-      }
-    })
+                                                                         provider: 'google_oauth2',
+                                                                         uid: overrides[:uid] || TEST_USER_ID,
+                                                                         info: {
+                                                                           email: overrides[:email] || TEST_USER_EMAIL,
+                                                                           name: overrides[:name] || TEST_USER_NAME,
+                                                                           image: overrides[:picture] || TEST_USER_PICTURE
+                                                                         },
+                                                                         credentials: {
+                                                                           token: overrides[:google_token] || 'google_access_token_123',
+                                                                           refresh_token: overrides[:google_refresh_token] || 'google_refresh_token_456',
+                                                                           expires_at: overrides[:expires_at] || 1.hour.from_now.to_i
+                                                                         }
+                                                                       })
   end
 
-  def mock_google_oauth_failure(message = 'invalid_credentials')
+  def mock_google_oauth_failure(_message = 'invalid_credentials')
     OmniAuth.config.mock_auth[:google_oauth2] = :invalid_credentials
     OmniAuth.config.on_failure = proc { |env|
       SessionsController.action(:failure).call(env)

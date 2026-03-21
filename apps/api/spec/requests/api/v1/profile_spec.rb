@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
-RSpec.describe "GET /api/v1/profile", type: :request do
+RSpec.describe 'GET /api/v1/profile', type: :request do
   before do
     mock_jwt_credentials
   end

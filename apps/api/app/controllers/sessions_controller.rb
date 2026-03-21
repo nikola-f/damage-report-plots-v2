@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class SessionsController < ApplicationController
   def google_oauth2
     # This endpoint redirects to Google OAuth
@@ -10,9 +12,7 @@ class SessionsController < ApplicationController
     # Get OAuth data from OmniAuth
     auth = request.env['omniauth.auth']
 
-    unless auth
-      return render json: { error: 'Authentication failed' }, status: :unauthorized
-    end
+    return render json: { error: 'Authentication failed' }, status: :unauthorized unless auth
 
     # Extract user info from Google
     user_info = {
@@ -24,11 +24,11 @@ class SessionsController < ApplicationController
 
     # Create JWT access token (15 minutes)
     access_token = JsonWebToken.encode({
-      sub: user_info[:google_id],
-      email: user_info[:email],
-      name: user_info[:name],
-      picture: user_info[:picture]
-    })
+                                         sub: user_info[:google_id],
+                                         email: user_info[:email],
+                                         name: user_info[:name],
+                                         picture: user_info[:picture]
+                                       })
 
     # Return tokens and user info
     render json: {
@@ -47,7 +47,7 @@ class SessionsController < ApplicationController
         expires_at: auth['credentials']['expires_at']
       }
     }, status: :ok
-  rescue => e
+  rescue StandardError => e
     render json: { error: 'Authentication failed', message: e.message }, status: :unprocessable_entity
   end
 

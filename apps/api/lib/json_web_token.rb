@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 class JsonWebToken
-  ALGORITHM = 'HS256'.freeze
+  ALGORITHM = 'HS256'
 
   class << self
     def encode(payload, exp = 15.minutes.from_now)

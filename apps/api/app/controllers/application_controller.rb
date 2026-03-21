@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ApplicationController < ActionController::API
   rescue_from JWT::DecodeError, with: :unauthorized_response
   rescue_from JWT::ExpiredSignature, with: :token_expired_response
