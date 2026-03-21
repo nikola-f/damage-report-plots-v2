@@ -11,7 +11,6 @@ Rails.application.routes.draw do
   get '/auth/failure', to: 'sessions#failure'
 
   # Session management routes
-  post '/auth/refresh', to: 'sessions#refresh'
   delete '/auth/logout', to: 'sessions#logout'
 
   # API routes (versioned)

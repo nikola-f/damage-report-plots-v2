@@ -24,9 +24,13 @@ OmniAuth.config.test_mode = true
 # directory. Alternatively, in the individual `*_spec.rb` files, manually
 # require only the support files necessary.
 #
-# Rails.root.glob('spec/support/**/*.rb').sort_by(&:to_s).each { |f| require f }
+Rails.root.glob('spec/support/**/*.rb').sort_by(&:to_s).each { |f| require f }
 
 RSpec.configure do |config|
+  # Include helper modules
+  config.include RequestHelpers, type: :request
+  config.include AuthHelpers, type: :request
+
   # Remove this line to enable support for ActiveRecord
   config.use_active_record = false
 
