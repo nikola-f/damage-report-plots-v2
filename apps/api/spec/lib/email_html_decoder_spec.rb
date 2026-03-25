@@ -25,14 +25,14 @@ RSpec.describe EmailHtmlDecoder do
         html = '<html><body><p>Hello</p></body></html>'
         encoded = Base64.urlsafe_encode64(html)
 
-        expect(described_class.decode(encoded)).to eq(html)
+        expect(described_class.decode(encoded, url_safe: true)).to eq(html)
       end
 
       it 'decodes URL-safe base64 without padding' do
         html = '<html><body><p>Hello</p></body></html>'
         encoded = Base64.urlsafe_encode64(html, padding: false)
 
-        expect(described_class.decode(encoded)).to eq(html)
+        expect(described_class.decode(encoded, url_safe: true)).to eq(html)
       end
     end
 
