@@ -36,10 +36,10 @@ RSpec.describe EmailHtmlDecoder do
       end
     end
 
-    context 'with Japanese HTML (UTF-8)' do
+    context 'with multibyte HTML (UTF-8)' do
       it 'decodes and returns a UTF-8 string' do
-        html = file_fixture("sample_email_japanese.html").read
-        encoded = file_fixture("sample_email_japanese_base64_strict.txt").read
+        html = file_fixture("sample_email.html").read
+        encoded = file_fixture("sample_email_base64_strict.txt").read
 
         result = described_class.decode(encoded)
         expect(result).to eq(html)
