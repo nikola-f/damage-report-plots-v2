@@ -153,18 +153,29 @@ RSpec.describe EmailHtmlDecoder do
   describe "portal extraction from sample email" do
     subject(:decoder) { described_class.new(file_fixture("sample_email_base64_urlsafe.txt").read) }
 
-    it "extracts portal name, intel URL, and status" do
+    it "extracts portal name, intel URL, damage, and status" do
       result = decoder.extract_nodes("//td[div/a[contains(@href,'ingress.com/intel')]]") do |node|
         [
           node.extract("div[1]"),
           node.extract("div[2]/a", attr: "href"),
-          node.extract("../following-sibling::tr[2]//div[contains(.,'Owner:')]")
+          node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
+          node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
         ]
       end
 
       expect(result).to eq([
-        ["ハチ公", "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19", "STATUS:Level 1Health: 0%Owner: [uncaptured]"],
-        ["海からのかおり", "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19", "STATUS:Level 1Health: 0%Owner: [uncaptured]"]
+        [
+          "ハチ公",
+          "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
+          "DAMAGE:1 Resonator destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
+          "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+        ],
+        [
+          "海からのかおり",
+          "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
+          "DAMAGE:1 Mod destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
+          "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+        ]
       ])
     end
   end
