@@ -263,6 +263,7 @@ PLATFORMS
 DEPENDENCIES
   debug
   jwt
+  nokogiri
   omniauth-google-oauth2
   omniauth-rails_csrf_protection
   puma (>= 5.0)
