@@ -77,6 +77,94 @@ RSpec.describe EmailHtmlDecoder do
     end
   end
 
+  describe "#extract_node" do
+    let(:html) { "<ul><li><span>Title</span><a href=\"https://example.com\">Link</a></li><li><span>Other</span><a href=\"https://other.com\">Other</a></li></ul>" }
+    subject(:decoder) { described_class.new(encode(html)) }
+
+    context "when xpath matches a node" do
+      it "returns the block result" do
+        result = decoder.extract_node("//li[1]") do |node|
+          [node.extract("span"), node.extract("a", attr: "href")]
+        end
+        expect(result).to eq(["Title", "https://example.com"])
+      end
+    end
+
+    context "when xpath matches multiple nodes" do
+      it "returns block result for the first match only" do
+        result = decoder.extract_node("//li") { |node| node.extract("span") }
+        expect(result).to eq("Title")
+      end
+    end
+
+    context "when xpath does not match" do
+      it "returns nil" do
+        result = decoder.extract_node("//nonexistent") { |node| node.extract("span") }
+        expect(result).to be_nil
+      end
+    end
+
+    context "with invalid xpath" do
+      it "raises ParseError" do
+        expect { decoder.extract_node("[invalid xpath") { |node| node.extract("span") } }
+          .to raise_error(EmailHtmlDecoder::ParseError)
+      end
+    end
+
+    context "with invalid xpath inside block" do
+      it "raises ParseError" do
+        expect { decoder.extract_node("//li[1]") { |node| node.extract("[invalid") } }
+          .to raise_error(EmailHtmlDecoder::ParseError)
+      end
+    end
+  end
+
+  describe "#extract_nodes" do
+    let(:html) { "<ul><li><span>Apple</span><a href=\"https://a.com\">A</a></li><li><span>Banana</span><a href=\"https://b.com\">B</a></li></ul>" }
+    subject(:decoder) { described_class.new(encode(html)) }
+
+    context "when xpath matches nodes" do
+      it "returns array of block results" do
+        result = decoder.extract_nodes("//li") do |node|
+          [node.extract("span"), node.extract("a", attr: "href")]
+        end
+        expect(result).to eq([
+          ["Apple", "https://a.com"],
+          ["Banana", "https://b.com"]
+        ])
+      end
+    end
+
+    context "when xpath does not match" do
+      it "returns empty array" do
+        result = decoder.extract_nodes("//nonexistent") { |node| node.extract("span") }
+        expect(result).to eq([])
+      end
+    end
+
+    context "with invalid xpath" do
+      it "raises ParseError" do
+        expect { decoder.extract_nodes("[invalid xpath") { |node| node.extract("span") } }
+          .to raise_error(EmailHtmlDecoder::ParseError)
+      end
+    end
+  end
+
+  describe "portal extraction from sample email" do
+    subject(:decoder) { described_class.new(file_fixture("sample_email_base64_urlsafe.txt").read) }
+
+    it "extracts portal name and intel URL pairs" do
+      result = decoder.extract_nodes("//td[div/a[contains(@href,'ingress.com/intel')]]") do |node|
+        [node.extract("div[1]"), node.extract("div[2]/a", attr: "href")]
+      end
+
+      expect(result).to eq([
+        ["ハチ公", "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19"],
+        ["海からのかおり", "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19"]
+      ])
+    end
+  end
+
   describe "#extract_all" do
     let(:html) { "<ul><li>Apple</li><li>Banana</li><li>Cherry</li></ul>" }
     subject(:decoder) { described_class.new(encode(html)) }

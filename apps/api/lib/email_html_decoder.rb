@@ -28,8 +28,45 @@ class EmailHtmlDecoder
     raise ParseError, "Invalid XPath expression: #{e.message}"
   end
 
+  def extract_node(xpath, &block)
+    node = @doc.xpath(xpath).first
+    return nil if node.nil?
+    block.call(Node.new(node))
+  rescue Nokogiri::XML::XPath::SyntaxError => e
+    raise ParseError, "Invalid XPath expression: #{e.message}"
+  end
+
+  def extract_nodes(xpath, &block)
+    @doc.xpath(xpath).map { |n| block.call(Node.new(n)) }
+  rescue Nokogiri::XML::XPath::SyntaxError => e
+    raise ParseError, "Invalid XPath expression: #{e.message}"
+  end
+
   class DecodeError < StandardError; end
   class ParseError < StandardError; end
+
+  class Node
+    def initialize(node)
+      @node = node
+    end
+
+    def extract(xpath, attr: nil)
+      child = @node.xpath(xpath).first
+      return nil if child.nil?
+      attr ? child[attr] : child.xpath("text()").map(&:text).join
+    rescue Nokogiri::XML::XPath::SyntaxError => e
+      raise EmailHtmlDecoder::ParseError, "Invalid XPath expression: #{e.message}"
+    end
+
+    def extract_all(xpath, attr: nil)
+      @node.xpath(xpath).map do |child|
+        attr ? child[attr] : child.xpath("text()").map(&:text).join
+      end
+    rescue Nokogiri::XML::XPath::SyntaxError => e
+      raise EmailHtmlDecoder::ParseError, "Invalid XPath expression: #{e.message}"
+    end
+  end
+  private_constant :Node
 
   private
 
