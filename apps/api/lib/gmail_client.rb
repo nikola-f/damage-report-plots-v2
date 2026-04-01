@@ -6,8 +6,20 @@ class GmailClient
   BATCH_BASE_URL = "https://www.googleapis.com"
   BATCH_BOUNDARY = "batch_boundary_gmail_v1"
 
-  def initialize(access_token)
+  PER_PROJECT_LIMIT = 1_200_000  # quota units per minute
+  PER_USER_LIMIT    = 15_000     # quota units per minute per user
+  QUOTA_WINDOW      = 60         # seconds
+
+  QUOTA_UNITS = {
+    list_threads:             10,
+    get_thread:               10,
+    batch_get_threads_per_id: 10
+  }.freeze
+
+  def initialize(access_token, user_id: nil, redis: nil)
     @access_token = access_token
+    @user_id = user_id
+    @redis = redis
   end
 
   # Calls users.threads.list API and returns the parsed response.
@@ -17,6 +29,8 @@ class GmailClient
   # @param page_token [String, nil] Page token from a previous response to retrieve the next page
   # @return [Hash] Parsed JSON response containing :threads, :nextPageToken, :resultSizeEstimate
   def list_threads(q: nil, page_token: nil)
+    consume_quota(QUOTA_UNITS[:list_threads])
+
     params = {
       q: q,
       pageToken: page_token
@@ -31,6 +45,7 @@ class GmailClient
   # @param id [String] The ID of the thread to retrieve
   # @return [Hash] Parsed JSON response containing the thread with its messages
   def get_thread(id)
+    consume_quota(QUOTA_UNITS[:get_thread])
     get("/users/me/threads/#{id}")
   end
 
@@ -42,13 +57,29 @@ class GmailClient
   def batch_get_threads(ids)
     return [] if ids.empty?
 
+    consume_quota(QUOTA_UNITS[:batch_get_threads_per_id] * ids.size)
+
     response = batch_post(ids)
     parse_batch_response(response, ids)
   end
 
   class ApiError < StandardError; end
+  class QuotaExceededError < StandardError; end
 
   private
+
+  def consume_quota(units)
+    return unless @redis
+
+    [
+      ["gmail_quota:project", PER_PROJECT_LIMIT],
+      ["gmail_quota:user:#{@user_id}", PER_USER_LIMIT]
+    ].each do |key, limit|
+      new_count = @redis.incrby(key, units)
+      @redis.expire(key, QUOTA_WINDOW) if new_count == units
+      raise QuotaExceededError, "Gmail API quota exceeded: #{key}" if new_count > limit
+    end
+  end
 
   def get(path, params = {})
     base_uri = URI("#{BASE_URL}#{path}")

@@ -22,6 +22,9 @@ gem 'omniauth-rails_csrf_protection'
 # HTML parsing
 gem 'nokogiri'
 
+# Redis for quota management
+gem 'redis'
+
 group :test do
   gem 'webmock'
 end

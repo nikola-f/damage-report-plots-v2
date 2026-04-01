@@ -225,6 +225,10 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
+    redis (5.4.1)
+      redis-client (>= 0.22.0)
+    redis-client (0.28.0)
+      connection_pool
     reline (0.6.2)
       io-console (~> 0.5)
     rexml (3.4.4)
@@ -281,6 +285,7 @@ DEPENDENCIES
   puma (>= 5.0)
   rack-cors
   rails (~> 8.0.3)
+  redis
   rspec-rails (~> 7.1)
   rspec-request_describer
   webmock

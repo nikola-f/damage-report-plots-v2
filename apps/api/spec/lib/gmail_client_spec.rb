@@ -6,6 +6,118 @@ RSpec.describe GmailClient do
   let(:access_token) { "ya29.test_access_token" }
   let(:client) { described_class.new(access_token) }
 
+  describe "#consume_quota (via public methods)" do
+    let(:redis) { instance_double(Redis) }
+    let(:user_id) { "user_123" }
+    let(:client_with_redis) { described_class.new(access_token, user_id: user_id, redis: redis) }
+
+    before do
+      stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+        .to_return(status: 200, body: { "threads" => [] }.to_json, headers: { "Content-Type" => "application/json" })
+    end
+
+    context "when redis is nil" do
+      it "skips quota check and calls the API normally" do
+        expect { client.list_threads }.not_to raise_error
+      end
+    end
+
+    context "when within quota limits" do
+      before do
+        allow(redis).to receive(:incrby).with("gmail_quota:project", 5).and_return(5)
+        allow(redis).to receive(:incrby).with("gmail_quota:user:#{user_id}", 5).and_return(5)
+        allow(redis).to receive(:expire)
+      end
+
+      it "calls incrby for both per-project and per-user keys" do
+        client_with_redis.list_threads
+        expect(redis).to have_received(:incrby).with("gmail_quota:project", 5)
+        expect(redis).to have_received(:incrby).with("gmail_quota:user:#{user_id}", 5)
+      end
+    end
+
+    context "on the first call (new key)" do
+      before do
+        allow(redis).to receive(:incrby).and_return(5)  # new_count == units → first call
+        allow(redis).to receive(:expire)
+      end
+
+      it "sets TTL of QUOTA_WINDOW seconds on the key" do
+        client_with_redis.list_threads
+        expect(redis).to have_received(:expire).with("gmail_quota:project", GmailClient::QUOTA_WINDOW)
+        expect(redis).to have_received(:expire).with("gmail_quota:user:#{user_id}", GmailClient::QUOTA_WINDOW)
+      end
+    end
+
+    context "on a subsequent call (key already exists)" do
+      before do
+        allow(redis).to receive(:incrby).and_return(10)  # new_count != units → not first call
+        allow(redis).to receive(:expire)
+      end
+
+      it "does not reset the TTL" do
+        client_with_redis.list_threads
+        expect(redis).not_to have_received(:expire)
+      end
+    end
+
+    context "when per-project quota is exceeded" do
+      before do
+        allow(redis).to receive(:incrby)
+          .with("gmail_quota:project", 5)
+          .and_return(GmailClient::PER_PROJECT_LIMIT + 1)
+        allow(redis).to receive(:expire)
+      end
+
+      it "raises QuotaExceededError" do
+        expect { client_with_redis.list_threads }
+          .to raise_error(GmailClient::QuotaExceededError, /gmail_quota:project/)
+      end
+    end
+
+    context "when per-user quota is exceeded" do
+      before do
+        allow(redis).to receive(:incrby)
+          .with("gmail_quota:project", 5).and_return(100)
+        allow(redis).to receive(:incrby)
+          .with("gmail_quota:user:#{user_id}", 5)
+          .and_return(GmailClient::PER_USER_LIMIT + 1)
+        allow(redis).to receive(:expire)
+      end
+
+      it "raises QuotaExceededError" do
+        expect { client_with_redis.list_threads }
+          .to raise_error(GmailClient::QuotaExceededError, /gmail_quota:user:#{user_id}/)
+      end
+    end
+
+    context "with batch_get_threads" do
+      let(:boundary) { "resp_boundary" }
+      let(:thread) { { "id" => "t1", "messages" => [] } }
+      let(:batch_body) do
+        "--#{boundary}\r\n" \
+        "Content-Type: application/http\r\nContent-ID: response-0\r\n\r\n" \
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n" \
+        "#{thread.to_json}\r\n" \
+        "--#{boundary}--\r\n"
+      end
+
+      before do
+        stub_request(:post, "https://www.googleapis.com/batch/gmail/v1")
+          .to_return(status: 200, body: batch_body,
+                     headers: { "Content-Type" => "multipart/mixed; boundary=#{boundary}" })
+        allow(redis).to receive(:incrby).and_return(5)
+        allow(redis).to receive(:expire)
+      end
+
+      it "consumes quota units proportional to the number of ids" do
+        client_with_redis.batch_get_threads(%w[t1 t2 t3])
+        expect(redis).to have_received(:incrby)
+          .with("gmail_quota:project", GmailClient::QUOTA_UNITS[:batch_get_threads_per_id] * 3)
+      end
+    end
+  end
+
   describe "#list_threads" do
     let(:threads_response) do
       {
