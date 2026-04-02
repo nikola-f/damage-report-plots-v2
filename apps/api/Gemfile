@@ -25,6 +25,9 @@ gem 'nokogiri'
 # Redis for quota management
 gem 'redis'
 
+# AWS SQS client
+gem 'aws-sdk-sqs'
+
 group :test do
   gem 'webmock'
 end
