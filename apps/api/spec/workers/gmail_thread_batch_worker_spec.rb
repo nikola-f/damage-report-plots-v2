@@ -3,7 +3,6 @@
 require "rails_helper"
 
 RSpec.describe GmailThreadBatchWorker do
-  let(:user_id)      { "user_001" }
   let(:access_token) { "ya29.test_token" }
   let(:thread_ids)   { %w[t1 t2 t3] }
 
@@ -15,16 +14,15 @@ RSpec.describe GmailThreadBatchWorker do
     end
 
     it "instantiates GmailThreadBatchFetcher with the correct arguments" do
-      described_class.new.perform(user_id, access_token, thread_ids)
+      described_class.new.perform(access_token, thread_ids)
 
       expect(GmailThreadBatchFetcher).to have_received(:new).with(
-        access_token:,
-        user_id:
+        access_token:
       )
     end
 
     it "calls GmailThreadBatchFetcher#call with thread_ids" do
-      described_class.new.perform(user_id, access_token, thread_ids)
+      described_class.new.perform(access_token, thread_ids)
       expect(fetcher).to have_received(:call).with(thread_ids)
     end
   end

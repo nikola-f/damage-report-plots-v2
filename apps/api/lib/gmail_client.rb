@@ -1,5 +1,6 @@
 require "net/http"
 require "json"
+require "digest"
 
 class GmailClient
   BASE_URL = "https://gmail.googleapis.com/gmail/v1"
@@ -16,9 +17,8 @@ class GmailClient
     batch_get_threads_per_id: 10
   }.freeze
 
-  def initialize(access_token, user_id: nil, redis: nil)
+  def initialize(access_token, redis: nil)
     @access_token = access_token
-    @user_id = user_id
     @redis = redis
   end
 
@@ -73,7 +73,7 @@ class GmailClient
 
     [
       ["gmail_quota:project", PER_PROJECT_LIMIT],
-      ["gmail_quota:user:#{@user_id}", PER_USER_LIMIT]
+      ["gmail_quota:user:#{Digest::SHA256.hexdigest(@access_token)}", PER_USER_LIMIT]
     ].each do |key, limit|
       new_count = @redis.incrby(key, units)
       @redis.expire(key, QUOTA_WINDOW) if new_count == units

@@ -15,7 +15,7 @@ class GmailThreadListFetcher
   def initialize(access_token:, user_id:, email:, gmail_client: nil)
     @user_id      = user_id
     @email        = email
-    @gmail_client = gmail_client || GmailClient.new(access_token, user_id: user_id, redis: REDIS)
+    @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)
   end
 
   # @param q [String, nil] Gmail search query

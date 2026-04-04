@@ -8,14 +8,13 @@
 #
 # @example
 #   threads = GmailThreadBatchFetcher.new(
-#     access_token: token,
-#     user_id:      "user_001"
+#     access_token: token
 #   ).call(["id1", "id2", "id3"])
 class GmailThreadBatchFetcher
   BATCH_SIZE = 100
 
-  def initialize(access_token:, user_id:, gmail_client: nil)
-    @gmail_client = gmail_client || GmailClient.new(access_token, user_id: user_id, redis: REDIS)
+  def initialize(access_token:, gmail_client: nil)
+    @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)
   end
 
   # @param thread_ids [Array<String>]

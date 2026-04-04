@@ -4,11 +4,10 @@ require "rails_helper"
 
 RSpec.describe GmailThreadBatchFetcher do
   let(:access_token) { "ya29.test_token" }
-  let(:user_id)      { "user_001" }
   let(:gmail_client) { instance_double(GmailClient) }
 
   let(:fetcher) do
-    described_class.new(access_token:, user_id:, gmail_client:)
+    described_class.new(access_token:, gmail_client:)
   end
 
   describe "#call" do
