@@ -47,9 +47,10 @@ class SqsClient
   #   Values are typed automatically: Numeric => Number, others => String
   # @return [Array<Aws::SQS::Types::SendMessageBatchResult>]
   def send_messages(thread_ids, attributes: {})
-    sqs_attributes = build_message_attributes(attributes)
+    sqs_attributes  = build_message_attributes(attributes)
+    body_budget     = MAX_MESSAGE_SIZE - message_attributes_size(sqs_attributes)
 
-    chunk_by_size(thread_ids).each_slice(10).map do |batch|
+    chunk_by_size(thread_ids, body_budget).each_slice(10).map do |batch|
       entries = batch.each_with_index.map do |chunk, index|
         body = JSON.generate(chunk)
         {
@@ -120,13 +121,13 @@ class SqsClient
 
   private
 
-  # Groups items into chunks where each chunk's JSON fits within MAX_MESSAGE_SIZE bytes.
-  def chunk_by_size(items)
+  # Groups items into chunks where each chunk's JSON body fits within max_body_size bytes.
+  def chunk_by_size(items, max_body_size = MAX_MESSAGE_SIZE)
     chunks  = []
     current = []
     items.each do |item|
       candidate = current + [item]
-      if JSON.generate(candidate).bytesize > MAX_MESSAGE_SIZE
+      if JSON.generate(candidate).bytesize > max_body_size
         chunks << current unless current.empty?
         current = [item]
       else
@@ -135,6 +136,12 @@ class SqsClient
     end
     chunks << current unless current.empty?
     chunks
+  end
+
+  # Calculates the total byte size of SQS message attributes.
+  # Per AWS docs, each attribute contributes: key + data_type + value sizes.
+  def message_attributes_size(sqs_attributes)
+    sqs_attributes.sum { |key, val| key.bytesize + val[:data_type].bytesize + val[:string_value].bytesize }
   end
 
   def deduplication_id(body)

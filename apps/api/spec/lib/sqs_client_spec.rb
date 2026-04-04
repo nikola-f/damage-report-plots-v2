@@ -144,6 +144,36 @@ RSpec.describe SqsClient do
       end
     end
 
+    context "when attributes reduce the body budget" do
+      # "source"(6) + "String"(6) + "gmail"(5) = 17 bytes of attributes
+      # body budget = 28 - 17 = 11 bytes
+      # JSON.generate(["t1","t2"])      = 11 bytes <= 11 -> fits
+      # JSON.generate(["t1","t2","t3"]) = 16 bytes  > 11 -> splits
+      before { stub_const("SqsClient::MAX_MESSAGE_SIZE", 28) }
+
+      let(:thread_ids) { %w[t1 t2 t3] }
+
+      it "without attributes packs all thread_ids into one message" do
+        allow(aws_client).to receive(:send_message_batch)
+
+        client.send_messages(thread_ids)
+
+        expect(aws_client).to have_received(:send_message_batch).once.with(
+          hash_including(entries: have_attributes(size: 1))
+        )
+      end
+
+      it "with attributes splits when body budget is exceeded" do
+        allow(aws_client).to receive(:send_message_batch)
+
+        client.send_messages(thread_ids, attributes: { "source" => "gmail" })
+
+        expect(aws_client).to have_received(:send_message_batch).once.with(
+          hash_including(entries: have_attributes(size: 2))
+        )
+      end
+    end
+
     context "when chunks exceed 10 (SQS batch API limit)" do
       # Force each thread_id into its own chunk by setting a very small size limit.
       # JSON.generate(["t1"]) = '["t1"]' = 6 bytes
