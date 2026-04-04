@@ -8,36 +8,26 @@ RSpec.describe GmailThreadListFetcher do
   let(:email)        { "user@example.com" }
 
   let(:gmail_client) { instance_double(GmailClient) }
-  let(:sqs_client)   { instance_double(SqsClient) }
 
   let(:fetcher) do
-    described_class.new(
-      access_token:,
-      user_id:,
-      email:,
-      gmail_client:,
-      sqs_client:
-    )
+    described_class.new(access_token:, user_id:, email:, gmail_client:)
   end
 
   describe "#call" do
     context "when there is a single page of results" do
       let(:threads_response) do
         {
-          "threads"           => [{ "id" => "t1" }, { "id" => "t2" }],
+          "threads"            => [{ "id" => "t1" }, { "id" => "t2" }],
           "resultSizeEstimate" => 2
         }
       end
 
       before do
         allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: nil).and_return(threads_response)
-        allow(sqs_client).to receive(:send_messages)
       end
 
-      it "calls send_messages with ReportTask objects for each thread" do
-        fetcher.call
-
-        expect(sqs_client).to have_received(:send_messages).with(
+      it "returns ReportTask objects for each thread" do
+        expect(fetcher.call).to eq(
           [
             ReportTask.new(thread_id: "t1", user_id:, email:),
             ReportTask.new(thread_id: "t2", user_id:, email:)
@@ -60,7 +50,7 @@ RSpec.describe GmailThreadListFetcher do
       end
       let(:page2_response) do
         {
-          "threads"           => [{ "id" => "t3" }],
+          "threads"            => [{ "id" => "t3" }],
           "resultSizeEstimate" => 3
         }
       end
@@ -68,13 +58,10 @@ RSpec.describe GmailThreadListFetcher do
       before do
         allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: nil).and_return(page1_response)
         allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: "token_page2").and_return(page2_response)
-        allow(sqs_client).to receive(:send_messages)
       end
 
-      it "fetches all pages and enqueues all threads" do
-        fetcher.call
-
-        expect(sqs_client).to have_received(:send_messages).with(
+      it "returns ReportTasks for all pages" do
+        expect(fetcher.call).to eq(
           [
             ReportTask.new(thread_id: "t1", user_id:, email:),
             ReportTask.new(thread_id: "t2", user_id:, email:),
@@ -95,7 +82,6 @@ RSpec.describe GmailThreadListFetcher do
 
       before do
         allow(gmail_client).to receive(:list_threads).with(q: query, page_token: nil).and_return(threads_response)
-        allow(sqs_client).to receive(:send_messages)
       end
 
       it "passes q to GmailClient#list_threads" do
@@ -109,13 +95,10 @@ RSpec.describe GmailThreadListFetcher do
 
       before do
         allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: nil).and_return(empty_response)
-        allow(sqs_client).to receive(:send_messages)
       end
 
-      it "returns an empty array without calling send_messages" do
-        result = fetcher.call
-        expect(result).to eq([])
-        expect(sqs_client).not_to have_received(:send_messages)
+      it "returns an empty array" do
+        expect(fetcher.call).to eq([])
       end
     end
 
