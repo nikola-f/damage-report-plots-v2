@@ -47,7 +47,7 @@ class SqsClient
 
     messages.each_slice(10).map do |batch|
       entries = batch.each_with_index.map do |message, index|
-        body = JSON.generate(message.to_h)
+        body = message
         {
           id:                       index.to_s,
           message_body:             body,

@@ -48,11 +48,9 @@ RSpec.describe GmailThreadListWorker do
       )
     end
 
-    it "sends ReportTasks built from thread IDs to SQS" do
+    it "sends thread IDs to SQS" do
       described_class.new.perform(access_token, "2024-01-01")
-      expect(sqs_client).to have_received(:send_messages).with(
-        [ReportTask.new(thread_id: "t1"), ReportTask.new(thread_id: "t2")]
-      )
+      expect(sqs_client).to have_received(:send_messages).with(%w[t1 t2])
     end
 
     context "when there are no thread IDs" do

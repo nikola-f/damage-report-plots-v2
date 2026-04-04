@@ -78,21 +78,15 @@ RSpec.describe SqsClient do
 
   describe "#send_messages" do
     context "with 10 or fewer messages" do
-      let(:tasks) do
-        [
-          ReportTask.new(thread_id: "t1"),
-          ReportTask.new(thread_id: "t2")
-        ]
-      end
+      let(:thread_ids) { %w[t1 t2] }
 
       it "sends a single batch with deduplication_id, group_id, and empty attributes per entry" do
-        expected_entries = tasks.each_with_index.map do |t, i|
-          body = JSON.generate(t.to_h)
+        expected_entries = thread_ids.each_with_index.map do |id, i|
           {
             id:                       i.to_s,
-            message_body:             body,
+            message_body:             id,
             message_group_id:         "default",
-            message_deduplication_id: Digest::SHA256.hexdigest(body),
+            message_deduplication_id: Digest::SHA256.hexdigest(id),
             message_attributes:       {}
           }
         end
@@ -102,13 +96,13 @@ RSpec.describe SqsClient do
           entries:   expected_entries
         )
 
-        client.send_messages(tasks)
+        client.send_messages(thread_ids)
       end
 
       it "applies attributes to every entry in the batch" do
         allow(aws_client).to receive(:send_message_batch)
 
-        client.send_messages(tasks, attributes: { "source" => "gmail", "retry_count" => 0 })
+        client.send_messages(thread_ids, attributes: { "source" => "gmail", "retry_count" => 0 })
 
         expect(aws_client).to have_received(:send_message_batch).with(
           hash_including(
@@ -124,18 +118,18 @@ RSpec.describe SqsClient do
     end
 
     context "with more than 10 messages" do
-      let(:tasks) { Array.new(25) { |i| ReportTask.new(thread_id: "t#{i}") } }
+      let(:thread_ids) { Array.new(25) { |i| "t#{i}" } }
 
       it "splits into multiple batches of up to 10" do
         expect(aws_client).to receive(:send_message_batch).exactly(3).times
 
-        client.send_messages(tasks)
+        client.send_messages(thread_ids)
       end
 
       it "resets entry IDs within each batch" do
         allow(aws_client).to receive(:send_message_batch)
 
-        client.send_messages(tasks)
+        client.send_messages(thread_ids)
 
         expect(aws_client).to have_received(:send_message_batch).with(
           hash_including(entries: include(hash_including(id: "0"), hash_including(id: "9")))
