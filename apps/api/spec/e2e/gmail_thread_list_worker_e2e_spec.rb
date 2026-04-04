@@ -49,7 +49,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
   end
 
   describe "#perform" do
-    it "fetches Gmail threads matching the query and enqueues ReportTasks to SQS" do
+    it "fetches Gmail threads matching the query and enqueues thread IDs to SQS as a JSON array" do
       described_class.new.perform(access_token, (Date.today - 7).iso8601)
 
       messages = sqs.receive_message(
@@ -59,8 +59,9 @@ RSpec.describe GmailThreadListWorker, :e2e do
 
       expect(messages).not_to be_empty
 
-      task = JSON.parse(messages.first.body)
-      expect(task["thread_id"]).to be_present
+      thread_ids = JSON.parse(messages.first.body)
+      expect(thread_ids).to be_an(Array)
+      expect(thread_ids.first).to be_present
     end
 
     it "increments Redis quota counters" do

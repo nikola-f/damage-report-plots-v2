@@ -6,6 +6,7 @@ require "json"
 
 class SqsClient
   MAX_RECEIVE_MESSAGES = 1_000
+  MAX_MESSAGE_SIZE     = 256 * 1024 # SQS per-message size limit in bytes
 
   # @param queue_url [String] SQS FIFO queue URL (must end with .fifo)
   # @param message_group_id [String] FIFO message group ID for ordering
@@ -36,18 +37,21 @@ class SqsClient
     )
   end
 
-  # Sends multiple messages to SQS FIFO queue, batching automatically in groups of 10.
+  # Sends multiple thread IDs to SQS FIFO queue.
+  # Packs thread IDs into JSON arrays to minimize the number of SQS messages.
+  # Splits into multiple messages when a chunk would exceed MAX_MESSAGE_SIZE.
+  # SQS API calls are batched in groups of 10.
   #
-  # @param messages [Array<#to_h>] Array of value objects
+  # @param thread_ids [Array<String>] Thread IDs to enqueue
   # @param attributes [Hash] optional metadata applied to every message ({ "key" => value, ... })
   #   Values are typed automatically: Numeric => Number, others => String
   # @return [Array<Aws::SQS::Types::SendMessageBatchResult>]
-  def send_messages(messages, attributes: {})
+  def send_messages(thread_ids, attributes: {})
     sqs_attributes = build_message_attributes(attributes)
 
-    messages.each_slice(10).map do |batch|
-      entries = batch.each_with_index.map do |message, index|
-        body = message
+    chunk_by_size(thread_ids).each_slice(10).map do |batch|
+      entries = batch.each_with_index.map do |chunk, index|
+        body = JSON.generate(chunk)
         {
           id: index.to_s,
           message_body: body,
@@ -115,6 +119,23 @@ class SqsClient
   class SendError < StandardError; end
 
   private
+
+  # Groups items into chunks where each chunk's JSON fits within MAX_MESSAGE_SIZE bytes.
+  def chunk_by_size(items)
+    chunks  = []
+    current = []
+    items.each do |item|
+      candidate = current + [item]
+      if JSON.generate(candidate).bytesize > MAX_MESSAGE_SIZE
+        chunks << current unless current.empty?
+        current = [item]
+      else
+        current = candidate
+      end
+    end
+    chunks << current unless current.empty?
+    chunks
+  end
 
   def deduplication_id(body)
     Digest::SHA256.hexdigest(body)

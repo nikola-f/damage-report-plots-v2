@@ -77,29 +77,27 @@ RSpec.describe SqsClient do
   end
 
   describe "#send_messages" do
-    context "with 10 or fewer messages" do
-      let(:thread_ids) { %w[t1 t2] }
+    context "when all thread_ids fit within MAX_MESSAGE_SIZE" do
+      let(:thread_ids) { %w[t1 t2 t3] }
 
-      it "sends a single batch with deduplication_id, group_id, and empty attributes per entry" do
-        expected_entries = thread_ids.each_with_index.map do |id, i|
-          {
-            id: i.to_s,
-            message_body: id,
-            message_group_id: "default",
-            message_deduplication_id: Digest::SHA256.hexdigest(id),
-            message_attributes: {}
-          }
-        end
+      it "packs all thread_ids into a single SQS message as a JSON array" do
+        body = JSON.generate(thread_ids)
 
         expect(aws_client).to receive(:send_message_batch).once.with(
           queue_url: queue_url,
-          entries: expected_entries
+          entries: [{
+            id: "0",
+            message_body: body,
+            message_group_id: "default",
+            message_deduplication_id: Digest::SHA256.hexdigest(body),
+            message_attributes: {}
+          }]
         )
 
         client.send_messages(thread_ids)
       end
 
-      it "applies attributes to every entry in the batch" do
+      it "applies attributes to the message" do
         allow(aws_client).to receive(:send_message_batch)
 
         client.send_messages(thread_ids, attributes: { "source" => "gmail", "retry_count" => 0 })
@@ -117,10 +115,43 @@ RSpec.describe SqsClient do
       end
     end
 
-    context "with more than 10 messages" do
-      let(:thread_ids) { Array.new(25) { |i| "t#{i}" } }
+    context "when thread_ids exceed MAX_MESSAGE_SIZE" do
+      # JSON.generate(["t1","t2"]) = '["t1","t2"]' = 11 bytes > 10
+      # JSON.generate(["t1"])      = '["t1"]'       =  6 bytes <= 10
+      before { stub_const("SqsClient::MAX_MESSAGE_SIZE", 10) }
 
-      it "splits into multiple batches of up to 10" do
+      let(:thread_ids) { %w[t1 t2 t3] }
+
+      it "splits into multiple SQS messages, each within the size limit" do
+        allow(aws_client).to receive(:send_message_batch)
+
+        client.send_messages(thread_ids)
+
+        expect(aws_client).to have_received(:send_message_batch).once.with(
+          hash_including(entries: have_attributes(size: 3))
+        )
+      end
+
+      it "each message body is a JSON array within the size limit" do
+        allow(aws_client).to receive(:send_message_batch) do |args|
+          args[:entries].each do |entry|
+            expect(entry[:message_body].bytesize).to be <= 10
+            expect(JSON.parse(entry[:message_body])).to be_an(Array)
+          end
+        end
+
+        client.send_messages(thread_ids)
+      end
+    end
+
+    context "when chunks exceed 10 (SQS batch API limit)" do
+      # Force each thread_id into its own chunk by setting a very small size limit.
+      # JSON.generate(["t1"]) = '["t1"]' = 6 bytes
+      before { stub_const("SqsClient::MAX_MESSAGE_SIZE", 6) }
+
+      let(:thread_ids) { Array.new(25) { |i| format("t%02d", i) } }
+
+      it "batches SQS API calls in groups of 10 chunks" do
         expect(aws_client).to receive(:send_message_batch).exactly(3).times
 
         client.send_messages(thread_ids)
