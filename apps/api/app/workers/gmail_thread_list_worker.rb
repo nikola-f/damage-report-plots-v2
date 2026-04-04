@@ -27,7 +27,7 @@ class GmailThreadListWorker
       subject: "Ingress Damage Report: Entities attacked by",
       after_date: after,
       before_date: before,
-      from: ["ingress-support@google.com", "ingress-support@nianticlabs.com"],
+      from: ["ingress-support@google.com", "ingress-support@nianticlabs.com", "ingress-support@nianticspatial.com"],
       smaller: "200K"
     )
   end

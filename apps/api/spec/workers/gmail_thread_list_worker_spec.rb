@@ -20,7 +20,8 @@ RSpec.describe GmailThreadListWorker do
       expect(fetcher).to have_received(:call).with(
         q: "subject:Ingress Damage Report: Entities attacked by " \
            "after:2024/01/01 before:2025/01/01 " \
-           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com} " \
+           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
+           "from:ingress-support@nianticspatial.com} " \
            "smaller:200K"
       )
     end
@@ -30,7 +31,19 @@ RSpec.describe GmailThreadListWorker do
       expect(fetcher).to have_received(:call).with(
         q: "subject:Ingress Damage Report: Entities attacked by " \
            "after:2024/02/29 before:2025/02/28 " \
-           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com} " \
+           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
+           "from:ingress-support@nianticspatial.com} " \
+           "smaller:200K"
+      )
+    end
+
+    it "defaults after_date to 2012-10-15 when nil" do
+      described_class.new.perform(access_token, nil)
+      expect(fetcher).to have_received(:call).with(
+        q: "subject:Ingress Damage Report: Entities attacked by " \
+           "after:2012/10/15 before:2013/10/15 " \
+           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
+           "from:ingress-support@nianticspatial.com} " \
            "smaller:200K"
       )
     end
