@@ -22,7 +22,7 @@ RSpec.describe GmailThreadListWorker do
            "after:2024/01/01 before:2025/01/01 " \
            "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
            "from:ingress-support@nianticspatial.com} " \
-           "smaller:200K"
+           "smaller:100K"
       )
     end
 
@@ -33,7 +33,7 @@ RSpec.describe GmailThreadListWorker do
            "after:2024/02/29 before:2025/02/28 " \
            "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
            "from:ingress-support@nianticspatial.com} " \
-           "smaller:200K"
+           "smaller:100K"
       )
     end
 
@@ -44,7 +44,7 @@ RSpec.describe GmailThreadListWorker do
            "after:2012/10/15 before:2013/10/15 " \
            "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
            "from:ingress-support@nianticspatial.com} " \
-           "smaller:200K"
+           "smaller:100K"
       )
     end
 
