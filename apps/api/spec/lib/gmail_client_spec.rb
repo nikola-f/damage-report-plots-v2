@@ -13,6 +13,7 @@ RSpec.describe GmailClient do
 
     before do
       stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+        .with(query: hash_including("fields" => "threads/id,nextPageToken"))
         .to_return(status: 200, body: { "threads" => [] }.to_json, headers: { "Content-Type" => "application/json" })
     end
 
@@ -132,6 +133,7 @@ RSpec.describe GmailClient do
 
     before do
       stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+        .with(query: hash_including("fields" => "threads/id,nextPageToken"))
         .to_return(
           status: 200,
           body: threads_response.to_json,
@@ -150,7 +152,16 @@ RSpec.describe GmailClient do
     it "sends Authorization header with Bearer token" do
       client.list_threads
       expect(WebMock).to have_requested(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
-        .with(headers: { "Authorization" => "Bearer ya29.test_access_token" })
+        .with(
+          query: hash_including("fields" => "threads/id,nextPageToken"),
+          headers: { "Authorization" => "Bearer ya29.test_access_token" }
+        )
+    end
+
+    it "sends fields parameter to limit response fields" do
+      client.list_threads
+      expect(WebMock).to have_requested(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+        .with(query: hash_including("fields" => "threads/id,nextPageToken"))
     end
 
     context "with q parameter" do
@@ -184,6 +195,7 @@ RSpec.describe GmailClient do
     context "when API returns 401" do
       before do
         stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+          .with(query: hash_including("fields" => "threads/id,nextPageToken"))
           .to_return(
             status: 401,
             body: { "error" => { "code" => 401, "message" => "Invalid Credentials" } }.to_json,
@@ -199,6 +211,7 @@ RSpec.describe GmailClient do
     context "when API returns 403" do
       before do
         stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+          .with(query: hash_including("fields" => "threads/id,nextPageToken"))
           .to_return(
             status: 403,
             body: { "error" => { "code" => 403, "message" => "Insufficient Permission" } }.to_json,

@@ -33,7 +33,8 @@ class GmailClient
 
     params = {
       q: q,
-      pageToken: page_token
+      pageToken: page_token,
+      fields: "threads/id,nextPageToken"
     }.compact
 
     get("/users/me/threads", params)
