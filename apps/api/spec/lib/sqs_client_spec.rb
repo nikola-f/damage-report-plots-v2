@@ -7,7 +7,7 @@ RSpec.describe SqsClient do
   let(:queue_url)        { "https://sqs.ap-northeast-1.amazonaws.com/123456789012/test-queue.fifo" }
   let(:aws_client)       { instance_double(Aws::SQS::Client) }
   let(:client)           { described_class.new(queue_url, client: aws_client) }
-  let(:task)             { ReportTask.new(thread_id: "thread_001", user_id: "user_001", email: "user@example.com") }
+  let(:task)             { ReportTask.new(thread_id: "thread_001") }
   let(:task_body)        { JSON.generate(task.to_h) }
   let(:task_dedup_id)    { Digest::SHA256.hexdigest(task_body) }
 
@@ -80,8 +80,8 @@ RSpec.describe SqsClient do
     context "with 10 or fewer messages" do
       let(:tasks) do
         [
-          ReportTask.new(thread_id: "t1", user_id: "u1", email: "a@example.com"),
-          ReportTask.new(thread_id: "t2", user_id: "u2", email: "b@example.com")
+          ReportTask.new(thread_id: "t1"),
+          ReportTask.new(thread_id: "t2")
         ]
       end
 
@@ -124,7 +124,7 @@ RSpec.describe SqsClient do
     end
 
     context "with more than 10 messages" do
-      let(:tasks) { Array.new(25) { |i| ReportTask.new(thread_id: "t#{i}", user_id: "u#{i}", email: "u#{i}@example.com") } }
+      let(:tasks) { Array.new(25) { |i| ReportTask.new(thread_id: "t#{i}") } }
 
       it "splits into multiple batches of up to 10" do
         expect(aws_client).to receive(:send_message_batch).exactly(3).times

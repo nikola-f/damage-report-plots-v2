@@ -5,19 +5,14 @@ class GmailThreadListWorker
 
   sidekiq_options retry: 3
 
-  # @param user_id      [String]
-  # @param email        [String]
   # @param access_token [String] Google OAuth access token
   # @param q            [String, nil] Gmail search query
-  def perform(user_id, email, access_token, q = nil)
-    tasks = GmailThreadListFetcher.new(
-      access_token:,
-      user_id:,
-      email:
-    ).call(q:)
+  def perform(access_token, q = nil)
+    thread_ids = GmailThreadListFetcher.new(access_token:).call(q:)
 
-    return if tasks.empty?
+    return if thread_ids.empty?
 
+    tasks = thread_ids.map { |id| ReportTask.new(thread_id: id) }
     SqsClient.new(ENV.fetch("SQS_REPORT_QUEUE_URL")).send_messages(tasks)
   end
 end

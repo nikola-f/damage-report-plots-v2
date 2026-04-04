@@ -1,29 +1,23 @@
 # frozen_string_literal: true
 
-# Fetches all Gmail threads matching a query and returns them as ReportTask objects.
+# Fetches all Gmail thread IDs matching a query.
 #
 # Designed to be called from a Sidekiq Worker (not from a request cycle).
 # Handles Gmail pagination internally — all pages are fetched before returning.
 #
 # @example
-#   tasks = GmailThreadListFetcher.new(
-#     access_token: token,
-#     user_id:      "user_001",
-#     email:        "user@example.com"
+#   thread_ids = GmailThreadListFetcher.new(
+#     access_token: token
 #   ).call(q: "subject:damage report after:2024/01/01")
 class GmailThreadListFetcher
-  def initialize(access_token:, user_id:, email:, gmail_client: nil)
-    @user_id      = user_id
-    @email        = email
+  def initialize(access_token:, gmail_client: nil)
     @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)
   end
 
   # @param q [String, nil] Gmail search query
-  # @return [Array<ReportTask>]
+  # @return [Array<String>] thread IDs
   def call(q: nil)
-    fetch_all_threads(q:).map do |thread|
-      ReportTask.new(thread_id: thread["id"], user_id: @user_id, email: @email)
-    end
+    fetch_all_threads(q:).map { |thread| thread["id"] }
   end
 
   private

@@ -4,14 +4,8 @@ require "rails_helper"
 
 RSpec.describe GmailThreadListFetcher do
   let(:access_token) { "ya29.test_token" }
-  let(:user_id)      { "user_001" }
-  let(:email)        { "user@example.com" }
-
   let(:gmail_client) { instance_double(GmailClient) }
-
-  let(:fetcher) do
-    described_class.new(access_token:, user_id:, email:, gmail_client:)
-  end
+  let(:fetcher)      { described_class.new(access_token:, gmail_client:) }
 
   describe "#call" do
     context "when there is a single page of results" do
@@ -26,13 +20,8 @@ RSpec.describe GmailThreadListFetcher do
         allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: nil).and_return(threads_response)
       end
 
-      it "returns ReportTask objects for each thread" do
-        expect(fetcher.call).to eq(
-          [
-            ReportTask.new(thread_id: "t1", user_id:, email:),
-            ReportTask.new(thread_id: "t2", user_id:, email:)
-          ]
-        )
+      it "returns thread IDs" do
+        expect(fetcher.call).to eq(%w[t1 t2])
       end
 
       it "fetches only one page" do
@@ -60,14 +49,8 @@ RSpec.describe GmailThreadListFetcher do
         allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: "token_page2").and_return(page2_response)
       end
 
-      it "returns ReportTasks for all pages" do
-        expect(fetcher.call).to eq(
-          [
-            ReportTask.new(thread_id: "t1", user_id:, email:),
-            ReportTask.new(thread_id: "t2", user_id:, email:),
-            ReportTask.new(thread_id: "t3", user_id:, email:)
-          ]
-        )
+      it "returns thread IDs from all pages" do
+        expect(fetcher.call).to eq(%w[t1 t2 t3])
       end
 
       it "fetches exactly two pages" do

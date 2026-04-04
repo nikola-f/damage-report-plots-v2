@@ -4,10 +4,6 @@
 # Serialized to JSON and queued to SQS for downstream processing.
 #
 # @example
-#   task = ReportTask.new(
-#     thread_id: "abc123",
-#     user_id:   "user_001",
-#     email:     "user@example.com"
-#   )
-#   task.to_h  # => { thread_id: "abc123", user_id: "user_001", email: "user@example.com" }
-ReportTask = Data.define(:thread_id, :user_id, :email)
+#   task = ReportTask.new(thread_id: "abc123")
+#   task.to_h  # => { thread_id: "abc123" }
+ReportTask = Data.define(:thread_id)
