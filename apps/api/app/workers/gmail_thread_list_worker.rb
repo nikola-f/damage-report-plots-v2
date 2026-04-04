@@ -28,7 +28,7 @@ class GmailThreadListWorker
       after_date: after,
       before_date: before,
       from: ["ingress-support@google.com", "ingress-support@nianticlabs.com", "ingress-support@nianticspatial.com"],
-      smaller: "200K"
+      smaller: "100K"
     )
   end
 end
