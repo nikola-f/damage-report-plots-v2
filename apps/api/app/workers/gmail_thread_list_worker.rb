@@ -21,7 +21,7 @@ class GmailThreadListWorker
   private
 
   def build_query(after_date)
-    after  = Date.parse(after_date)
+    after  = Date.parse(after_date || "2012-10-15")
     before = after >> 12
     GmailSearchQuery.new(
       subject: "Ingress Damage Report: Entities attacked by",
