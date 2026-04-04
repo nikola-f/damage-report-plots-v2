@@ -25,6 +25,9 @@ gem 'nokogiri'
 # Redis for quota management
 gem 'redis'
 
+# Background job processing
+gem 'sidekiq'
+
 # AWS SQS client
 gem 'aws-sdk-sqs'
 

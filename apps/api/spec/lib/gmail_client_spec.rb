@@ -24,21 +24,21 @@ RSpec.describe GmailClient do
 
     context "when within quota limits" do
       before do
-        allow(redis).to receive(:incrby).with("gmail_quota:project", 5).and_return(5)
-        allow(redis).to receive(:incrby).with("gmail_quota:user:#{user_id}", 5).and_return(5)
+        allow(redis).to receive(:incrby).with("gmail_quota:project", 10).and_return(10)
+        allow(redis).to receive(:incrby).with("gmail_quota:user:#{user_id}", 10).and_return(10)
         allow(redis).to receive(:expire)
       end
 
       it "calls incrby for both per-project and per-user keys" do
         client_with_redis.list_threads
-        expect(redis).to have_received(:incrby).with("gmail_quota:project", 5)
-        expect(redis).to have_received(:incrby).with("gmail_quota:user:#{user_id}", 5)
+        expect(redis).to have_received(:incrby).with("gmail_quota:project", 10)
+        expect(redis).to have_received(:incrby).with("gmail_quota:user:#{user_id}", 10)
       end
     end
 
     context "on the first call (new key)" do
       before do
-        allow(redis).to receive(:incrby).and_return(5)  # new_count == units → first call
+        allow(redis).to receive(:incrby).and_return(10)  # new_count == units → first call
         allow(redis).to receive(:expire)
       end
 
@@ -51,7 +51,7 @@ RSpec.describe GmailClient do
 
     context "on a subsequent call (key already exists)" do
       before do
-        allow(redis).to receive(:incrby).and_return(10)  # new_count != units → not first call
+        allow(redis).to receive(:incrby).and_return(20)  # new_count != units → not first call
         allow(redis).to receive(:expire)
       end
 
@@ -64,7 +64,7 @@ RSpec.describe GmailClient do
     context "when per-project quota is exceeded" do
       before do
         allow(redis).to receive(:incrby)
-          .with("gmail_quota:project", 5)
+          .with("gmail_quota:project", 10)
           .and_return(GmailClient::PER_PROJECT_LIMIT + 1)
         allow(redis).to receive(:expire)
       end
@@ -78,9 +78,9 @@ RSpec.describe GmailClient do
     context "when per-user quota is exceeded" do
       before do
         allow(redis).to receive(:incrby)
-          .with("gmail_quota:project", 5).and_return(100)
+          .with("gmail_quota:project", 10).and_return(100)
         allow(redis).to receive(:incrby)
-          .with("gmail_quota:user:#{user_id}", 5)
+          .with("gmail_quota:user:#{user_id}", 10)
           .and_return(GmailClient::PER_USER_LIMIT + 1)
         allow(redis).to receive(:expire)
       end
