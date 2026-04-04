@@ -1,45 +1,45 @@
 # frozen_string_literal: true
 
-source 'https://rubygems.org'
+source "https://rubygems.org"
 
-ruby '3.4.4'
+ruby "3.4.4"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem 'rails', '~> 8.0.3'
+gem "rails", "~> 8.0.3"
 # Use the Puma web server [https://github.com/puma/puma]
-gem 'puma', '>= 5.0'
+gem "puma", ">= 5.0"
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
-gem 'rack-cors'
+gem "rack-cors"
 
 # JWT for stateless authentication
-gem 'jwt'
+gem "jwt"
 
 # Google OAuth2 authentication
-gem 'omniauth-google-oauth2'
-gem 'omniauth-rails_csrf_protection'
+gem "omniauth-google-oauth2"
+gem "omniauth-rails_csrf_protection"
 
 # HTML parsing
-gem 'nokogiri'
+gem "nokogiri"
 
 # Redis for quota management
-gem 'redis'
+gem "redis"
 
 # Background job processing
-gem 'sidekiq'
+gem "sidekiq"
 
 # AWS SQS client
-gem 'aws-sdk-sqs'
+gem "aws-sdk-sqs"
 
 group :test do
-  gem 'webmock'
+  gem "webmock"
 end
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
-  gem 'debug', platforms: %i[mri windows], require: 'debug/prelude'
+  gem "debug", platforms: %i[mri windows], require: "debug/prelude"
   # RSpec testing framework for Rails
-  gem 'rspec-rails', '~> 7.1'
+  gem "rspec-rails", "~> 7.1"
   # Automatically generate descriptions for RSpec request specs
-  gem 'rspec-request_describer'
+  gem "rspec-request_describer"
 end

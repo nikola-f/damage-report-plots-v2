@@ -10,16 +10,16 @@ class SessionsController < ApplicationController
 
   def google_callback
     # Get OAuth data from OmniAuth
-    auth = request.env['omniauth.auth']
+    auth = request.env["omniauth.auth"]
 
-    return render json: { error: 'Authentication failed' }, status: :unauthorized unless auth
+    return render json: { error: "Authentication failed" }, status: :unauthorized unless auth
 
     # Extract user info from Google
     user_info = {
-      google_id: auth['uid'],
-      email: auth['info']['email'],
-      name: auth['info']['name'],
-      picture: auth['info']['image']
+      google_id: auth["uid"],
+      email: auth["info"]["email"],
+      name: auth["info"]["name"],
+      picture: auth["info"]["image"]
     }
 
     # Create JWT access token (15 minutes)
@@ -33,7 +33,7 @@ class SessionsController < ApplicationController
     # Return tokens and user info
     render json: {
       access_token: access_token,
-      token_type: 'Bearer',
+      token_type: "Bearer",
       expires_in: 900, # 15 minutes in seconds
       user: {
         id: user_info[:google_id],
@@ -42,25 +42,25 @@ class SessionsController < ApplicationController
         picture: user_info[:picture]
       },
       google_tokens: {
-        access_token: auth['credentials']['token'],
-        refresh_token: auth['credentials']['refresh_token'],
-        expires_at: auth['credentials']['expires_at']
+        access_token: auth["credentials"]["token"],
+        refresh_token: auth["credentials"]["refresh_token"],
+        expires_at: auth["credentials"]["expires_at"]
       }
     }, status: :ok
   rescue StandardError => e
-    render json: { error: 'Authentication failed', message: e.message }, status: :unprocessable_entity
+    render json: { error: "Authentication failed", message: e.message }, status: :unprocessable_entity
   end
 
   def logout
     # Since JWT is stateless, just return success
     # Client should delete tokens
-    render json: { message: 'Logged out successfully' }, status: :ok
+    render json: { message: "Logged out successfully" }, status: :ok
   end
 
   def failure
     # OmniAuth failure callback
     render json: {
-      error: 'Authentication failed',
+      error: "Authentication failed",
       message: params[:message],
       strategy: params[:strategy]
     }, status: :unauthorized

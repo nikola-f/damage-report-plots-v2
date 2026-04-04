@@ -6,7 +6,7 @@ module RequestHelpers
   end
 
   def auth_header(token)
-    { 'Authorization' => "Bearer #{token}" }
+    { "Authorization" => "Bearer #{token}" }
   end
 
   def authenticated_get(path, token)

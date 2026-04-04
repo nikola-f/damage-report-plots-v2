@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "base64"
 require "nokogiri"
 
@@ -15,6 +17,7 @@ class EmailHtmlDecoder
   def extract(xpath, attr: nil)
     node = @doc.xpath(xpath).first
     return nil if node.nil?
+
     attr ? node[attr] : node.xpath("text()").map(&:text).join
   rescue Nokogiri::XML::XPath::SyntaxError => e
     raise ParseError, "Invalid XPath expression: #{e.message}"
@@ -31,6 +34,7 @@ class EmailHtmlDecoder
   def extract_node(xpath, &block)
     node = @doc.xpath(xpath).first
     return nil if node.nil?
+
     block.call(Node.new(node))
   rescue Nokogiri::XML::XPath::SyntaxError => e
     raise ParseError, "Invalid XPath expression: #{e.message}"
@@ -53,6 +57,7 @@ class EmailHtmlDecoder
     def extract(xpath, attr: nil)
       child = @node.xpath(xpath).first
       return nil if child.nil?
+
       attr ? child[attr] : child.xpath("text()").map(&:text).join
     rescue Nokogiri::XML::XPath::SyntaxError => e
       raise EmailHtmlDecoder::ParseError, "Invalid XPath expression: #{e.message}"

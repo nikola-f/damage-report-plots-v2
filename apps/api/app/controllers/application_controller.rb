@@ -7,10 +7,10 @@ class ApplicationController < ActionController::API
   private
 
   def unauthorized_response
-    render json: { error: 'Unauthorized - Invalid token' }, status: :unauthorized
+    render json: { error: "Unauthorized - Invalid token" }, status: :unauthorized
   end
 
   def token_expired_response
-    render json: { error: 'Unauthorized - Token expired' }, status: :unauthorized
+    render json: { error: "Unauthorized - Token expired" }, status: :unauthorized
   end
 end

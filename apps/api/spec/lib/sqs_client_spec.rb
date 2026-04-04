@@ -14,11 +14,11 @@ RSpec.describe SqsClient do
   describe "#send_message" do
     it "sends message with deduplication_id, group_id, and empty attributes" do
       expect(aws_client).to receive(:send_message).with(
-        queue_url:                queue_url,
-        message_body:             task_body,
-        message_group_id:         "default",
+        queue_url: queue_url,
+        message_body: task_body,
+        message_group_id: "default",
         message_deduplication_id: task_dedup_id,
-        message_attributes:       {}
+        message_attributes: {}
       )
 
       client.send_message(task)
@@ -53,7 +53,7 @@ RSpec.describe SqsClient do
         expect(aws_client).to receive(:send_message).with(
           hash_including(
             message_attributes: {
-              "source"      => { data_type: "String", string_value: "gmail" },
+              "source" => { data_type: "String", string_value: "gmail" },
               "retry_count" => { data_type: "Number", string_value: "0" }
             }
           )
@@ -83,17 +83,17 @@ RSpec.describe SqsClient do
       it "sends a single batch with deduplication_id, group_id, and empty attributes per entry" do
         expected_entries = thread_ids.each_with_index.map do |id, i|
           {
-            id:                       i.to_s,
-            message_body:             id,
-            message_group_id:         "default",
+            id: i.to_s,
+            message_body: id,
+            message_group_id: "default",
             message_deduplication_id: Digest::SHA256.hexdigest(id),
-            message_attributes:       {}
+            message_attributes: {}
           }
         end
 
         expect(aws_client).to receive(:send_message_batch).once.with(
           queue_url: queue_url,
-          entries:   expected_entries
+          entries: expected_entries
         )
 
         client.send_messages(thread_ids)
@@ -108,9 +108,9 @@ RSpec.describe SqsClient do
           hash_including(
             entries: include(
               hash_including(message_attributes: {
-                "source"      => { data_type: "String", string_value: "gmail" },
-                "retry_count" => { data_type: "Number", string_value: "0" }
-              })
+                               "source" => { data_type: "String", string_value: "gmail" },
+                               "retry_count" => { data_type: "Number", string_value: "0" }
+                             })
             )
           )
         )
@@ -141,9 +141,8 @@ RSpec.describe SqsClient do
   describe "#receive_messages" do
     def build_message(n)
       instance_double(Aws::SQS::Types::Message,
-        body:           JSON.generate({ index: n }),
-        receipt_handle: "receipt-handle-#{n}"
-      )
+                      body: JSON.generate({ index: n }),
+                      receipt_handle: "receipt-handle-#{n}")
     end
 
     def build_response(*messages)
@@ -155,9 +154,9 @@ RSpec.describe SqsClient do
       msgs = Array.new(10) { |i| build_message(i) }
 
       expect(aws_client).to receive(:receive_message).once.with(
-        queue_url:              queue_url,
+        queue_url: queue_url,
         max_number_of_messages: 10,
-        wait_time_seconds:      20
+        wait_time_seconds: 20
       ).and_return(build_response(*msgs))
 
       expect(client.receive_messages).to eq(msgs)
@@ -199,9 +198,9 @@ RSpec.describe SqsClient do
         msg = build_message(1)
 
         expect(aws_client).to receive(:receive_message).once
-          .and_return(build_response(msg))
+                                                       .and_return(build_response(msg))
         expect(aws_client).to receive(:receive_message).once
-          .and_return(build_response)
+                                                       .and_return(build_response)
 
         result = client.receive_messages
         expect(result).to eq([msg])
@@ -214,7 +213,7 @@ RSpec.describe SqsClient do
       it "deletes the message" do
         expect(aws_client).to receive(:delete_message_batch).with(
           queue_url: queue_url,
-          entries:   [{ id: "0", receipt_handle: "handle-001" }]
+          entries: [{ id: "0", receipt_handle: "handle-001" }]
         )
 
         client.delete_messages("handle-001")
@@ -239,7 +238,7 @@ RSpec.describe SqsClient do
       it "deletes all messages in a single batch" do
         expect(aws_client).to receive(:delete_message_batch).once
 
-        client.delete_messages(["handle-001", "handle-002"])
+        client.delete_messages(%w[handle-001 handle-002])
       end
     end
 

@@ -23,8 +23,8 @@ GmailSearchQuery = Data.define(:subject, :after_date, :before_date, :from, :smal
     parts << "subject:#{subject}"                         if subject
     parts << "after:#{after_date.strftime("%Y/%m/%d")}"   if after_date
     parts << "before:#{before_date.strftime("%Y/%m/%d")}" if before_date
-    parts << from_query                                    if from.any?
-    parts << "smaller:#{smaller}"                         if smaller
+    parts << from_query if from.any?
+    parts << "smaller:#{smaller}" if smaller
     parts.empty? ? nil : parts.join(" ")
   end
 

@@ -109,9 +109,9 @@ RSpec.describe GoogleAuthorizationCodeFlow do
       end
 
       it "raises FetchError" do
-        expect {
+        expect do
           described_class.fetch(code: "expired_code", redirect_uri: "https://example.com/callback")
-        }.to raise_error(GoogleAuthorizationCodeFlow::FetchError)
+        end.to raise_error(GoogleAuthorizationCodeFlow::FetchError)
       end
     end
   end

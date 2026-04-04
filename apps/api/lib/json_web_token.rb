@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 class JsonWebToken
-  ALGORITHM = 'HS256'
+  ALGORITHM = "HS256"
 
   class << self
     def encode(payload, exp = 15.minutes.from_now)
       payload[:exp] = exp.to_i
       payload[:iat] = Time.now.to_i
-      payload[:iss] = 'damage-report-api'
+      payload[:iss] = "damage-report-api"
 
       JWT.encode(payload, secret_key, ALGORITHM)
     end
@@ -30,7 +30,7 @@ class JsonWebToken
     def encode_refresh_token(payload, exp = 7.days.from_now)
       payload[:exp] = exp.to_i
       payload[:iat] = Time.now.to_i
-      payload[:type] = 'refresh'
+      payload[:type] = "refresh"
 
       JWT.encode(payload, refresh_secret_key, ALGORITHM)
     end

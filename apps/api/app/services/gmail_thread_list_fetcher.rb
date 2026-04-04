@@ -27,7 +27,7 @@ class GmailThreadListFetcher
     page_token = nil
 
     loop do
-      response   = @gmail_client.list_threads(q:, page_token:)
+      response = @gmail_client.list_threads(q:, page_token:)
       threads.concat(response["threads"] || [])
       page_token = response["nextPageToken"]
       break unless page_token

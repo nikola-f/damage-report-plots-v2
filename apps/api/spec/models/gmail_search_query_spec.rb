@@ -55,11 +55,11 @@ RSpec.describe GmailSearchQuery do
     context "with all fields specified" do
       it "returns all criteria joined by space in order" do
         query = described_class.new(
-          subject:     "damage report",
-          after_date:  Date.new(2024, 1, 1),
+          subject: "damage report",
+          after_date: Date.new(2024, 1, 1),
           before_date: Date.new(2024, 12, 31),
-          from:        ["a@example.com", "b@example.com"],
-          smaller:     "10m"
+          from: ["a@example.com", "b@example.com"],
+          smaller: "10m"
         )
         expect(query.to_s).to eq(
           "subject:damage report after:2024/01/01 before:2024/12/31 " \

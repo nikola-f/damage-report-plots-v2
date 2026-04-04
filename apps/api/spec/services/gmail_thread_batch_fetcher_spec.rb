@@ -42,7 +42,7 @@ RSpec.describe GmailThreadBatchFetcher do
     end
 
     context "when thread_ids exceeds BATCH_SIZE" do
-      let(:all_ids)    { (1..150).map { |i| "t#{i}" } }
+      let(:all_ids) { (1..150).map { |i| "t#{i}" } }
       let(:first_batch)  { all_ids[0..99] }
       let(:second_batch) { all_ids[100..149] }
       let(:first_threads)  { first_batch.map  { |id| { "id" => id, "messages" => [] } } }

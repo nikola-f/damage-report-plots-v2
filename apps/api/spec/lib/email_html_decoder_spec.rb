@@ -78,7 +78,9 @@ RSpec.describe EmailHtmlDecoder do
   end
 
   describe "#extract_node" do
-    let(:html) { "<ul><li><span>Title</span><a href=\"https://example.com\">Link</a></li><li><span>Other</span><a href=\"https://other.com\">Other</a></li></ul>" }
+    let(:html) do
+      "<ul><li><span>Title</span><a href=\"https://example.com\">Link</a></li><li><span>Other</span><a href=\"https://other.com\">Other</a></li></ul>"
+    end
     subject(:decoder) { described_class.new(encode(html)) }
 
     context "when xpath matches a node" do
@@ -129,9 +131,9 @@ RSpec.describe EmailHtmlDecoder do
           [node.extract("span"), node.extract("a", attr: "href")]
         end
         expect(result).to eq([
-          ["Apple", "https://a.com"],
-          ["Banana", "https://b.com"]
-        ])
+                               ["Apple", "https://a.com"],
+                               ["Banana", "https://b.com"]
+                             ])
       end
     end
 
@@ -164,19 +166,19 @@ RSpec.describe EmailHtmlDecoder do
       end
 
       expect(result).to eq([
-        [
-          "ハチ公",
-          "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
-          "DAMAGE:1 Resonator destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-          "STATUS:Level 1Health: 0%Owner: [uncaptured]"
-        ],
-        [
-          "海からのかおり",
-          "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
-          "DAMAGE:1 Mod destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-          "STATUS:Level 1Health: 0%Owner: [uncaptured]"
-        ]
-      ])
+                             [
+                               "ハチ公",
+                               "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
+                               "DAMAGE:1 Resonator destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
+                               "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+                             ],
+                             [
+                               "海からのかおり",
+                               "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
+                               "DAMAGE:1 Mod destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
+                               "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+                             ]
+                           ])
     end
   end
 
@@ -186,7 +188,7 @@ RSpec.describe EmailHtmlDecoder do
 
     context "when xpath matches nodes" do
       it "returns text content of all matching nodes" do
-        expect(decoder.extract_all("//li")).to eq(["Apple", "Banana", "Cherry"])
+        expect(decoder.extract_all("//li")).to eq(%w[Apple Banana Cherry])
       end
     end
 

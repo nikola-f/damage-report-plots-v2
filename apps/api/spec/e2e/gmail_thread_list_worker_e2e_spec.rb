@@ -53,7 +53,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
       described_class.new.perform(access_token, (Date.today - 7).iso8601)
 
       messages = sqs.receive_message(
-        queue_url:              queue_url,
+        queue_url: queue_url,
         max_number_of_messages: 10
       ).messages
 
@@ -75,9 +75,9 @@ RSpec.describe GmailThreadListWorker, :e2e do
         described_class.new.perform(access_token, "2000-01-01")
 
         messages = sqs.receive_message(
-          queue_url:              queue_url,
+          queue_url: queue_url,
           max_number_of_messages: 1,
-          wait_time_seconds:      1
+          wait_time_seconds: 1
         ).messages
 
         expect(messages).to be_empty

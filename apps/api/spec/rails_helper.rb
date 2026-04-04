@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
 # This file is copied to spec/ when you run 'rails generate rspec:install'
-require 'spec_helper'
-ENV['RAILS_ENV'] ||= 'test'
-require_relative '../config/environment'
+require "spec_helper"
+ENV["RAILS_ENV"] ||= "test"
+require_relative "../config/environment"
 # Prevent database truncation if the environment is production
-abort('The Rails environment is running in production mode!') if Rails.env.production?
-require 'rspec/rails'
-require 'webmock/rspec'
+abort("The Rails environment is running in production mode!") if Rails.env.production?
+require "rspec/rails"
+require "webmock/rspec"
 # Add additional requires below this line. Rails is not loaded until this point!
-require 'rspec/request_describer'
+require "rspec/request_describer"
 
 # Configure OmniAuth for testing
 OmniAuth.config.test_mode = true
@@ -27,7 +27,7 @@ OmniAuth.config.test_mode = true
 # directory. Alternatively, in the individual `*_spec.rb` files, manually
 # require only the support files necessary.
 #
-Rails.root.glob('spec/support/**/*.rb').sort_by(&:to_s).each { |f| require f }
+Rails.root.glob("spec/support/**/*.rb").sort_by(&:to_s).each { |f| require f }
 
 RSpec.configure do |config|
   # Include helper modules

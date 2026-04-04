@@ -8,7 +8,7 @@ module Api
       def show
         # Example protected endpoint that requires JWT authentication
         render json: {
-          message: 'Access granted to protected resource',
+          message: "Access granted to protected resource",
           user: current_user
         }, status: :ok
       end

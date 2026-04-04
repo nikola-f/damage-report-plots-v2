@@ -97,10 +97,10 @@ RSpec.describe GmailClient do
       let(:thread) { { "id" => "t1", "messages" => [] } }
       let(:batch_body) do
         "--#{boundary}\r\n" \
-        "Content-Type: application/http\r\nContent-ID: response-0\r\n\r\n" \
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n" \
-        "#{thread.to_json}\r\n" \
-        "--#{boundary}--\r\n"
+          "Content-Type: application/http\r\nContent-ID: response-0\r\n\r\n" \
+          "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n" \
+          "#{thread.to_json}\r\n" \
+          "--#{boundary}--\r\n"
       end
 
       before do
@@ -282,13 +282,13 @@ RSpec.describe GmailClient do
     def build_batch_response_body(parts, boundary:)
       body = parts.map.with_index do |part, i|
         "--#{boundary}\r\n" \
-        "Content-Type: application/http\r\n" \
-        "Content-ID: response-#{i}\r\n" \
-        "\r\n" \
-        "HTTP/1.1 #{part[:status]} #{part[:status] == 200 ? "OK" : "Error"}\r\n" \
-        "Content-Type: application/json\r\n" \
-        "\r\n" \
-        "#{part[:body].to_json}\r\n"
+          "Content-Type: application/http\r\n" \
+          "Content-ID: response-#{i}\r\n" \
+          "\r\n" \
+          "HTTP/1.1 #{part[:status]} #{part[:status] == 200 ? "OK" : "Error"}\r\n" \
+          "Content-Type: application/json\r\n" \
+          "\r\n" \
+          "#{part[:body].to_json}\r\n"
       end
       body.join + "--#{boundary}--\r\n"
     end
@@ -342,8 +342,8 @@ RSpec.describe GmailClient do
       end
 
       it "returns threads in the same order as input ids" do
-        result = client.batch_get_threads(["thread_1", "thread_2", "thread_3"])
-        expect(result.map { |t| t["id"] }).to eq(["thread_1", "thread_2", "thread_3"])
+        result = client.batch_get_threads(%w[thread_1 thread_2 thread_3])
+        expect(result.map { |t| t["id"] }).to eq(%w[thread_1 thread_2 thread_3])
       end
     end
 
@@ -381,7 +381,7 @@ RSpec.describe GmailClient do
       end
 
       it "returns threads in the same order as input ids regardless of response order" do
-        result = client.batch_get_threads(["thread_a", "thread_b"])
+        result = client.batch_get_threads(%w[thread_a thread_b])
         expect(result[0]["id"]).to eq("thread_a")
         expect(result[1]["id"]).to eq("thread_b")
       end
@@ -406,7 +406,7 @@ RSpec.describe GmailClient do
       end
 
       it "raises ApiError" do
-        expect { client.batch_get_threads(["thread_1", "thread_missing"]) }
+        expect { client.batch_get_threads(%w[thread_1 thread_missing]) }
           .to raise_error(GmailClient::ApiError, /404/)
       end
     end

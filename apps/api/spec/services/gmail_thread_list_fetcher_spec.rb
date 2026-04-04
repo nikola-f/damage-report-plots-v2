@@ -11,7 +11,7 @@ RSpec.describe GmailThreadListFetcher do
     context "when there is a single page of results" do
       let(:threads_response) do
         {
-          "threads"            => [{ "id" => "t1" }, { "id" => "t2" }],
+          "threads" => [{ "id" => "t1" }, { "id" => "t2" }],
           "resultSizeEstimate" => 2
         }
       end
@@ -33,13 +33,13 @@ RSpec.describe GmailThreadListFetcher do
     context "when there are multiple pages" do
       let(:page1_response) do
         {
-          "threads"       => [{ "id" => "t1" }, { "id" => "t2" }],
+          "threads" => [{ "id" => "t1" }, { "id" => "t2" }],
           "nextPageToken" => "token_page2"
         }
       end
       let(:page2_response) do
         {
-          "threads"            => [{ "id" => "t3" }],
+          "threads" => [{ "id" => "t3" }],
           "resultSizeEstimate" => 3
         }
       end

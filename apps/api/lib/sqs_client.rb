@@ -28,11 +28,11 @@ class SqsClient
     body = JSON.generate(message.to_h)
 
     @client.send_message(
-      queue_url:                @queue_url,
-      message_body:             body,
-      message_group_id:         @message_group_id,
+      queue_url: @queue_url,
+      message_body: body,
+      message_group_id: @message_group_id,
       message_deduplication_id: deduplication_id(body),
-      message_attributes:       build_message_attributes(attributes)
+      message_attributes: build_message_attributes(attributes)
     )
   end
 
@@ -49,17 +49,17 @@ class SqsClient
       entries = batch.each_with_index.map do |message, index|
         body = message
         {
-          id:                       index.to_s,
-          message_body:             body,
-          message_group_id:         @message_group_id,
+          id: index.to_s,
+          message_body: body,
+          message_group_id: @message_group_id,
           message_deduplication_id: deduplication_id(body),
-          message_attributes:       sqs_attributes
+          message_attributes: sqs_attributes
         }
       end
 
       @client.send_message_batch(
         queue_url: @queue_url,
-        entries:   entries
+        entries: entries
       )
     end
   end
@@ -78,12 +78,12 @@ class SqsClient
     remaining = MAX_RECEIVE_MESSAGES
     messages  = []
 
-    while remaining > 0
+    while remaining.positive?
       batch_size = [remaining, 10].min
       response   = @client.receive_message(
-        queue_url:              @queue_url,
+        queue_url: @queue_url,
         max_number_of_messages: batch_size,
-        wait_time_seconds:      @wait_time_seconds
+        wait_time_seconds: @wait_time_seconds
       )
       break if response.messages.empty?
 
@@ -107,7 +107,7 @@ class SqsClient
 
       @client.delete_message_batch(
         queue_url: @queue_url,
-        entries:   entries
+        entries: entries
       )
     end
   end

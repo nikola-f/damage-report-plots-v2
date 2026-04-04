@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "net/http"
 require "json"
 require "digest"
@@ -12,8 +14,8 @@ class GmailClient
   QUOTA_WINDOW      = 60         # seconds
 
   QUOTA_UNITS = {
-    list_threads:             10,
-    get_thread:               10,
+    list_threads: 10,
+    get_thread: 10,
     batch_get_threads_per_id: 10
   }.freeze
 
@@ -95,9 +97,7 @@ class GmailClient
       http.request(request)
     end
 
-    unless response.is_a?(Net::HTTPSuccess)
-      raise ApiError, "Gmail API error: #{response.code} #{response.body}"
-    end
+    raise ApiError, "Gmail API error: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
   end
@@ -121,9 +121,7 @@ class GmailClient
       http.request(request)
     end
 
-    unless response.is_a?(Net::HTTPSuccess)
-      raise ApiError, "Gmail API error: #{response.code} #{response.body}"
-    end
+    raise ApiError, "Gmail API error: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
     response
   end
@@ -131,12 +129,12 @@ class GmailClient
   def build_batch_body(ids)
     parts = ids.each_with_index.map do |id, index|
       "--#{BATCH_BOUNDARY}\r\n" \
-      "Content-Type: application/http\r\n" \
-      "Content-ID: <#{index}>\r\n" \
-      "\r\n" \
-      "GET /gmail/v1/users/me/threads/#{id}\r\n" \
-      "Authorization: Bearer #{@access_token}\r\n" \
-      "\r\n"
+        "Content-Type: application/http\r\n" \
+        "Content-ID: <#{index}>\r\n" \
+        "\r\n" \
+        "GET /gmail/v1/users/me/threads/#{id}\r\n" \
+        "Authorization: Bearer #{@access_token}\r\n" \
+        "\r\n"
     end
 
     parts.join + "--#{BATCH_BOUNDARY}--\r\n"
@@ -169,9 +167,7 @@ class GmailClient
 
     status_code = http_head.lines.first.to_s.split[1].to_i
 
-    unless (200..299).cover?(status_code)
-      raise ApiError, "Gmail API error: #{status_code} (batch part #{index})"
-    end
+    raise ApiError, "Gmail API error: #{status_code} (batch part #{index})" unless (200..299).cover?(status_code)
 
     [index, JSON.parse(json_body.strip)]
   end
