@@ -14,7 +14,7 @@ class EmailHtmlDecoder
     @doc = Nokogiri::HTML(html)
   end
 
-  PORTAL_XPATH = "//td[div/a[contains(@href,'ingress.com/intel')]]"
+  PORTAL_XPATH = "//tbody/tr/td[div/a[contains(@href,'ingress.com/intel')]]"
 
   # Extracts all attacked portals from an Ingress damage report email.
   # @return [Array<PortalRecord>]
