@@ -19,18 +19,18 @@ RSpec.describe GmailThreadListWorker do
       described_class.new.perform(access_token, "2024-01-01")
       expect(fetcher).to have_received(:call).with(
         q: "subject:Ingress Damage Report: Entities attacked by " \
-           "after:2024/01/01 before:2025/01/01 " \
+           "after:2024/01/01 before:2027/01/01 " \
            "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
            "from:ingress-support@nianticspatial.com} " \
            "smaller:100K"
       )
     end
 
-    it "handles leap year correctly (2024-02-29 + 1 year = 2025-02-28)" do
+    it "handles leap year correctly (2024-02-29 + 3 years = 2027-02-28)" do
       described_class.new.perform(access_token, "2024-02-29")
       expect(fetcher).to have_received(:call).with(
         q: "subject:Ingress Damage Report: Entities attacked by " \
-           "after:2024/02/29 before:2025/02/28 " \
+           "after:2024/02/29 before:2027/02/28 " \
            "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
            "from:ingress-support@nianticspatial.com} " \
            "smaller:100K"
@@ -41,7 +41,7 @@ RSpec.describe GmailThreadListWorker do
       described_class.new.perform(access_token, nil)
       expect(fetcher).to have_received(:call).with(
         q: "subject:Ingress Damage Report: Entities attacked by " \
-           "after:2012/10/15 before:2013/10/15 " \
+           "after:2012/10/15 before:2015/10/15 " \
            "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
            "from:ingress-support@nianticspatial.com} " \
            "smaller:100K"
