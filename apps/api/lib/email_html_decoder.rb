@@ -26,7 +26,8 @@ class EmailHtmlDecoder
         intel_url:  node.extract("div[2]/a", attr: "href"),
         agent_name: agent_name,
         damage:     node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
-        status:     node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
+        status:     node.extract("../following-sibling::tr[2]/td/table/td[2]/div")
+                        &.split("Owner: ", 2)&.last
       )
     end
   end

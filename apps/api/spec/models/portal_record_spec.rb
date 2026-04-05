@@ -9,7 +9,7 @@ RSpec.describe PortalRecord do
       intel_url:  "https://www.ingress.com/intel?ll=35.659054,139.700583",
       agent_name: "AgentSmith",
       damage:     "DAMAGE:1 Resonator destroyed",
-      status:     "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+      status:     "[uncaptured]"
     )
   end
 
@@ -17,6 +17,6 @@ RSpec.describe PortalRecord do
   it { expect(record.intel_url).to eq("https://www.ingress.com/intel?ll=35.659054,139.700583") }
   it { expect(record.agent_name).to eq("AgentSmith") }
   it { expect(record.damage).to eq("DAMAGE:1 Resonator destroyed") }
-  it { expect(record.status).to eq("STATUS:Level 1Health: 0%Owner: [uncaptured]") }
+  it { expect(record.status).to eq("[uncaptured]") }
   it { expect(record).to be_frozen }
 end

@@ -168,14 +168,14 @@ RSpec.describe EmailHtmlDecoder do
                                intel_url:  "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
                                agent_name: "nikolaF",
                                damage:     "DAMAGE:1 Resonator destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-                               status:     "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+                               status:     "[uncaptured]"
                              ),
                              PortalRecord.new(
                                name:       "海からのかおり",
                                intel_url:  "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
                                agent_name: "nikolaF",
                                damage:     "DAMAGE:1 Mod destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-                               status:     "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+                               status:     "[uncaptured]"
                              )
                            ])
     end
