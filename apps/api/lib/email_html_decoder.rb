@@ -23,7 +23,7 @@ class EmailHtmlDecoder
       PortalRecord.new(
         name:       node.extract("div[1]"),
         intel_url:  node.extract("div[2]/a", attr: "href"),
-        agent_name: node.extract("../preceding-sibling::tr[2]/td/span[2]"),
+        agent_name: node.extract("ancestor::tbody[1]/tr[1]/td/span[2]"),
         damage:     node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
         status:     node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
       )
