@@ -78,18 +78,22 @@ class SqsClient
   # Note: SQS may return fewer messages than requested even when more exist.
   # This method stops early if an empty response is returned.
   #
+  # @param message_attribute_names [Array<String>] SQS message attribute names to retrieve (e.g. ["token_key"])
   # @return [Array<Aws::SQS::Types::Message>] each element has .body, .receipt_handle, and .message_attributes
-  def receive_messages
+  def receive_messages(message_attribute_names: [])
     remaining = MAX_RECEIVE_MESSAGES
     messages  = []
 
     while remaining.positive?
       batch_size = [remaining, 10].min
-      response   = @client.receive_message(
+      params = {
         queue_url: @queue_url,
         max_number_of_messages: batch_size,
         wait_time_seconds: @wait_time_seconds
-      )
+      }
+      params[:message_attribute_names] = message_attribute_names if message_attribute_names.any?
+
+      response = @client.receive_message(**params)
       break if response.messages.empty?
 
       messages  += response.messages

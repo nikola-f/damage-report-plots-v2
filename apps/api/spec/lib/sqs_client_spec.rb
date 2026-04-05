@@ -267,6 +267,28 @@ RSpec.describe SqsClient do
         expect(result).to eq([msg])
       end
     end
+
+    context "with message_attribute_names" do
+      it "passes them to the AWS receive_message call" do
+        stub_const("SqsClient::MAX_RECEIVE_MESSAGES", 1)
+
+        expect(aws_client).to receive(:receive_message).with(
+          hash_including(message_attribute_names: ["token_key"])
+        ).and_return(build_response)
+
+        client.receive_messages(message_attribute_names: ["token_key"])
+      end
+
+      it "omits the key when message_attribute_names is empty" do
+        stub_const("SqsClient::MAX_RECEIVE_MESSAGES", 1)
+
+        expect(aws_client).to receive(:receive_message).with(
+          hash_excluding(message_attribute_names: anything)
+        ).and_return(build_response)
+
+        client.receive_messages
+      end
+    end
   end
 
   describe "#delete_messages" do
