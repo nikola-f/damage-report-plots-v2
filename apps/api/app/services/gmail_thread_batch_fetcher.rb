@@ -4,7 +4,6 @@
 #
 # Designed to be called from a Sidekiq Worker.
 # Automatically chunks IDs to respect the Gmail Batch API limit (100 per request).
-# Returns fetched threads as an array — downstream processing is the caller's responsibility.
 #
 # @example
 #   threads = GmailThreadBatchFetcher.new(
@@ -18,23 +17,12 @@ class GmailThreadBatchFetcher
   end
 
   # @param thread_ids [Array<String>]
-  # @return [Array<Hash>] thread objects with non-text/html parts removed, in the same order as thread_ids
+  # @return [Array<GmailThread>] in the same order as thread_ids
   def call(thread_ids)
     return [] if thread_ids.empty?
 
     thread_ids.each_slice(BATCH_SIZE).flat_map do |batch|
-      @gmail_client.batch_get_threads(batch).map { |thread| filter_html_parts(thread) }
+      @gmail_client.batch_get_threads(batch).map { |raw| GmailThread.new(raw) }
     end
-  end
-
-  private
-
-  def filter_html_parts(thread)
-    messages = (thread["messages"] || []).map do |message|
-      payload = message["payload"] || {}
-      parts   = (payload["parts"] || []).select { |p| p["mimeType"] == "text/html" }
-      message.merge("payload" => payload.merge("parts" => parts))
-    end
-    thread.merge("messages" => messages)
   end
 end

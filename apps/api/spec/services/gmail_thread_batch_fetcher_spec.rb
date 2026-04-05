@@ -25,14 +25,19 @@ RSpec.describe GmailThreadBatchFetcher do
 
     context "when thread_ids fits within a single batch" do
       let(:thread_ids) { %w[t1 t2 t3] }
-      let(:threads)    { thread_ids.map { |id| { "id" => id, "messages" => [] } } }
+      let(:raw_threads) { thread_ids.map { |id| { "id" => id, "messages" => [] } } }
 
       before do
-        allow(gmail_client).to receive(:batch_get_threads).with(thread_ids).and_return(threads)
+        allow(gmail_client).to receive(:batch_get_threads).with(thread_ids).and_return(raw_threads)
       end
 
-      it "returns the fetched threads" do
-        expect(fetcher.call(thread_ids)).to eq(threads)
+      it "returns GmailThread objects" do
+        expect(fetcher.call(thread_ids)).to all(be_a(GmailThread))
+      end
+
+      it "returns threads in the same order as input ids" do
+        result = fetcher.call(thread_ids)
+        expect(result.map(&:id)).to eq(thread_ids)
       end
 
       it "calls batch_get_threads once" do
@@ -43,14 +48,14 @@ RSpec.describe GmailThreadBatchFetcher do
 
     context "when thread_ids exceeds BATCH_SIZE" do
       let(:all_ids) { (1..150).map { |i| "t#{i}" } }
-      let(:first_batch)  { all_ids[0..99] }
-      let(:second_batch) { all_ids[100..149] }
-      let(:first_threads)  { first_batch.map  { |id| { "id" => id, "messages" => [] } } }
-      let(:second_threads) { second_batch.map { |id| { "id" => id, "messages" => [] } } }
+      let(:first_batch)   { all_ids[0..99] }
+      let(:second_batch)  { all_ids[100..149] }
+      let(:raw_threads_1) { first_batch.map  { |id| { "id" => id, "messages" => [] } } }
+      let(:raw_threads_2) { second_batch.map { |id| { "id" => id, "messages" => [] } } }
 
       before do
-        allow(gmail_client).to receive(:batch_get_threads).with(first_batch).and_return(first_threads)
-        allow(gmail_client).to receive(:batch_get_threads).with(second_batch).and_return(second_threads)
+        allow(gmail_client).to receive(:batch_get_threads).with(first_batch).and_return(raw_threads_1)
+        allow(gmail_client).to receive(:batch_get_threads).with(second_batch).and_return(raw_threads_2)
       end
 
       it "calls batch_get_threads twice" do
@@ -61,47 +66,7 @@ RSpec.describe GmailThreadBatchFetcher do
       it "returns all threads concatenated in order" do
         result = fetcher.call(all_ids)
         expect(result.length).to eq(150)
-        expect(result.map { |t| t["id"] }).to eq(all_ids)
-      end
-    end
-
-    context "when messages have multiple parts with different mimeTypes" do
-      let(:html_part)  { { "mimeType" => "text/html",  "body" => { "data" => "html_data" } } }
-      let(:plain_part) { { "mimeType" => "text/plain", "body" => { "data" => "plain_data" } } }
-
-      let(:raw_thread) do
-        {
-          "id" => "t1",
-          "messages" => [
-            { "id" => "m1", "internalDate" => "1000",
-              "payload" => { "parts" => [plain_part, html_part] } }
-          ]
-        }
-      end
-
-      before { allow(gmail_client).to receive(:batch_get_threads).and_return([raw_thread]) }
-
-      it "keeps only text/html parts" do
-        result = fetcher.call(["t1"])
-        parts = result.first.dig("messages", 0, "payload", "parts")
-        expect(parts).to eq([html_part])
-      end
-    end
-
-    context "when messages have no parts" do
-      let(:raw_thread) do
-        {
-          "id" => "t1",
-          "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }]
-        }
-      end
-
-      before { allow(gmail_client).to receive(:batch_get_threads).and_return([raw_thread]) }
-
-      it "returns the message with an empty parts array" do
-        result = fetcher.call(["t1"])
-        parts = result.first.dig("messages", 0, "payload", "parts")
-        expect(parts).to eq([])
+        expect(result.map(&:id)).to eq(all_ids)
       end
     end
 
