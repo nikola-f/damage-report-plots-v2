@@ -17,12 +17,14 @@ class GmailThreadBatchFetcher
   end
 
   # @param thread_ids [Array<String>]
-  # @return [Array<GmailThread>] in the same order as thread_ids
+  # @return [Array<GmailMessage>] all messages across all threads, in thread order
   def call(thread_ids)
     return [] if thread_ids.empty?
 
     thread_ids.each_slice(BATCH_SIZE).flat_map do |batch|
-      @gmail_client.batch_get_threads(batch).map { |raw| GmailThread.new(raw) }
+      @gmail_client.batch_get_threads(batch).flat_map do |raw|
+        (raw["messages"] || []).map { |m| GmailMessage.new(m) }
+      end
     end
   end
 end
