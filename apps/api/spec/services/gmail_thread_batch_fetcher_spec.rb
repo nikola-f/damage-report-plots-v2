@@ -65,6 +65,46 @@ RSpec.describe GmailThreadBatchFetcher do
       end
     end
 
+    context "when messages have multiple parts with different mimeTypes" do
+      let(:html_part)  { { "mimeType" => "text/html",  "body" => { "data" => "html_data" } } }
+      let(:plain_part) { { "mimeType" => "text/plain", "body" => { "data" => "plain_data" } } }
+
+      let(:raw_thread) do
+        {
+          "id" => "t1",
+          "messages" => [
+            { "id" => "m1", "internalDate" => "1000",
+              "payload" => { "parts" => [plain_part, html_part] } }
+          ]
+        }
+      end
+
+      before { allow(gmail_client).to receive(:batch_get_threads).and_return([raw_thread]) }
+
+      it "keeps only text/html parts" do
+        result = fetcher.call(["t1"])
+        parts = result.first.dig("messages", 0, "payload", "parts")
+        expect(parts).to eq([html_part])
+      end
+    end
+
+    context "when messages have no parts" do
+      let(:raw_thread) do
+        {
+          "id" => "t1",
+          "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }]
+        }
+      end
+
+      before { allow(gmail_client).to receive(:batch_get_threads).and_return([raw_thread]) }
+
+      it "returns the message with an empty parts array" do
+        result = fetcher.call(["t1"])
+        parts = result.first.dig("messages", 0, "payload", "parts")
+        expect(parts).to eq([])
+      end
+    end
+
     context "when GmailClient raises QuotaExceededError" do
       before do
         allow(gmail_client).to receive(:batch_get_threads)

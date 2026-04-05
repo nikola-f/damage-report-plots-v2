@@ -11,7 +11,7 @@ class GmailClient
 
   # Fields to retrieve for each thread via users.threads.get.
   # Limits the response payload to only what downstream processing needs.
-  THREAD_FIELDS = "messages/id,messages/internalDate,messages/payload/parts/body/data"
+  THREAD_FIELDS = "messages/id,messages/internalDate,messages/payload/parts/mimeType,messages/payload/parts/body/data"
 
   PER_PROJECT_LIMIT = 1_200_000  # quota units per minute
   PER_USER_LIMIT    = 15_000     # quota units per minute per user
