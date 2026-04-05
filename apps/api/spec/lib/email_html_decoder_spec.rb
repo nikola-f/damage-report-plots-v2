@@ -165,12 +165,14 @@ RSpec.describe EmailHtmlDecoder do
       expect(result).to eq([
                              PortalRecord.new(
                                name:      "ハチ公",
-                               intel_url: "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
+                               latitude:  "35.659054",
+                               longitude: "139.700583",
                                owned:     false
                              ),
                              PortalRecord.new(
                                name:      "海からのかおり",
-                               intel_url: "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
+                               latitude:  "35.659113",
+                               longitude: "139.701690",
                                owned:     false
                              )
                            ])

@@ -21,11 +21,15 @@ class EmailHtmlDecoder
   def extract_portals
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")
     extract_nodes(PORTAL_XPATH) do |node|
-      owner = node.extract("../following-sibling::tr[2]/td/table/td[2]/div")
-                  &.split("Owner: ", 2)&.last
+      owner     = node.extract("../following-sibling::tr[2]/td/table/td[2]/div")
+                      &.split("Owner: ", 2)&.last
+      intel_url = node.extract("div[2]/a", attr: "href")
+      pll       = intel_url&.match(/[?&]pll=([^&]+)/)&.[](1)
+      lat, lng  = pll&.split(",")
       PortalRecord.new(
         name:      node.extract("div[1]"),
-        intel_url: node.extract("div[2]/a", attr: "href"),
+        latitude:  lat,
+        longitude: lng,
         owned:     agent_name == owner
       )
     end
