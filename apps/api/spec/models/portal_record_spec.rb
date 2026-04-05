@@ -19,4 +19,18 @@ RSpec.describe PortalRecord do
   it { expect(record.damage).to eq("DAMAGE:1 Resonator destroyed") }
   it { expect(record.status).to eq("[uncaptured]") }
   it { expect(record).to be_frozen }
+
+  describe "#owned" do
+    context "when agent_name matches status" do
+      subject { described_class.new(name: "P", intel_url: "u", agent_name: "AgentX", damage: "d", status: "AgentX") }
+
+      it { is_expected.to be_owned }
+    end
+
+    context "when agent_name does not match status" do
+      subject { described_class.new(name: "P", intel_url: "u", agent_name: "AgentX", damage: "d", status: "[uncaptured]") }
+
+      it { is_expected.not_to be_owned }
+    end
+  end
 end
