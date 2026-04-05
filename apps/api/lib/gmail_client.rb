@@ -131,14 +131,12 @@ class GmailClient
   end
 
   def build_batch_body(ids)
-    fields_param = "fields=#{URI.encode_www_form_component(THREAD_FIELDS)}"
-
     parts = ids.each_with_index.map do |id, index|
       "--#{BATCH_BOUNDARY}\r\n" \
         "Content-Type: application/http\r\n" \
         "Content-ID: <#{index}>\r\n" \
         "\r\n" \
-        "GET /gmail/v1/users/me/threads/#{id}?#{fields_param}\r\n" \
+        "GET /gmail/v1/users/me/threads/#{id}?fields=#{THREAD_FIELDS}\r\n" \
         "Authorization: Bearer #{@access_token}\r\n" \
         "\r\n"
     end
