@@ -21,10 +21,11 @@ class EmailHtmlDecoder
   def extract_portals
     extract_nodes(PORTAL_XPATH) do |node|
       PortalRecord.new(
-        name:      node.extract("div[1]"),
-        intel_url: node.extract("div[2]/a", attr: "href"),
-        damage:    node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
-        status:    node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
+        name:       node.extract("div[1]"),
+        intel_url:  node.extract("div[2]/a", attr: "href"),
+        agent_name: node.extract("../preceding-sibling::tr[2]/td/span[2]"),
+        damage:     node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
+        status:     node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
       )
     end
   end
