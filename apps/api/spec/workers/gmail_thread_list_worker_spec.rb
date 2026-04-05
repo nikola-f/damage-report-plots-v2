@@ -14,36 +14,10 @@ RSpec.describe GmailThreadListWorker do
   end
 
   describe "#perform" do
-    it "builds the query with fixed subject, from, smaller, and date range" do
+    it "calls GmailThreadListFetcher with the Ingress damage report query" do
       described_class.new.perform(access_token, "2024-01-01")
       expect(fetcher).to have_received(:call).with(
-        q: "subject:Ingress Damage Report: Entities attacked by " \
-           "after:2024/01/01 before:2027/01/01 " \
-           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
-           "from:ingress-support@nianticspatial.com} " \
-           "smaller:100K"
-      )
-    end
-
-    it "handles leap year correctly (2024-02-29 + 3 years = 2027-02-28)" do
-      described_class.new.perform(access_token, "2024-02-29")
-      expect(fetcher).to have_received(:call).with(
-        q: "subject:Ingress Damage Report: Entities attacked by " \
-           "after:2024/02/29 before:2027/02/28 " \
-           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
-           "from:ingress-support@nianticspatial.com} " \
-           "smaller:100K"
-      )
-    end
-
-    it "defaults after_date to 2012-10-15 when nil" do
-      described_class.new.perform(access_token, nil)
-      expect(fetcher).to have_received(:call).with(
-        q: "subject:Ingress Damage Report: Entities attacked by " \
-           "after:2012/10/15 before:2015/10/15 " \
-           "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
-           "from:ingress-support@nianticspatial.com} " \
-           "smaller:100K"
+        q: IngressDamageReportQuery.new(after_date: "2024-01-01").to_s
       )
     end
 
