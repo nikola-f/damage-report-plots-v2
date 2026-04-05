@@ -14,7 +14,7 @@ class GmailThreadListWorker
 
     return if thread_ids.empty?
 
-    SqsClient.new(ENV.fetch("SQS_REPORT_QUEUE_URL")).send_messages(thread_ids)
+    SqsClient.new(Settings.sqs_report_queue_url).send_messages(thread_ids)
   end
 
   private

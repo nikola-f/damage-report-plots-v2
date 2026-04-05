@@ -9,8 +9,7 @@ RSpec.describe GmailThreadListWorker do
   let(:fetcher)      { instance_double(GmailThreadListFetcher, call: thread_ids) }
 
   before do
-    allow(ENV).to receive(:fetch).with("SQS_REPORT_QUEUE_URL").and_return("https://sqs.test/queue")
-    allow(SqsClient).to receive(:new).with("https://sqs.test/queue").and_return(sqs_client)
+    allow(SqsClient).to receive(:new).with(Settings.sqs_report_queue_url).and_return(sqs_client)
     allow(GmailThreadListFetcher).to receive(:new).and_return(fetcher)
   end
 

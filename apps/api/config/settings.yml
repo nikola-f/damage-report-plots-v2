@@ -1,0 +1,3 @@
+redis_url: "redis://localhost:6379/0"
+allowed_origins: "http://localhost:3000"
+sqs_report_queue_url: ~

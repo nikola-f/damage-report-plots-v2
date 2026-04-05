@@ -31,6 +31,9 @@ gem "sidekiq"
 # AWS SQS client
 gem "aws-sdk-sqs"
 
+# Application settings management
+gem "config"
+
 group :test do
   gem "webmock"
 end
