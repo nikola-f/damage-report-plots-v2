@@ -33,6 +33,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
   let(:access_token) { ENV.fetch("TEST_GMAIL_ACCESS_TOKEN") }
   let(:queue_url)    { Settings.sqs_report_queue_url }
   let(:token_hash)   { Digest::SHA256.hexdigest(access_token) }
+  let(:token_key)    { AccessTokenStore.new.store(access_token) }
 
   let(:sqs) do
     options = { region: ENV.fetch("AWS_DEFAULT_REGION", "us-east-1") }
@@ -50,11 +51,12 @@ RSpec.describe GmailThreadListWorker, :e2e do
 
   describe "#perform" do
     it "fetches Gmail threads matching the query and enqueues thread IDs to SQS as a JSON array" do
-      described_class.new.perform(access_token, (Date.today - 7).iso8601)
+      described_class.new.perform(token_key, (Date.today - 7).iso8601)
 
       messages = sqs.receive_message(
         queue_url: queue_url,
-        max_number_of_messages: 10
+        max_number_of_messages: 10,
+        message_attribute_names: ["token_key"]
       ).messages
 
       expect(messages).not_to be_empty
@@ -62,10 +64,11 @@ RSpec.describe GmailThreadListWorker, :e2e do
       thread_ids = JSON.parse(messages.first.body)
       expect(thread_ids).to be_an(Array)
       expect(thread_ids.first).to be_present
+      expect(messages.first.message_attributes["token_key"].string_value).to eq(token_key)
     end
 
     it "increments Redis quota counters" do
-      described_class.new.perform(access_token, (Date.today - 7).iso8601)
+      described_class.new.perform(token_key, (Date.today - 7).iso8601)
 
       expect(REDIS.get("gmail_quota:project").to_i).to be > 0
       expect(REDIS.get("gmail_quota:user:#{token_hash}").to_i).to be > 0
@@ -73,7 +76,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
 
     context "when there are no matching threads" do
       it "does not enqueue any messages to SQS" do
-        described_class.new.perform(access_token, "2000-01-01")
+        described_class.new.perform(token_key, "2000-01-01")
 
         messages = sqs.receive_message(
           queue_url: queue_url,

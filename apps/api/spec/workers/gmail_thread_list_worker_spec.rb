@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe GmailThreadListWorker do
   let(:token_key)    { "test-token-uuid" }
   let(:access_token) { "ya29.test_token" }
-  let(:token_store)  { instance_double(AccessTokenStore, fetch_and_delete: access_token) }
+  let(:token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
   let(:sqs_client)   { instance_double(SqsClient, send_messages: nil) }
   let(:thread_ids)   { %w[t1 t2] }
   let(:fetcher)      { instance_double(GmailThreadListFetcher, call: thread_ids) }
@@ -17,10 +17,10 @@ RSpec.describe GmailThreadListWorker do
   end
 
   describe "#perform" do
-    it "fetches the access token from AccessTokenStore" do
+    it "fetches the access token from AccessTokenStore without deleting it" do
       described_class.new.perform(token_key, "2024-01-01")
 
-      expect(token_store).to have_received(:fetch_and_delete).with(token_key)
+      expect(token_store).to have_received(:fetch).with(token_key)
     end
 
     it "calls GmailThreadListFetcher with the Ingress damage report query" do
@@ -31,10 +31,11 @@ RSpec.describe GmailThreadListWorker do
       )
     end
 
-    it "sends thread IDs to SQS" do
+    it "sends thread IDs to SQS with token_key as attribute" do
       described_class.new.perform(token_key, "2024-01-01")
 
-      expect(sqs_client).to have_received(:send_messages).with(%w[t1 t2])
+      expect(sqs_client).to have_received(:send_messages)
+        .with(%w[t1 t2], attributes: { "token_key" => token_key })
     end
 
     context "when there are no thread IDs" do

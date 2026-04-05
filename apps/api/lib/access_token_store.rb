@@ -2,14 +2,14 @@
 
 # Stores OAuth access tokens in Redis for secure handoff to background jobs.
 # Avoids passing tokens as Sidekiq job arguments (which are stored in plain text).
-# Tokens are one-time-use: fetched and deleted atomically via GETDEL.
+# Tokens expire automatically after TTL (matching Google OAuth access token lifetime).
 #
 # @example Storing a token before enqueuing a job
 #   key = AccessTokenStore.new.store(access_token)
 #   GmailThreadListWorker.perform_async(key, after_date)
 #
-# @example Retrieving the token inside the job
-#   access_token = AccessTokenStore.new.fetch_and_delete(key)
+# @example Retrieving the token inside a job (non-destructive)
+#   access_token = AccessTokenStore.new.fetch(key)
 class AccessTokenStore
   TTL        = 3600 # seconds — matches Google OAuth access token lifetime
   KEY_PREFIX = "access_token"
@@ -25,6 +25,17 @@ class AccessTokenStore
     key = SecureRandom.uuid
     @redis.set(redis_key(key), access_token, ex: TTL)
     key
+  end
+
+  # Retrieves the token without deleting it (multiple workers can reuse the same key).
+  # @param key [String] UUID returned by #store
+  # @return [String] the access token
+  # @raise [KeyError] if the token is not found or has expired
+  def fetch(key)
+    token = @redis.get(redis_key(key))
+    raise KeyError, "Access token not found or expired: #{key}" unless token
+
+    token
   end
 
   # Retrieves and atomically deletes the token (one-time-use).

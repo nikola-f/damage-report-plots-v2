@@ -29,6 +29,34 @@ RSpec.describe AccessTokenStore do
     end
   end
 
+  describe "#fetch" do
+    context "when the token exists" do
+      before do
+        allow(redis).to receive(:get).with("access_token:some-key").and_return("ya29.token")
+        allow(redis).to receive(:getdel)
+      end
+
+      it "returns the token" do
+        expect(store.fetch("some-key")).to eq("ya29.token")
+      end
+
+      it "does not delete the token" do
+        store.fetch("some-key")
+
+        expect(redis).not_to have_received(:getdel)
+      end
+    end
+
+    context "when the token does not exist or has expired" do
+      before { allow(redis).to receive(:get).and_return(nil) }
+
+      it "raises KeyError with the key in the message" do
+        expect { store.fetch("missing-key") }
+          .to raise_error(KeyError, /missing-key/)
+      end
+    end
+  end
+
   describe "#fetch_and_delete" do
     context "when the token exists" do
       before do
