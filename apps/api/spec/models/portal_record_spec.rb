@@ -17,17 +17,15 @@ RSpec.describe PortalRecord do
   it { expect(record.longitude).to eq("139.700583") }
   it { expect(record).to be_frozen }
 
-  describe "#owned?" do
-    context "when owned is true" do
-      subject { described_class.new(name: "P", latitude: "0", longitude: "0", owned: true) }
-
-      it { is_expected.to be_owned }
+  describe "#owned" do
+    it "returns true when owned is true" do
+      record = described_class.new(name: "P", latitude: "0", longitude: "0", owned: true)
+      expect(record.owned).to be true
     end
 
-    context "when owned is false" do
-      subject { described_class.new(name: "P", latitude: "0", longitude: "0", owned: false) }
-
-      it { is_expected.not_to be_owned }
+    it "returns false when owned is false" do
+      record = described_class.new(name: "P", latitude: "0", longitude: "0", owned: false)
+      expect(record.owned).to be false
     end
   end
 end
