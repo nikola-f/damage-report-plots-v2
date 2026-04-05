@@ -445,5 +445,25 @@ RSpec.describe GmailClient do
           .with(headers: { "Authorization" => "Bearer ya29.test_access_token" })
       end
     end
+
+    context "fields parameter" do
+      let(:thread) { { "id" => "thread_1", "messages" => [] } }
+      let(:encoded_fields) { URI.encode_www_form_component(GmailClient::THREAD_FIELDS) }
+
+      before do
+        stub_request(:post, "https://www.googleapis.com/batch/gmail/v1")
+          .to_return(
+            status: 200,
+            body: build_batch_response_body([{ status: 200, body: thread }], boundary: boundary),
+            headers: { "Content-Type" => content_type }
+          )
+      end
+
+      it "includes fields parameter in each batch part URL" do
+        client.batch_get_threads(["thread_1"])
+        expect(WebMock).to have_requested(:post, "https://www.googleapis.com/batch/gmail/v1")
+          .with(body: /fields=#{Regexp.escape(encoded_fields)}/)
+      end
+    end
   end
 end

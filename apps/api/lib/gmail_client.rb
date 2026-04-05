@@ -9,6 +9,10 @@ class GmailClient
   BATCH_BASE_URL = "https://www.googleapis.com"
   BATCH_BOUNDARY = "batch_boundary_gmail_v1"
 
+  # Fields to retrieve for each thread via users.threads.get.
+  # Limits the response payload to only what downstream processing needs.
+  THREAD_FIELDS = "messages/id,messages/internalDate,messages/payload/parts/body/data"
+
   PER_PROJECT_LIMIT = 1_200_000  # quota units per minute
   PER_USER_LIMIT    = 15_000     # quota units per minute per user
   QUOTA_WINDOW      = 60         # seconds
@@ -127,12 +131,14 @@ class GmailClient
   end
 
   def build_batch_body(ids)
+    fields_param = "fields=#{URI.encode_www_form_component(THREAD_FIELDS)}"
+
     parts = ids.each_with_index.map do |id, index|
       "--#{BATCH_BOUNDARY}\r\n" \
         "Content-Type: application/http\r\n" \
         "Content-ID: <#{index}>\r\n" \
         "\r\n" \
-        "GET /gmail/v1/users/me/threads/#{id}\r\n" \
+        "GET /gmail/v1/users/me/threads/#{id}?#{fields_param}\r\n" \
         "Authorization: Bearer #{@access_token}\r\n" \
         "\r\n"
     end
