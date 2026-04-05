@@ -159,23 +159,19 @@ RSpec.describe EmailHtmlDecoder do
       expect(decoder.extract_portals).to all(be_a(PortalRecord))
     end
 
-    it "extracts portal name, intel URL, agent name, damage, and status for each portal" do
+    it "extracts portal name, intel URL, and owned for each portal" do
       result = decoder.extract_portals
 
       expect(result).to eq([
                              PortalRecord.new(
-                               name:       "ハチ公",
-                               intel_url:  "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
-                               agent_name: "nikolaF",
-                               damage:     "DAMAGE:1 Resonator destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-                               status:     "[uncaptured]"
+                               name:      "ハチ公",
+                               intel_url: "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
+                               owned:     false
                              ),
                              PortalRecord.new(
-                               name:       "海からのかおり",
-                               intel_url:  "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
-                               agent_name: "nikolaF",
-                               damage:     "DAMAGE:1 Mod destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-                               status:     "[uncaptured]"
+                               name:      "海からのかおり",
+                               intel_url: "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
+                               owned:     false
                              )
                            ])
     end
