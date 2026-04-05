@@ -14,6 +14,21 @@ class EmailHtmlDecoder
     @doc = Nokogiri::HTML(html)
   end
 
+  PORTAL_XPATH = "//td[div/a[contains(@href,'ingress.com/intel')]]"
+
+  # Extracts all attacked portals from an Ingress damage report email.
+  # @return [Array<PortalRecord>]
+  def extract_portals
+    extract_nodes(PORTAL_XPATH) do |node|
+      PortalRecord.new(
+        name:      node.extract("div[1]"),
+        intel_url: node.extract("div[2]/a", attr: "href"),
+        damage:    node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
+        status:    node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
+      )
+    end
+  end
+
   def extract(xpath, attr: nil)
     node = @doc.xpath(xpath).first
     return nil if node.nil?

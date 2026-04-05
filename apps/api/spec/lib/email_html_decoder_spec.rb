@@ -152,32 +152,29 @@ RSpec.describe EmailHtmlDecoder do
     end
   end
 
-  describe "portal extraction from sample email" do
+  describe "#extract_portals" do
     subject(:decoder) { described_class.new(file_fixture("sample_email_base64_urlsafe.txt").read) }
 
-    it "extracts portal name, intel URL, damage, and status" do
-      result = decoder.extract_nodes("//td[div/a[contains(@href,'ingress.com/intel')]]") do |node|
-        [
-          node.extract("div[1]"),
-          node.extract("div[2]/a", attr: "href"),
-          node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
-          node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
-        ]
-      end
+    it "returns an array of PortalRecord objects" do
+      expect(decoder.extract_portals).to all(be_a(PortalRecord))
+    end
+
+    it "extracts portal name, intel URL, damage, and status for each portal" do
+      result = decoder.extract_portals
 
       expect(result).to eq([
-                             [
-                               "ハチ公",
-                               "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
-                               "DAMAGE:1 Resonator destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-                               "STATUS:Level 1Health: 0%Owner: [uncaptured]"
-                             ],
-                             [
-                               "海からのかおり",
-                               "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
-                               "DAMAGE:1 Mod destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
-                               "STATUS:Level 1Health: 0%Owner: [uncaptured]"
-                             ]
+                             PortalRecord.new(
+                               name:      "ハチ公",
+                               intel_url: "https://www.ingress.com/intel?ll=35.659054,139.700583&pll=35.659054,139.700583&z=19",
+                               damage:    "DAMAGE:1 Resonator destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
+                               status:    "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+                             ),
+                             PortalRecord.new(
+                               name:      "海からのかおり",
+                               intel_url: "https://www.ingress.com/intel?ll=35.659113,139.701690&pll=35.659113,139.701690&z=19",
+                               damage:    "DAMAGE:1 Mod destroyed by  at 00:09 hrs GMTNo remaining Resonators detected on this Portal.",
+                               status:    "STATUS:Level 1Health: 0%Owner: [uncaptured]"
+                             )
                            ])
     end
   end
