@@ -19,11 +19,12 @@ class EmailHtmlDecoder
   # Extracts all attacked portals from an Ingress damage report email.
   # @return [Array<PortalRecord>]
   def extract_portals
+    agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")
     extract_nodes(PORTAL_XPATH) do |node|
       PortalRecord.new(
         name:       node.extract("div[1]"),
         intel_url:  node.extract("div[2]/a", attr: "href"),
-        agent_name: node.extract("ancestor::tbody[1]/tr[1]/td/span[2]"),
+        agent_name: agent_name,
         damage:     node.extract("../following-sibling::tr[2]/td/table/td[1]/div[contains(.,'DAMAGE:')]"),
         status:     node.extract("../following-sibling::tr[2]/td/table/td[2]/div[contains(.,'Owner:')]")
       )
