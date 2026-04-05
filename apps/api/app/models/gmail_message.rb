@@ -19,8 +19,9 @@ class GmailMessage
     @html_parts.filter_map { |p| p.dig("body", "data") }
   end
 
-  # @return [Array<EmailHtmlDecoder>] decoders for each text/html part
-  def html_decoders
-    html_body_data.map { |data| EmailHtmlDecoder.new(data) }
+  # @return [EmailHtmlDecoder, nil] decoder for the first text/html part, or nil if absent
+  def html_decoder
+    data = html_body_data.first
+    EmailHtmlDecoder.new(data) if data
   end
 end

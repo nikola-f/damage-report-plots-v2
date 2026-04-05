@@ -62,24 +62,23 @@ RSpec.describe GmailMessage do
     end
   end
 
-  describe "#html_decoders" do
+  describe "#html_decoder" do
     let(:decoder) { instance_double(EmailHtmlDecoder) }
 
     before { allow(EmailHtmlDecoder).to receive(:new).and_return(decoder) }
 
-    context "when there is one text/html part" do
+    context "when there is a text/html part" do
       let(:raw) do
         { "id" => "m1", "internalDate" => "0",
           "payload" => { "parts" => [html_part] } }
       end
 
-      it "returns an array of EmailHtmlDecoder instances" do
-        result = described_class.new(raw).html_decoders
-        expect(result).to eq([decoder])
+      it "returns an EmailHtmlDecoder instance" do
+        expect(described_class.new(raw).html_decoder).to eq(decoder)
       end
 
       it "initializes EmailHtmlDecoder with the body data" do
-        described_class.new(raw).html_decoders
+        described_class.new(raw).html_decoder
         expect(EmailHtmlDecoder).to have_received(:new).with("html_data")
       end
     end
@@ -87,8 +86,8 @@ RSpec.describe GmailMessage do
     context "when there are no text/html parts" do
       let(:raw) { { "id" => "m1", "internalDate" => "0", "payload" => {} } }
 
-      it "returns an empty array" do
-        expect(described_class.new(raw).html_decoders).to eq([])
+      it "returns nil" do
+        expect(described_class.new(raw).html_decoder).to be_nil
       end
     end
   end
