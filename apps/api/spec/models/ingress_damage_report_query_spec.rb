@@ -15,7 +15,7 @@ RSpec.describe IngressDamageReportQuery do
         "subject:Ingress Damage Report: Entities attacked by " \
         "after:2024/01/01 before:2027/01/01 " \
         "#{from_query} " \
-        "smaller:100K"
+        "larger:5K smaller:100K"
       )
     end
 
@@ -25,7 +25,7 @@ RSpec.describe IngressDamageReportQuery do
         "subject:Ingress Damage Report: Entities attacked by " \
         "after:2024/02/29 before:2027/02/28 " \
         "#{from_query} " \
-        "smaller:100K"
+        "larger:5K smaller:100K"
       )
     end
 
@@ -35,7 +35,7 @@ RSpec.describe IngressDamageReportQuery do
         "subject:Ingress Damage Report: Entities attacked by " \
         "after:2012/10/15 before:2015/10/15 " \
         "#{from_query} " \
-        "smaller:100K"
+        "larger:5K smaller:100K"
       )
     end
   end

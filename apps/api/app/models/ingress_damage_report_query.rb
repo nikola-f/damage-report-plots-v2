@@ -12,6 +12,7 @@ class IngressDamageReportQuery
   FROM    = ["ingress-support@google.com",
              "ingress-support@nianticlabs.com",
              "ingress-support@nianticspatial.com"].freeze
+  LARGER  = "5K"
   SMALLER = "100K"
   DEFAULT_AFTER_DATE = "2012-10-15"
   MONTHS_RANGE = 36
@@ -26,6 +27,7 @@ class IngressDamageReportQuery
       after_date: @after,
       before_date: @after >> MONTHS_RANGE,
       from: FROM,
+      larger: LARGER,
       smaller: SMALLER
     ).to_s
   end
