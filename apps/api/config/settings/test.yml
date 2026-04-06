@@ -1,1 +1,2 @@
 sqs_report_queue_url: "https://sqs.test/queue"
+sqs_portal_queue_url: "https://sqs.test/portal-queue"

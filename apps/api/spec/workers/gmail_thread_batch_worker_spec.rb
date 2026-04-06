@@ -7,8 +7,13 @@ RSpec.describe GmailThreadBatchWorker do
   let(:access_token) { "ya29.test_token" }
   let(:thread_ids)   { %w[t1 t2 t3] }
   let(:poller)       { instance_double(SqsPoller) }
-  let(:fetcher)      { instance_double(GmailThreadBatchFetcher, call: nil) }
   let(:token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
+  let(:sqs_client)   { instance_double(SqsClient, send_message: nil) }
+
+  let(:portal) { PortalRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false) }
+  let(:decoder) { instance_double(EmailHtmlDecoder, extract_portals: [portal]) }
+  let(:gmail_message) { instance_double(GmailMessage, html_decoder: decoder) }
+  let(:fetcher) { instance_double(GmailThreadBatchFetcher, call: [gmail_message]) }
 
   let(:message) do
     token_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: token_key)
@@ -20,6 +25,7 @@ RSpec.describe GmailThreadBatchWorker do
   end
 
   before do
+    allow(SqsClient).to receive(:new).with(Settings.sqs_portal_queue_url).and_return(sqs_client)
     allow(SqsPoller).to receive(:new).and_return(poller)
     allow(poller).to receive(:poll).and_yield(message)
     allow(AccessTokenStore).to receive(:new).and_return(token_store)
@@ -50,10 +56,26 @@ RSpec.describe GmailThreadBatchWorker do
       expect(fetcher).to have_received(:call).with(thread_ids)
     end
 
+    it "sends each PortalRecord to the portal SQS queue" do
+      described_class.new.perform
+
+      expect(sqs_client).to have_received(:send_message).with(portal)
+    end
+
     it "reschedules itself after polling" do
       described_class.new.perform
 
       expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
+    end
+
+    context "when html_decoder returns nil" do
+      let(:gmail_message) { instance_double(GmailMessage, html_decoder: nil) }
+
+      it "does not call send_message" do
+        described_class.new.perform
+
+        expect(sqs_client).not_to have_received(:send_message)
+      end
     end
 
     context "when an error occurs during processing" do

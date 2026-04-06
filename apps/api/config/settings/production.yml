@@ -1,3 +1,4 @@
 redis_url: <%= ENV['REDIS_URL'] %>
 allowed_origins: <%= ENV['ALLOWED_ORIGINS'] %>
 sqs_report_queue_url: <%= ENV['SQS_REPORT_QUEUE_URL'] %>
+sqs_portal_queue_url: <%= ENV['SQS_PORTAL_QUEUE_URL'] %>
