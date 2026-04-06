@@ -10,7 +10,7 @@ RSpec.describe GmailThreadBatchWorker do
   let(:token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
   let(:sqs_client)   { instance_double(SqsClient, send_message: nil) }
 
-  let(:portal) { PortalRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: "1700000000000") }
+  let(:portal) { PortalRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: "16999200") }
   let(:decoder) { instance_double(EmailHtmlDecoder) }
   let(:internal_date) { "1700000000000" }
   let(:gmail_message) { instance_double(GmailMessage, html_decoder: decoder, internal_date:) }
