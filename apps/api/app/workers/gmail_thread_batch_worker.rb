@@ -8,7 +8,8 @@ class GmailThreadBatchWorker
   POLL_INTERVAL = 30 # seconds
 
   def perform
-    sqs = SqsClient.new(Settings.sqs_portal_queue_url)
+    sqs     = SqsClient.new(Settings.sqs_portal_queue_url)
+    portals = []
 
     SqsPoller.new(
       queue_url: Settings.sqs_report_queue_url,
@@ -20,10 +21,12 @@ class GmailThreadBatchWorker
 
       GmailThreadBatchFetcher.new(access_token:).call(thread_ids).each do |gmail_message|
         gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date)&.each do |portal|
-          sqs.send_message(portal)
+          portals << portal
         end
       end
     end
+
+    portals.uniq.each { |portal| sqs.send_message(portal) }
   ensure
     self.class.perform_in(POLL_INTERVAL)
   end

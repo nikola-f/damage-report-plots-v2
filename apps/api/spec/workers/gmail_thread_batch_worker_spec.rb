@@ -70,6 +70,16 @@ RSpec.describe GmailThreadBatchWorker do
       expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
     end
 
+    context "when the same PortalRecord appears twice" do
+      let(:fetcher) { instance_double(GmailThreadBatchFetcher, call: [gmail_message, gmail_message]) }
+
+      it "sends the portal only once" do
+        described_class.new.perform
+
+        expect(sqs_client).to have_received(:send_message).with(portal).once
+      end
+    end
+
     context "when html_decoder returns nil" do
       let(:gmail_message) { instance_double(GmailMessage, html_decoder: nil) }
 
