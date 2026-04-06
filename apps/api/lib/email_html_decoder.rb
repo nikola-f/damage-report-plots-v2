@@ -20,7 +20,7 @@ class EmailHtmlDecoder
   # @param internal_date [String, nil] internalDate from the Gmail message
   # @return [Array<PortalRecord>]
   def extract_portals(internal_date: nil)
-    truncated_date = internal_date && (internal_date.to_i / 86_400_000 * 864).to_s
+    truncated_date = internal_date && internal_date.to_i / 86_400_000 * 864
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")
     extract_nodes(PORTAL_XPATH) do |node|
       owner     = node.extract("../following-sibling::tr[2]/td/table/td[2]/div")
