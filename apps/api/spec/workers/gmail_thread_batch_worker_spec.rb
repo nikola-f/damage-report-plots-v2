@@ -70,13 +70,39 @@ RSpec.describe GmailThreadBatchWorker do
       expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
     end
 
-    context "when the same PortalRecord appears twice" do
+    context "when the same PortalRecord appears twice for the same token_key" do
       let(:fetcher) { instance_double(GmailThreadBatchFetcher, call: [gmail_message, gmail_message]) }
 
       it "sends the portal only once" do
         described_class.new.perform
 
         expect(sqs_client).to have_received(:send_message).with(portal).once
+      end
+    end
+
+    context "when two messages have different token_keys with the same PortalRecord" do
+      let(:other_token_key)    { "other-token-uuid" }
+      let(:other_access_token) { "ya29.other_token" }
+      let(:other_token_store)  { instance_double(AccessTokenStore, fetch: other_access_token) }
+      let(:other_message) do
+        token_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: other_token_key)
+        instance_double(
+          Aws::SQS::Types::Message,
+          body: JSON.generate(thread_ids),
+          message_attributes: { "token_key" => token_attr }
+        )
+      end
+
+      before do
+        allow(poller).to receive(:poll).and_yield(message).and_yield(other_message)
+        allow(AccessTokenStore).to receive(:new).and_return(token_store, other_token_store)
+        allow(GmailThreadBatchFetcher).to receive(:new).with(access_token: other_access_token).and_return(fetcher)
+      end
+
+      it "sends the portal twice (once per user)" do
+        described_class.new.perform
+
+        expect(sqs_client).to have_received(:send_message).with(portal).twice
       end
     end
 
