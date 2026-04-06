@@ -21,7 +21,7 @@ RSpec.describe GmailThreadBatchWorker do
     instance_double(
       Aws::SQS::Types::Message,
       body: JSON.generate(thread_ids),
-      message_attributes: { "token_key" => token_attr }
+      message_attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_attr }
     )
   end
 
@@ -39,7 +39,7 @@ RSpec.describe GmailThreadBatchWorker do
     it "polls the report queue with token_key attribute" do
       described_class.new.perform
 
-      expect(report_sqs_client).to have_received(:poll).with(message_attribute_names: ["token_key"])
+      expect(report_sqs_client).to have_received(:poll).with(message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR])
     end
 
     it "fetches the access token for each message" do
@@ -58,7 +58,7 @@ RSpec.describe GmailThreadBatchWorker do
     it "sends PortalRecord hashes to the portal SQS queue with token_key attribute" do
       described_class.new.perform
 
-      expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { "token_key" => token_key })
+      expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
     end
 
     it "reschedules itself after polling" do
@@ -73,7 +73,7 @@ RSpec.describe GmailThreadBatchWorker do
       it "sends the portal only once" do
         described_class.new.perform
 
-        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { "token_key" => token_key })
+        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
       end
     end
 
@@ -86,7 +86,7 @@ RSpec.describe GmailThreadBatchWorker do
         instance_double(
           Aws::SQS::Types::Message,
           body: JSON.generate(thread_ids),
-          message_attributes: { "token_key" => token_attr }
+          message_attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_attr }
         )
       end
 
@@ -99,8 +99,8 @@ RSpec.describe GmailThreadBatchWorker do
       it "sends portals once per user with each user's token_key" do
         described_class.new.perform
 
-        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { "token_key" => token_key })
-        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { "token_key" => other_token_key })
+        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
+        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => other_token_key })
       end
     end
 

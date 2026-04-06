@@ -21,7 +21,9 @@ class GmailMessage
 
   # @return [EmailHtmlDecoder, nil] decoder for the first text/html part, or nil if absent
   def html_decoder
+    return @html_decoder if defined?(@html_decoder)
+
     data = html_body_data.first
-    EmailHtmlDecoder.new(data) if data
+    @html_decoder = data ? EmailHtmlDecoder.new(data) : nil
   end
 end

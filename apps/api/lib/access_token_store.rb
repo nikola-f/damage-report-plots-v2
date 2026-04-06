@@ -11,8 +11,9 @@
 # @example Retrieving the token inside a job (non-destructive)
 #   access_token = AccessTokenStore.new.fetch(key)
 class AccessTokenStore
-  TTL        = 3600 # seconds — matches Google OAuth access token lifetime
-  KEY_PREFIX = "access_token"
+  TTL             = 3600 # seconds — matches Google OAuth access token lifetime
+  KEY_PREFIX      = "access_token"
+  TOKEN_KEY_ATTR  = "token_key" # SQS message attribute name for passing token keys between workers
 
   def initialize(redis: REDIS)
     @redis = redis

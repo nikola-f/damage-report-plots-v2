@@ -15,6 +15,6 @@ class GmailThreadListWorker
     return if thread_ids.empty?
 
     SqsClient.new(Settings.sqs_report_queue_url)
-             .send_messages(thread_ids, attributes: { "token_key" => token_key })
+             .send_messages(thread_ids, attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
   end
 end

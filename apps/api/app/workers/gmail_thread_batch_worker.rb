@@ -11,8 +11,8 @@ class GmailThreadBatchWorker
     sqs              = SqsClient.new(Settings.sqs_portal_queue_url)
     portals_by_token = Hash.new { |h, k| h[k] = [] }
 
-    SqsClient.new(Settings.sqs_report_queue_url).poll(message_attribute_names: ["token_key"]) do |message|
-      token_key    = message.message_attributes["token_key"].string_value
+    SqsClient.new(Settings.sqs_report_queue_url).poll(message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR]) do |message|
+      token_key    = message.message_attributes[AccessTokenStore::TOKEN_KEY_ATTR].string_value
       thread_ids   = JSON.parse(message.body)
       access_token = AccessTokenStore.new.fetch(token_key)
 
@@ -24,7 +24,7 @@ class GmailThreadBatchWorker
     end
 
     portals_by_token.each do |token_key, portals|
-      sqs.send_messages(portals.uniq.map(&:to_h), attributes: { "token_key" => token_key })
+      sqs.send_messages(portals.uniq.map(&:to_h), attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
     end
   ensure
     self.class.perform_in(POLL_INTERVAL)

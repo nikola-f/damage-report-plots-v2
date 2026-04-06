@@ -131,8 +131,6 @@ class SqsClient
     end
   end
 
-  class SendError < StandardError; end
-
   private
 
   # Groups items into chunks where each chunk's JSON body fits within max_body_size bytes.

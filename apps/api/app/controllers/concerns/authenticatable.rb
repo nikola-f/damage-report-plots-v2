@@ -13,16 +13,10 @@ module Authenticatable
     header = request.headers["Authorization"]
     header = header.split.last if header
 
-    begin
-      @decoded_token = JsonWebToken.decode(header)
-      @current_user_id = @decoded_token["sub"]
-      @current_user_email = @decoded_token["email"]
-      @current_user_name = @decoded_token["name"]
-    rescue JWT::ExpiredSignature
-      render json: { error: "Unauthorized - Token expired" }, status: :unauthorized
-    rescue JWT::DecodeError
-      render json: { error: "Unauthorized - Invalid token" }, status: :unauthorized
-    end
+    @decoded_token      = JsonWebToken.decode(header)
+    @current_user_id    = @decoded_token["sub"]
+    @current_user_email = @decoded_token["email"]
+    @current_user_name  = @decoded_token["name"]
   end
 
   def current_user_id

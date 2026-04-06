@@ -19,13 +19,13 @@ class GmailClient
 
   QUOTA_UNITS = {
     list_threads: 10,
-    get_thread: 10,
     batch_get_threads_per_id: 10
   }.freeze
 
   def initialize(access_token, redis: nil)
     @access_token = access_token
-    @redis = redis
+    @token_hash   = Digest::SHA256.hexdigest(access_token)
+    @redis        = redis
   end
 
   # Calls users.threads.list API and returns the parsed response.
@@ -44,16 +44,6 @@ class GmailClient
     }.compact
 
     get("/users/me/threads", params)
-  end
-
-  # Calls users.threads.get API and returns the parsed response.
-  # https://developers.google.com/gmail/api/reference/rest/v1/users.threads/get
-  #
-  # @param id [String] The ID of the thread to retrieve
-  # @return [Hash] Parsed JSON response containing the thread with its messages
-  def get_thread(id)
-    consume_quota(QUOTA_UNITS[:get_thread])
-    get("/users/me/threads/#{id}")
   end
 
   # Calls users.threads.get for multiple IDs in a single request using the Gmail Batch API.
@@ -80,7 +70,7 @@ class GmailClient
 
     [
       ["gmail_quota:project", PER_PROJECT_LIMIT],
-      ["gmail_quota:user:#{Digest::SHA256.hexdigest(@access_token)}", PER_USER_LIMIT]
+      ["gmail_quota:user:#{@token_hash}", PER_USER_LIMIT]
     ].each do |key, limit|
       new_count = @redis.incrby(key, units)
       @redis.expire(key, QUOTA_WINDOW) if new_count == units

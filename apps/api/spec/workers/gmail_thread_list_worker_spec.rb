@@ -35,7 +35,7 @@ RSpec.describe GmailThreadListWorker do
       described_class.new.perform(token_key, "2024-01-01")
 
       expect(sqs_client).to have_received(:send_messages)
-        .with(%w[t1 t2], attributes: { "token_key" => token_key })
+        .with(%w[t1 t2], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
     end
 
     context "when there are no thread IDs" do

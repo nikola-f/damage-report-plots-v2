@@ -225,56 +225,6 @@ RSpec.describe GmailClient do
     end
   end
 
-  describe "#get_thread" do
-    let(:thread_id) { "thread_abc123" }
-    let(:thread_response) do
-      {
-        "id" => thread_id,
-        "snippet" => "Portal under attack...",
-        "messages" => [
-          { "id" => "msg_1", "threadId" => thread_id, "payload" => { "body" => { "data" => "encoded_body" } } }
-        ]
-      }
-    end
-
-    before do
-      stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads/#{thread_id}")
-        .to_return(
-          status: 200,
-          body: thread_response.to_json,
-          headers: { "Content-Type" => "application/json" }
-        )
-    end
-
-    it "returns the parsed thread" do
-      result = client.get_thread(thread_id)
-      expect(result["id"]).to eq(thread_id)
-      expect(result["messages"].length).to eq(1)
-      expect(result["messages"][0]["id"]).to eq("msg_1")
-    end
-
-    it "sends Authorization header with Bearer token" do
-      client.get_thread(thread_id)
-      expect(WebMock).to have_requested(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads/#{thread_id}")
-        .with(headers: { "Authorization" => "Bearer ya29.test_access_token" })
-    end
-
-    context "when API returns 404" do
-      before do
-        stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads/#{thread_id}")
-          .to_return(
-            status: 404,
-            body: { "error" => { "code" => 404, "message" => "Not Found" } }.to_json,
-            headers: { "Content-Type" => "application/json" }
-          )
-      end
-
-      it "raises ApiError" do
-        expect { client.get_thread(thread_id) }.to raise_error(GmailClient::ApiError, /404/)
-      end
-    end
-  end
-
   describe "#batch_get_threads" do
     let(:boundary) { "response_boundary_123" }
     let(:content_type) { "multipart/mixed; boundary=#{boundary}" }
