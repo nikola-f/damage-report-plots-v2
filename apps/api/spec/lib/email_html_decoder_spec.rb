@@ -164,16 +164,18 @@ RSpec.describe EmailHtmlDecoder do
 
       expect(result).to eq([
                              PortalRecord.new(
-                               name:      "ハチ公",
-                               latitude:  "35.659054",
-                               longitude: "139.700583",
-                               owned:     false
+                               name:          "ハチ公",
+                               latitude:      "35.659054",
+                               longitude:     "139.700583",
+                               owned:         false,
+                               internal_date: nil
                              ),
                              PortalRecord.new(
-                               name:      "海からのかおり",
-                               latitude:  "35.659113",
-                               longitude: "139.701690",
-                               owned:     false
+                               name:          "海からのかおり",
+                               latitude:      "35.659113",
+                               longitude:     "139.701690",
+                               owned:         false,
+                               internal_date: nil
                              )
                            ])
     end

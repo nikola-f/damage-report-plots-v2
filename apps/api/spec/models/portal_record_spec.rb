@@ -5,26 +5,28 @@ require "rails_helper"
 RSpec.describe PortalRecord do
   subject(:record) do
     described_class.new(
-      name:      "ハチ公",
-      latitude:  "35.659054",
-      longitude: "139.700583",
-      owned:     false
+      name:          "ハチ公",
+      latitude:      "35.659054",
+      longitude:     "139.700583",
+      owned:         false,
+      internal_date: "1700000000000"
     )
   end
 
   it { expect(record.name).to eq("ハチ公") }
   it { expect(record.latitude).to eq("35.659054") }
   it { expect(record.longitude).to eq("139.700583") }
+  it { expect(record.internal_date).to eq("1700000000000") }
   it { expect(record).to be_frozen }
 
   describe "#owned" do
     it "returns true when owned is true" do
-      record = described_class.new(name: "P", latitude: "0", longitude: "0", owned: true)
+      record = described_class.new(name: "P", latitude: "0", longitude: "0", owned: true, internal_date: nil)
       expect(record.owned).to be true
     end
 
     it "returns false when owned is false" do
-      record = described_class.new(name: "P", latitude: "0", longitude: "0", owned: false)
+      record = described_class.new(name: "P", latitude: "0", longitude: "0", owned: false, internal_date: nil)
       expect(record.owned).to be false
     end
   end

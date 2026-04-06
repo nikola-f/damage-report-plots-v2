@@ -19,7 +19,7 @@ class GmailThreadBatchWorker
       access_token = AccessTokenStore.new.fetch(token_key)
 
       GmailThreadBatchFetcher.new(access_token:).call(thread_ids).each do |gmail_message|
-        gmail_message.html_decoder&.extract_portals&.each do |portal|
+        gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date)&.each do |portal|
           sqs.send_message(portal)
         end
       end

@@ -1,4 +1,4 @@
 # frozen_string_literal: true
 
 # Represents a single portal entry extracted from an Ingress damage report email.
-PortalRecord = Data.define(:name, :latitude, :longitude, :owned)
+PortalRecord = Data.define(:name, :latitude, :longitude, :owned, :internal_date)

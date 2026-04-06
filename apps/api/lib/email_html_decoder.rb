@@ -17,8 +17,9 @@ class EmailHtmlDecoder
   PORTAL_XPATH = "//tbody/tr/td[div/a[contains(@href,'ingress.com/intel')]]"
 
   # Extracts all attacked portals from an Ingress damage report email.
+  # @param internal_date [String, nil] internalDate from the Gmail message
   # @return [Array<PortalRecord>]
-  def extract_portals
+  def extract_portals(internal_date: nil)
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")
     extract_nodes(PORTAL_XPATH) do |node|
       owner     = node.extract("../following-sibling::tr[2]/td/table/td[2]/div")
@@ -27,10 +28,11 @@ class EmailHtmlDecoder
       pll       = intel_url&.match(/[?&]pll=([^&]+)/)&.[](1)
       lat, lng  = pll&.split(",")
       PortalRecord.new(
-        name:      node.extract("div[1]"),
-        latitude:  lat,
-        longitude: lng,
-        owned:     agent_name == owner
+        name:          node.extract("div[1]"),
+        latitude:      lat,
+        longitude:     lng,
+        owned:         agent_name == owner,
+        internal_date: internal_date
       )
     end
   end
