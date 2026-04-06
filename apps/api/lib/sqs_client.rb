@@ -37,20 +37,20 @@ class SqsClient
     )
   end
 
-  # Sends multiple thread IDs to SQS FIFO queue.
-  # Packs thread IDs into JSON arrays to minimize the number of SQS messages.
+  # Sends multiple items to SQS FIFO queue.
+  # Packs items into JSON arrays to minimize the number of SQS messages.
   # Splits into multiple messages when a chunk would exceed MAX_MESSAGE_SIZE.
   # SQS API calls are batched in groups of 10.
   #
-  # @param thread_ids [Array<String>] Thread IDs to enqueue
+  # @param items [Array] JSON-serializable items to enqueue (e.g. Array<String>, Array<Hash>)
   # @param attributes [Hash] optional metadata applied to every message ({ "key" => value, ... })
   #   Values are typed automatically: Numeric => Number, others => String
   # @return [Array<Aws::SQS::Types::SendMessageBatchResult>]
-  def send_messages(thread_ids, attributes: {})
+  def send_messages(items, attributes: {})
     sqs_attributes  = build_message_attributes(attributes)
     body_budget     = MAX_MESSAGE_SIZE - message_attributes_size(sqs_attributes)
 
-    chunk_by_size(thread_ids, body_budget).each_slice(10).map do |batch|
+    chunk_by_size(items, body_budget).each_slice(10).map do |batch|
       entries = batch.each_with_index.map do |chunk, index|
         body = JSON.generate(chunk)
         {

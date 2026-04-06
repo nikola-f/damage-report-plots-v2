@@ -27,7 +27,7 @@ class GmailThreadBatchWorker
     end
 
     portals_by_token.each_value do |portals|
-      portals.uniq.each { |portal| sqs.send_message(portal) }
+      sqs.send_messages(portals.uniq.map(&:to_h))
     end
   ensure
     self.class.perform_in(POLL_INTERVAL)

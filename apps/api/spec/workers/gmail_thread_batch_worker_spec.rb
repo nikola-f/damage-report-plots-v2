@@ -8,7 +8,7 @@ RSpec.describe GmailThreadBatchWorker do
   let(:thread_ids)   { %w[t1 t2 t3] }
   let(:poller)       { instance_double(SqsPoller) }
   let(:token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
-  let(:sqs_client)   { instance_double(SqsClient, send_message: nil) }
+  let(:sqs_client)   { instance_double(SqsClient, send_messages: nil) }
 
   let(:portal) { PortalRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
   let(:decoder) { instance_double(EmailHtmlDecoder) }
@@ -58,10 +58,10 @@ RSpec.describe GmailThreadBatchWorker do
       expect(fetcher).to have_received(:call).with(thread_ids)
     end
 
-    it "sends each PortalRecord to the portal SQS queue" do
+    it "sends PortalRecord hashes to the portal SQS queue via send_messages" do
       described_class.new.perform
 
-      expect(sqs_client).to have_received(:send_message).with(portal)
+      expect(sqs_client).to have_received(:send_messages).with([portal.to_h])
     end
 
     it "reschedules itself after polling" do
@@ -76,7 +76,7 @@ RSpec.describe GmailThreadBatchWorker do
       it "sends the portal only once" do
         described_class.new.perform
 
-        expect(sqs_client).to have_received(:send_message).with(portal).once
+        expect(sqs_client).to have_received(:send_messages).with([portal.to_h])
       end
     end
 
@@ -99,20 +99,20 @@ RSpec.describe GmailThreadBatchWorker do
         allow(GmailThreadBatchFetcher).to receive(:new).with(access_token: other_access_token).and_return(fetcher)
       end
 
-      it "sends the portal twice (once per user)" do
+      it "sends portals twice (once per user)" do
         described_class.new.perform
 
-        expect(sqs_client).to have_received(:send_message).with(portal).twice
+        expect(sqs_client).to have_received(:send_messages).with([portal.to_h]).twice
       end
     end
 
     context "when html_decoder returns nil" do
       let(:gmail_message) { instance_double(GmailMessage, html_decoder: nil) }
 
-      it "does not call send_message" do
+      it "does not call send_messages" do
         described_class.new.perform
 
-        expect(sqs_client).not_to have_received(:send_message)
+        expect(sqs_client).not_to have_received(:send_messages)
       end
     end
 
