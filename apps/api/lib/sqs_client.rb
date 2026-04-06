@@ -69,6 +69,16 @@ class SqsClient
     end
   end
 
+  # Receives messages, yields each to the block, then deletes them all.
+  #
+  # @param message_attribute_names [Array<String>] SQS message attribute names to retrieve
+  # @yieldparam message [Aws::SQS::Types::Message]
+  def poll(message_attribute_names: [], &block)
+    messages = receive_messages(message_attribute_names:)
+    messages.each { |msg| block.call(msg) }
+    delete_messages(messages.map(&:receipt_handle)) if messages.any?
+  end
+
   # Receives up to MAX_RECEIVE_MESSAGES messages from SQS, fetching in batches of 10.
   # Uses long polling by default (wait_time_seconds: 20).
   #

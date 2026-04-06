@@ -199,6 +199,58 @@ RSpec.describe SqsClient do
     end
   end
 
+  describe "#poll" do
+    def build_poll_message(receipt_handle)
+      instance_double(Aws::SQS::Types::Message, receipt_handle:)
+    end
+
+    context "when there are messages" do
+      let(:msg1) { build_poll_message("rh-1") }
+      let(:msg2) { build_poll_message("rh-2") }
+
+      before do
+        allow(client).to receive(:receive_messages).and_return([msg1, msg2])
+        allow(client).to receive(:delete_messages)
+      end
+
+      it "yields each message" do
+        received = []
+        client.poll { |msg| received << msg }
+
+        expect(received).to eq([msg1, msg2])
+      end
+
+      it "deletes all messages after yielding" do
+        client.poll { }
+
+        expect(client).to have_received(:delete_messages).with(%w[rh-1 rh-2])
+      end
+    end
+
+    context "when message_attribute_names is specified" do
+      before { allow(client).to receive(:receive_messages).and_return([]) }
+
+      it "passes them to receive_messages" do
+        client.poll(message_attribute_names: ["token_key"]) { }
+
+        expect(client).to have_received(:receive_messages).with(message_attribute_names: ["token_key"])
+      end
+    end
+
+    context "when there are no messages" do
+      before do
+        allow(client).to receive(:receive_messages).and_return([])
+        allow(client).to receive(:delete_messages)
+      end
+
+      it "does not call delete_messages" do
+        client.poll { }
+
+        expect(client).not_to have_received(:delete_messages)
+      end
+    end
+  end
+
   describe "#receive_messages" do
     def build_message(n)
       instance_double(Aws::SQS::Types::Message,
