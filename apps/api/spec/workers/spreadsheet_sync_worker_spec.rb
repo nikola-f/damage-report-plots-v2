@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe DamageReportSheetWorker do
+RSpec.describe SpreadsheetSyncWorker do
   let(:token_key)  { "test-token-uuid" }
   let(:record)     { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
   let(:sqs_client) { instance_double(SqsClient) }
@@ -41,7 +41,7 @@ RSpec.describe DamageReportSheetWorker do
     it "reschedules itself after polling" do
       described_class.new.perform
 
-      expect(described_class).to have_received(:perform_in).with(DamageReportSheetWorker::POLL_INTERVAL)
+      expect(described_class).to have_received(:perform_in).with(SpreadsheetSyncWorker::POLL_INTERVAL)
     end
 
     context "when an error occurs during processing" do
@@ -50,7 +50,7 @@ RSpec.describe DamageReportSheetWorker do
       it "still reschedules itself" do
         expect { described_class.new.perform }.to raise_error(RuntimeError)
 
-        expect(described_class).to have_received(:perform_in).with(DamageReportSheetWorker::POLL_INTERVAL)
+        expect(described_class).to have_received(:perform_in).with(SpreadsheetSyncWorker::POLL_INTERVAL)
       end
     end
   end
