@@ -155,22 +155,22 @@ RSpec.describe EmailHtmlDecoder do
   describe "#extract_portals" do
     subject(:decoder) { described_class.new(file_fixture("sample_email_base64_urlsafe.txt").read) }
 
-    it "returns an array of PortalRecord objects" do
-      expect(decoder.extract_portals).to all(be_a(PortalRecord))
+    it "returns an array of DamageReportRecord objects" do
+      expect(decoder.extract_portals).to all(be_a(DamageReportRecord))
     end
 
     it "extracts portal name, intel URL, and owned for each portal" do
       result = decoder.extract_portals
 
       expect(result).to eq([
-                             PortalRecord.new(
+                             DamageReportRecord.new(
                                name:          "ハチ公",
                                latitude:      "35.659054",
                                longitude:     "139.700583",
                                owned:         false,
                                internal_date: nil
                              ),
-                             PortalRecord.new(
+                             DamageReportRecord.new(
                                name:          "海からのかおり",
                                latitude:      "35.659113",
                                longitude:     "139.701690",

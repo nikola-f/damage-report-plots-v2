@@ -18,7 +18,7 @@ class EmailHtmlDecoder
 
   # Extracts all attacked portals from an Ingress damage report email.
   # @param internal_date [String, nil] internalDate from the Gmail message
-  # @return [Array<PortalRecord>]
+  # @return [Array<DamageReportRecord>]
   def extract_portals(internal_date: nil)
     truncated_date = internal_date && internal_date.to_i / 86_400_000 * 864
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")
@@ -28,7 +28,7 @@ class EmailHtmlDecoder
       intel_url = node.extract("div[2]/a", attr: "href")
       pll       = intel_url&.match(/[?&]pll=([^&]+)/)&.[](1)
       lat, lng  = pll&.split(",")
-      PortalRecord.new(
+      DamageReportRecord.new(
         name:          node.extract("div[1]"),
         latitude:      lat,
         longitude:     lng,

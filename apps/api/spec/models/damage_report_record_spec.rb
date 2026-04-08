@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe PortalRecord do
+RSpec.describe DamageReportRecord do
   subject(:record) do
     described_class.new(
       name:          "ハチ公",
