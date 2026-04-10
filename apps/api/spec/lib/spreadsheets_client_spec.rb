@@ -77,4 +77,58 @@ RSpec.describe SpreadsheetsClient do
       end
     end
   end
+
+  describe "#append_rows" do
+    let(:sheet_name) { "Attacks" }
+    let(:rows)       { [%w[ハチ公 35.659054 139.700583 false 1700000000000]] }
+    let(:append_url) do
+      "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet_id}/values/#{sheet_name}!A1:append"
+    end
+
+    context "when the API returns 200" do
+      before do
+        stub_request(:post, append_url)
+          .with(query: { "valueInputOption" => "RAW" })
+          .to_return(
+            status:  200,
+            body:    {}.to_json,
+            headers: { "Content-Type" => "application/json" }
+          )
+      end
+
+      it "sends the correct Authorization header" do
+        client.append_rows(spreadsheet_id:, sheet_name:, rows:)
+
+        expect(WebMock).to have_requested(:post, append_url)
+          .with(query: { "valueInputOption" => "RAW" }, headers: { "Authorization" => "Bearer #{access_token}" })
+      end
+
+      it "sends valueInputOption=RAW as query parameter" do
+        client.append_rows(spreadsheet_id:, sheet_name:, rows:)
+
+        expect(WebMock).to have_requested(:post, append_url)
+          .with(query: { "valueInputOption" => "RAW" })
+      end
+
+      it "sends rows as request body" do
+        client.append_rows(spreadsheet_id:, sheet_name:, rows:)
+
+        expect(WebMock).to have_requested(:post, append_url)
+          .with(query: { "valueInputOption" => "RAW" }) { |req| JSON.parse(req.body) == { "values" => rows } }
+      end
+    end
+
+    context "when the API returns an error" do
+      before do
+        stub_request(:post, append_url)
+          .with(query: { "valueInputOption" => "RAW" })
+          .to_return(status: 403, body: "Forbidden")
+      end
+
+      it "raises ApiError" do
+        expect { client.append_rows(spreadsheet_id:, sheet_name:, rows:) }
+          .to raise_error(SpreadsheetsClient::ApiError, /403/)
+      end
+    end
+  end
 end
