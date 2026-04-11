@@ -6,7 +6,6 @@ RSpec.describe "Sessions", type: :request do
   let(:access_token_store) { instance_double(AccessTokenStore, store: "test-token-key-uuid") }
 
   before do
-    mock_jwt_credentials
     allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
   end
 
@@ -16,22 +15,20 @@ RSpec.describe "Sessions", type: :request do
         mock_google_oauth_success
       end
 
-      it "returns JWT tokens and user information" do
+      it "sets user session" do
         get "/auth/google_oauth2/callback"
 
         expect(response).to have_http_status(:ok)
-
-        # Verify JWT token is present
-        expect(json_response["access_token"]).to be_present
-        expect(json_response["token_type"]).to eq("Bearer")
-        expect(json_response["expires_in"]).to eq(900)
+        expect(session[:user_id]).to eq(test_user_id)
+        expect(session[:email]).to eq(test_user_email)
+        expect(session[:name]).to eq(test_user_name)
+        expect(session[:token_key]).to eq("test-token-key-uuid")
       end
 
-      it "returns correct user information from Google" do
+      it "returns user information" do
         get "/auth/google_oauth2/callback"
 
         expect(response).to have_http_status(:ok)
-
         user = json_response["user"]
         expect(user["id"]).to eq(test_user_id)
         expect(user["email"]).to eq(test_user_email)
@@ -39,34 +36,10 @@ RSpec.describe "Sessions", type: :request do
         expect(user["picture"]).to eq(test_user_picture)
       end
 
-      it "returns Google OAuth tokens for API access" do
-        get "/auth/google_oauth2/callback"
-
-        expect(response).to have_http_status(:ok)
-
-        google_tokens = json_response["google_tokens"]
-        expect(google_tokens["access_token"]).to eq("google_access_token_123")
-        expect(google_tokens["expires_at"]).to be_present
-        expect(google_tokens).not_to have_key("refresh_token")
-      end
-
-      it "stores the Google access token and returns the token_key" do
+      it "stores the Google access token" do
         get "/auth/google_oauth2/callback"
 
         expect(access_token_store).to have_received(:store).with("google_access_token_123")
-        expect(json_response["token_key"]).to eq("test-token-key-uuid")
-      end
-
-      it "returns a valid decodable access token" do
-        get "/auth/google_oauth2/callback"
-
-        access_token = json_response["access_token"]
-        decoded = JsonWebToken.decode(access_token)
-
-        expect(decoded["sub"]).to eq(test_user_id)
-        expect(decoded["email"]).to eq(test_user_email)
-        expect(decoded["name"]).to eq(test_user_name)
-        expect(decoded["iss"]).to eq("damage-report-api")
       end
     end
 
@@ -79,10 +52,10 @@ RSpec.describe "Sessions", type: :request do
         )
       end
 
-      it "uses the custom user data in tokens and response" do
+      it "uses the custom user data in session and response" do
         get "/auth/google_oauth2/callback"
 
-        expect(json_response["user"]["id"]).to eq("custom_id_789")
+        expect(session[:user_id]).to eq("custom_id_789")
         expect(json_response["user"]["email"]).to eq("custom@example.com")
         expect(json_response["user"]["name"]).to eq("Custom User")
       end
@@ -90,13 +63,10 @@ RSpec.describe "Sessions", type: :request do
 
     context "with missing OAuth data" do
       before do
-        # Clear any previously set mock auth to simulate missing data
         OmniAuth.config.mock_auth[:google_oauth2] = nil
       end
 
       it "returns error when auth data is missing" do
-        # Directly access the callback endpoint without going through OAuth flow
-        # This simulates env['omniauth.auth'] being nil
         get "/auth/google_oauth2/callback"
 
         # Returns 422 because the rescue block catches the exception
@@ -107,15 +77,18 @@ RSpec.describe "Sessions", type: :request do
   end
 
   describe "DELETE /auth/logout" do
-    it "returns success message" do
+    it "clears the session and returns success" do
+      mock_google_oauth_success
+      get "/auth/google_oauth2/callback"
+
       delete "/auth/logout"
 
       expect(response).to have_http_status(:ok)
       expect(json_response["message"]).to eq("Logged out successfully")
+      expect(session[:user_id]).to be_nil
     end
 
-    it "succeeds even without authentication" do
-      # Logout should be idempotent - client just deletes tokens
+    it "succeeds even without an active session" do
       delete "/auth/logout"
 
       expect(response).to have_http_status(:ok)

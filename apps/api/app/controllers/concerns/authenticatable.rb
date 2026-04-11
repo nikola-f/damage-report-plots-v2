@@ -10,32 +10,26 @@ module Authenticatable
   private
 
   def authenticate_request!
-    header = request.headers["Authorization"]
-    header = header.split.last if header
-
-    @decoded_token      = JsonWebToken.decode(header)
-    @current_user_id    = @decoded_token["sub"]
-    @current_user_email = @decoded_token["email"]
-    @current_user_name  = @decoded_token["name"]
+    render json: { error: "Unauthorized" }, status: :unauthorized unless session[:user_id]
   end
 
   def current_user_id
-    @current_user_id
+    session[:user_id]
   end
 
   def current_user_email
-    @current_user_email
+    session[:email]
   end
 
   def current_user_name
-    @current_user_name
+    session[:name]
   end
 
   def current_user
     {
-      id: @current_user_id,
-      email: @current_user_email,
-      name: @current_user_name
+      id:    session[:user_id],
+      email: session[:email],
+      name:  session[:name]
     }
   end
 end

@@ -9,45 +9,31 @@ class SessionsController < ApplicationController
   end
 
   def google_callback
-    # Get OAuth data from OmniAuth
     auth = request.env["omniauth.auth"]
 
     return render json: { error: "Authentication failed" }, status: :unauthorized unless auth
 
-    # Extract user info from Google
     user_info = {
       google_id: auth["uid"],
-      email: auth["info"]["email"],
-      name: auth["info"]["name"],
-      picture: auth["info"]["image"]
+      email:     auth["info"]["email"],
+      name:      auth["info"]["name"],
+      picture:   auth["info"]["image"]
     }
 
-    # Create JWT access token (15 minutes)
-    access_token = JsonWebToken.encode({
-                                         sub: user_info[:google_id],
-                                         email: user_info[:email],
-                                         name: user_info[:name],
-                                         picture: user_info[:picture]
-                                       })
-
-    # Store Google access token in Redis for background job use
     token_key = AccessTokenStore.new.store(auth["credentials"]["token"])
 
-    # Return tokens and user info
+    session[:user_id]   = user_info[:google_id]
+    session[:email]     = user_info[:email]
+    session[:name]      = user_info[:name]
+    session[:picture]   = user_info[:picture]
+    session[:token_key] = token_key
+
     render json: {
-      access_token: access_token,
-      token_type: "Bearer",
-      expires_in: 900, # 15 minutes in seconds
-      token_key: token_key,
       user: {
-        id: user_info[:google_id],
-        email: user_info[:email],
-        name: user_info[:name],
+        id:      user_info[:google_id],
+        email:   user_info[:email],
+        name:    user_info[:name],
         picture: user_info[:picture]
-      },
-      google_tokens: {
-        access_token: auth["credentials"]["token"],
-        expires_at: auth["credentials"]["expires_at"]
       }
     }, status: :ok
   rescue StandardError => e
@@ -55,8 +41,7 @@ class SessionsController < ApplicationController
   end
 
   def logout
-    # Since JWT is stateless, just return success
-    # Client should delete tokens
+    reset_session
     render json: { message: "Logged out successfully" }, status: :ok
   end
 

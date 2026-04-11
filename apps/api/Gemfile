@@ -12,9 +12,6 @@ gem "puma", ">= 5.0"
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 
-# JWT for stateless authentication
-gem "jwt"
-
 # Google OAuth2 authentication
 gem "omniauth-google-oauth2"
 gem "omniauth-rails_csrf_protection"
