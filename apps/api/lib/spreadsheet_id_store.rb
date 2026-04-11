@@ -9,6 +9,7 @@
 # @example Retrieving the spreadsheet ID inside a job
 #   spreadsheet_id = SpreadsheetIdStore.new.fetch(token_key)
 class SpreadsheetIdStore
+  TTL        = 14 * 24 * 60 * 60 # 14 days in seconds
   KEY_PREFIX = "spreadsheet_id"
 
   def initialize(redis: REDIS)
@@ -18,7 +19,7 @@ class SpreadsheetIdStore
   # @param token_key      [String] UUID key from AccessTokenStore
   # @param spreadsheet_id [String]
   def store(token_key, spreadsheet_id)
-    @redis.set(redis_key(token_key), spreadsheet_id)
+    @redis.set(redis_key(token_key), spreadsheet_id, ex: TTL)
   end
 
   # @param token_key [String]

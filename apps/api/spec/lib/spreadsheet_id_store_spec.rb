@@ -9,11 +9,11 @@ RSpec.describe SpreadsheetIdStore do
   describe "#store" do
     before { allow(redis).to receive(:set) }
 
-    it "stores the spreadsheet ID in Redis with the token_key" do
+    it "stores the spreadsheet ID in Redis with the token_key and TTL" do
       store.store("some-token-key", "spreadsheet-id-123")
 
       expect(redis).to have_received(:set)
-        .with("spreadsheet_id:some-token-key", "spreadsheet-id-123")
+        .with("spreadsheet_id:some-token-key", "spreadsheet-id-123", ex: SpreadsheetIdStore::TTL)
     end
   end
 
