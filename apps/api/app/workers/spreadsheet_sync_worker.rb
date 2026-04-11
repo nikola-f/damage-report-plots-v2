@@ -8,6 +8,10 @@ class SpreadsheetSyncWorker
   POLL_INTERVAL = 30 # seconds
   SHEET_NAME    = "Attacks"
 
+  # Printable ASCII excluding " (breaks CSV) and ' (Sheets text prefix).
+  # Larger alphabet → shorter Sqids IDs.
+  SQIDS_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+,-./:;<=>?@[\\]^_`{|}~"
+
   def perform
     SqsClient.new(Settings.sqs_portal_queue_url).poll(message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR]) do |message|
       token_key = message.message_attributes[AccessTokenStore::TOKEN_KEY_ATTR].string_value
@@ -47,6 +51,6 @@ class SpreadsheetSyncWorker
   def portal_id(record)
     lat_int = ((record.latitude.to_f + 90) * 1_000_000).round
     lng_int = ((record.longitude.to_f + 180) * 1_000_000).round
-    Sqids.new.encode([lat_int, lng_int])
+    Sqids.new(alphabet: SQIDS_ALPHABET).encode([lat_int, lng_int])
   end
 end
