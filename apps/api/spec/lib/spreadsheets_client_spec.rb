@@ -74,6 +74,56 @@ RSpec.describe SpreadsheetsClient do
     end
   end
 
+  describe "#protect_ranges" do
+    let(:batch_update_url) { "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet_id}:batchUpdate" }
+
+    context "when requests is empty" do
+      before do
+        allow(JSON).to receive(:load_file)
+          .with(SpreadsheetsClient::PROTECTION_PATH)
+          .and_return({ "requests" => [] })
+      end
+
+      it "makes no HTTP request" do
+        client.protect_ranges(spreadsheet_id:)
+
+        expect(WebMock).not_to have_requested(:post, batch_update_url)
+      end
+    end
+
+    context "when requests are present" do
+      let(:protection) do
+        {
+          "requests" => [
+            { "addProtectedRange" => { "protectedRange" => { "range" => { "sheetId" => 110 }, "warningOnly" => true } } }
+          ]
+        }
+      end
+
+      before do
+        allow(JSON).to receive(:load_file)
+          .with(SpreadsheetsClient::PROTECTION_PATH)
+          .and_return(protection)
+        stub_request(:post, batch_update_url)
+          .to_return(status: 200, body: {}.to_json, headers: { "Content-Type" => "application/json" })
+      end
+
+      it "calls batchUpdate with the protection requests" do
+        client.protect_ranges(spreadsheet_id:)
+
+        expect(WebMock).to have_requested(:post, batch_update_url)
+          .with { |req| JSON.parse(req.body) == protection }
+      end
+
+      it "sends the correct Authorization header" do
+        client.protect_ranges(spreadsheet_id:)
+
+        expect(WebMock).to have_requested(:post, batch_update_url)
+          .with(headers: { "Authorization" => "Bearer #{access_token}" })
+      end
+    end
+  end
+
   describe "#append_rows" do
     let(:sheet_name) { "reports" }
     let(:rows)       { [%w[ハチ公 35.659054 139.700583 false 1700000000000]] }

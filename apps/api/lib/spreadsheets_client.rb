@@ -5,7 +5,8 @@ require "json"
 
 class SpreadsheetsClient
   BASE_URL        = "https://sheets.googleapis.com/v4"
-  DEFINITION_PATH = Rails.root.join("config/spreadsheet_definition.json")
+  DEFINITION_PATH  = Rails.root.join("config/spreadsheet_definition.json")
+  PROTECTION_PATH  = Rails.root.join("config/spreadsheet_protection.json")
 
   class ApiError < StandardError; end
 
@@ -20,6 +21,17 @@ class SpreadsheetsClient
     body["properties"]["title"] = title
     response = post("/spreadsheets", body)
     response["spreadsheetId"]
+  end
+
+  # batchUpdate で保護範囲を設定する。
+  # requests が空のときは何もしない。
+  #
+  # @param spreadsheet_id [String]
+  def protect_ranges(spreadsheet_id:)
+    body = JSON.load_file(PROTECTION_PATH)
+    return if body["requests"].empty?
+
+    post("/spreadsheets/#{spreadsheet_id}:batchUpdate", body)
   end
 
   # 既存シートの末尾に行データをバッチ追加する。
