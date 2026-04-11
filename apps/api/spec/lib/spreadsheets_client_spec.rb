@@ -8,24 +8,12 @@ RSpec.describe SpreadsheetsClient do
   let(:spreadsheet_id) { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
 
   let(:definition) do
-    { "sheets" => [{ "name" => "Attacks", "headers" => %w[ID latitude longitude owned label recorded_at] }] }
-  end
-
-  let(:expected_body) do
     {
-      "properties" => { "title" => "Damage Report 2024" },
+      "properties" => { "title" => "template title", "locale" => "en" },
       "sheets"     => [
         {
-          "properties" => { "title" => "Attacks" },
-          "data"       => [{
-            "startRow"    => 0,
-            "startColumn" => 0,
-            "rowData"     => [{
-              "values" => %w[ID latitude longitude owned label recorded_at].map do |h|
-                { "userEnteredValue" => { "stringValue" => h } }
-              end
-            }]
-          }]
+          "properties" => { "sheetId" => 100, "title" => "reports" },
+          "data"       => [{ "startRow" => 0, "startColumn" => 0, "rowData" => [] }]
         }
       ]
     }
@@ -55,11 +43,15 @@ RSpec.describe SpreadsheetsClient do
           .with(headers: { "Authorization" => "Bearer #{access_token}" })
       end
 
-      it "sends the sheet definition from the JSON file as request body" do
+      it "sends the JSON definition with the title overridden" do
         client.create_spreadsheet(title: "Damage Report 2024")
 
         expect(WebMock).to have_requested(:post, "https://sheets.googleapis.com/v4/spreadsheets")
-          .with { |req| JSON.parse(req.body) == expected_body }
+          .with { |req|
+            body = JSON.parse(req.body)
+            body["properties"]["title"] == "Damage Report 2024" &&
+              body["sheets"] == definition["sheets"]
+          }
       end
 
       it "returns the spreadsheet ID" do
@@ -83,7 +75,7 @@ RSpec.describe SpreadsheetsClient do
   end
 
   describe "#append_rows" do
-    let(:sheet_name) { "Attacks" }
+    let(:sheet_name) { "reports" }
     let(:rows)       { [%w[ハチ公 35.659054 139.700583 false 1700000000000]] }
     let(:append_url) do
       "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet_id}/values/#{sheet_name}!A1:append"
