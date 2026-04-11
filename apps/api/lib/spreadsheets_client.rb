@@ -5,8 +5,8 @@ require "json"
 
 class SpreadsheetsClient
   BASE_URL        = "https://sheets.googleapis.com/v4"
-  DEFINITION_PATH  = Rails.root.join("config/spreadsheet_definition.json")
-  PROTECTION_PATH  = Rails.root.join("config/spreadsheet_protection.json")
+  DEFINITION_PATH = Rails.root.join("config/spreadsheet_definition.json")
+  PROTECTION_PATH = Rails.root.join("config/spreadsheet_protection.json")
 
   class ApiError < StandardError; end
 
@@ -14,11 +14,9 @@ class SpreadsheetsClient
     @access_token = access_token
   end
 
-  # @param title [String] スプレッドシートのタイトル
   # @return [String] 作成されたスプレッドシートの ID
-  def create_spreadsheet(title:)
+  def create_spreadsheet
     body = JSON.load_file(DEFINITION_PATH)
-    body["properties"]["title"] = title
     response = post("/spreadsheets", body)
     response["spreadsheetId"]
   end
