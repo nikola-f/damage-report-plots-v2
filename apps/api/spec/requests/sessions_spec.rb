@@ -46,8 +46,8 @@ RSpec.describe "Sessions", type: :request do
 
         google_tokens = json_response["google_tokens"]
         expect(google_tokens["access_token"]).to eq("google_access_token_123")
-        expect(google_tokens["refresh_token"]).to eq("google_refresh_token_456")
         expect(google_tokens["expires_at"]).to be_present
+        expect(google_tokens).not_to have_key("refresh_token")
       end
 
       it "stores the Google access token and returns the token_key" do

@@ -47,7 +47,6 @@ class SessionsController < ApplicationController
       },
       google_tokens: {
         access_token: auth["credentials"]["token"],
-        refresh_token: auth["credentials"]["refresh_token"],
         expires_at: auth["credentials"]["expires_at"]
       }
     }, status: :ok
