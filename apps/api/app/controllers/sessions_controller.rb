@@ -30,11 +30,15 @@ class SessionsController < ApplicationController
                                          picture: user_info[:picture]
                                        })
 
+    # Store Google access token in Redis for background job use
+    token_key = AccessTokenStore.new.store(auth["credentials"]["token"])
+
     # Return tokens and user info
     render json: {
       access_token: access_token,
       token_type: "Bearer",
       expires_in: 900, # 15 minutes in seconds
+      token_key: token_key,
       user: {
         id: user_info[:google_id],
         email: user_info[:email],

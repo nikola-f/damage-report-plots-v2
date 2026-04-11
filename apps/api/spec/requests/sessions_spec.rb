@@ -3,8 +3,11 @@
 require "rails_helper"
 
 RSpec.describe "Sessions", type: :request do
+  let(:access_token_store) { instance_double(AccessTokenStore, store: "test-token-key-uuid") }
+
   before do
     mock_jwt_credentials
+    allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
   end
 
   describe "GET /auth/google_oauth2/callback" do
@@ -45,6 +48,13 @@ RSpec.describe "Sessions", type: :request do
         expect(google_tokens["access_token"]).to eq("google_access_token_123")
         expect(google_tokens["refresh_token"]).to eq("google_refresh_token_456")
         expect(google_tokens["expires_at"]).to be_present
+      end
+
+      it "stores the Google access token and returns the token_key" do
+        get "/auth/google_oauth2/callback"
+
+        expect(access_token_store).to have_received(:store).with("google_access_token_123")
+        expect(json_response["token_key"]).to eq("test-token-key-uuid")
       end
 
       it "returns a valid decodable access token" do
