@@ -9,7 +9,7 @@ Rails.application.config.middleware.use OmniAuth::Builder do
              prompt: 'select_account',
              image_aspect_ratio: 'square',
              image_size: 50,
-             access_type: 'offline',
+             access_type: 'online',
              include_granted_scopes: true
            }
 end
