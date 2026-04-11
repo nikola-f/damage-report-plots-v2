@@ -33,7 +33,20 @@ class SpreadsheetSyncWorker
     )
   end
 
-  def to_row(_record)
-    raise NotImplementedError, "to_row is not yet implemented"
+  def to_row(record)
+    [
+      portal_id(record),
+      record.latitude,
+      record.longitude,
+      record.owned,
+      "#{record.internal_date},#{record.name}",
+      Time.now.strftime("%y%m%d%H%M%S").to_i
+    ]
+  end
+
+  def portal_id(record)
+    lat_int = ((record.latitude.to_f + 90) * 1_000_000).round
+    lng_int = ((record.longitude.to_f + 180) * 1_000_000).round
+    Sqids.new.encode([lat_int, lng_int])
   end
 end

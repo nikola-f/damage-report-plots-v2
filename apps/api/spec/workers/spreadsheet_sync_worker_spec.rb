@@ -101,6 +101,53 @@ RSpec.describe SpreadsheetSyncWorker do
     end
   end
 
+  describe "#to_row" do
+    let(:worker)     { described_class.new }
+    let(:now)        { Time.new(2024, 1, 15, 10, 30, 45) }
+
+    before { allow(Time).to receive(:now).and_return(now) }
+
+    subject(:row) { worker.send(:to_row, record) }
+
+    it "returns 6 columns" do
+      expect(row.length).to eq(6)
+    end
+
+    it "generates a deterministic Sqids ID from latitude and longitude" do
+      id1 = worker.send(:to_row, record)[0]
+      id2 = worker.send(:to_row, record)[0]
+
+      expect(id1).to be_a(String).and(be_present)
+      expect(id1).to eq(id2)
+    end
+
+    it "generates different IDs for different coordinates" do
+      other = DamageReportRecord.new(name: "ハチ公", latitude: "35.1", longitude: "139.0", owned: false, internal_date: 16999200)
+
+      expect(row[0]).not_to eq(worker.send(:to_row, other)[0])
+    end
+
+    it "places latitude in column 2" do
+      expect(row[1]).to eq(record.latitude)
+    end
+
+    it "places longitude in column 3" do
+      expect(row[2]).to eq(record.longitude)
+    end
+
+    it "places owned in column 4" do
+      expect(row[3]).to eq(record.owned)
+    end
+
+    it "places internal_date and name comma-joined in column 5" do
+      expect(row[4]).to eq("#{record.internal_date},#{record.name}")
+    end
+
+    it "places current time as YYMMddHHmmss integer in column 6" do
+      expect(row[5]).to eq(240115103045)
+    end
+  end
+
   describe "Sidekiq options" do
     it "does not retry" do
       expect(described_class.sidekiq_options["retry"]).to eq(0)
