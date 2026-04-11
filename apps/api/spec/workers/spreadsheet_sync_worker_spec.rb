@@ -135,8 +135,13 @@ RSpec.describe SpreadsheetSyncWorker do
       expect(row[2]).to eq(record.longitude)
     end
 
-    it "places owned in column 4" do
-      expect(row[3]).to eq(record.owned)
+    it "places 0 in column 4 when owned is false" do
+      expect(row[3]).to eq(0)
+    end
+
+    it "places 1 in column 4 when owned is true" do
+      owned_record = DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: true, internal_date: 16999200)
+      expect(worker.send(:to_row, owned_record)[3]).to eq(1)
     end
 
     it "places internal_date and name comma-joined in column 5" do

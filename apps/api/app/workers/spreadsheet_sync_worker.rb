@@ -38,7 +38,7 @@ class SpreadsheetSyncWorker
       portal_id(record),
       record.latitude,
       record.longitude,
-      record.owned,
+      record.owned ? 1 : 0,
       "#{record.internal_date},#{record.name}",
       Time.now.strftime("%y%m%d%H%M%S").to_i
     ]
