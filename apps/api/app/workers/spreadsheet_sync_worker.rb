@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 class SpreadsheetSyncWorker
   include Sidekiq::Worker
 
@@ -49,8 +51,8 @@ class SpreadsheetSyncWorker
   end
 
   def portal_id(record)
-    lat_int = ((record.latitude.to_f + 90) * 1_000_000).round
-    lng_int = ((record.longitude.to_f + 180) * 1_000_000).round
-    Sqids.new(alphabet: SQIDS_ALPHABET).encode([lat_int, lng_int])
+    hash   = Digest::SHA256.digest("#{record.latitude},#{record.longitude}")
+    number = hash.unpack1("Q>") & ((1 << 62) - 1) # Sqids max: 2^62 - 1
+    Sqids.new(alphabet: SQIDS_ALPHABET).encode([number])
   end
 end
