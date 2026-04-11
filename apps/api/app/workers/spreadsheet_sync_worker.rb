@@ -13,6 +13,7 @@ class SpreadsheetSyncWorker
   # Printable ASCII excluding " (breaks CSV) and ' (Sheets text prefix).
   # Larger alphabet → shorter Sqids IDs.
   SQIDS_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+,-./:;<=>?@[]^_`{|}~"
+  SQIDS          = Sqids.new(alphabet: SQIDS_ALPHABET)
 
   def perform
     SqsClient.new(Settings.sqs_portal_queue_url).poll(message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR]) do |message|
@@ -53,6 +54,6 @@ class SpreadsheetSyncWorker
   def portal_id(record)
     hash   = Digest::SHA256.digest("#{record.latitude},#{record.longitude}")
     number = hash.unpack1("Q>") & ((1 << 62) - 1) # Sqids max: 2^62 - 1
-    Sqids.new(alphabet: SQIDS_ALPHABET).encode([number])
+    SQIDS.encode([number])
   end
 end
