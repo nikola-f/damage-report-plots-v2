@@ -7,8 +7,9 @@ RSpec.describe SpreadsheetsClient do
   let(:client)         { described_class.new(access_token) }
   let(:spreadsheet_id) { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
 
-  let(:sheet)    { SpreadsheetTemplate::Sheet.new(name: "Attacks", headers: %w[Date Portal Latitude Longitude]) }
-  let(:template) { SpreadsheetTemplate.new(sheets: [sheet]) }
+  let(:definition) do
+    { "sheets" => [{ "name" => "Attacks", "headers" => %w[ID latitude longitude owned label recorded_at] }] }
+  end
 
   let(:expected_body) do
     {
@@ -20,17 +21,20 @@ RSpec.describe SpreadsheetsClient do
             "startRow"    => 0,
             "startColumn" => 0,
             "rowData"     => [{
-              "values" => [
-                { "userEnteredValue" => { "stringValue" => "Date" } },
-                { "userEnteredValue" => { "stringValue" => "Portal" } },
-                { "userEnteredValue" => { "stringValue" => "Latitude" } },
-                { "userEnteredValue" => { "stringValue" => "Longitude" } }
-              ]
+              "values" => %w[ID latitude longitude owned label recorded_at].map do |h|
+                { "userEnteredValue" => { "stringValue" => h } }
+              end
             }]
           }]
         }
       ]
     }
+  end
+
+  before do
+    allow(JSON).to receive(:load_file)
+      .with(SpreadsheetsClient::DEFINITION_PATH)
+      .and_return(definition)
   end
 
   describe "#create_spreadsheet" do
@@ -45,21 +49,21 @@ RSpec.describe SpreadsheetsClient do
       end
 
       it "sends the correct Authorization header" do
-        client.create_spreadsheet(title: "Damage Report 2024", template:)
+        client.create_spreadsheet(title: "Damage Report 2024")
 
         expect(WebMock).to have_requested(:post, "https://sheets.googleapis.com/v4/spreadsheets")
           .with(headers: { "Authorization" => "Bearer #{access_token}" })
       end
 
-      it "sends the correct request body" do
-        client.create_spreadsheet(title: "Damage Report 2024", template:)
+      it "sends the sheet definition from the JSON file as request body" do
+        client.create_spreadsheet(title: "Damage Report 2024")
 
         expect(WebMock).to have_requested(:post, "https://sheets.googleapis.com/v4/spreadsheets")
           .with { |req| JSON.parse(req.body) == expected_body }
       end
 
       it "returns the spreadsheet ID" do
-        result = client.create_spreadsheet(title: "Damage Report 2024", template:)
+        result = client.create_spreadsheet(title: "Damage Report 2024")
 
         expect(result).to eq(spreadsheet_id)
       end
@@ -72,7 +76,7 @@ RSpec.describe SpreadsheetsClient do
       end
 
       it "raises ApiError" do
-        expect { client.create_spreadsheet(title: "Damage Report 2024", template:) }
+        expect { client.create_spreadsheet(title: "Damage Report 2024") }
           .to raise_error(SpreadsheetsClient::ApiError, /403/)
       end
     end

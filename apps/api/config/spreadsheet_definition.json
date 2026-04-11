@@ -1,0 +1,8 @@
+{
+  "sheets": [
+    {
+      "name": "Attacks",
+      "headers": ["ID", "latitude", "longitude", "owned", "label", "recorded_at"]
+    }
+  ]
+}
