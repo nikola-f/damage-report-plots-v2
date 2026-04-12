@@ -9,8 +9,8 @@ RSpec.describe "GET /api/v1/application_status", type: :request do
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
-    allow(SqsClient).to receive(:new).with(Settings.sqs_report_queue_url).and_return(report_sqs)
-    allow(SqsClient).to receive(:new).with(Settings.sqs_portal_queue_url).and_return(portal_sqs)
+    allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(report_sqs)
+    allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs)
     allow(REDIS).to receive(:get).with("gmail_quota:project").and_return("5000")
     allow(REDIS).to receive(:ttl).with("gmail_quota:project").and_return(42)
   end

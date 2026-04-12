@@ -1,2 +1,2 @@
-sqs_report_queue_url: "https://sqs.test/queue"
-sqs_portal_queue_url: "https://sqs.test/portal-queue"
+sqs_thread_ids_queue_url: "https://sqs.test/queue"
+sqs_reports_queue_url: "https://sqs.test/portal-queue"

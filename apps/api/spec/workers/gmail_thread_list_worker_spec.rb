@@ -12,7 +12,7 @@ RSpec.describe GmailThreadListWorker do
 
   before do
     allow(UserStore).to receive(:access_token).and_return(token_store)
-    allow(SqsClient).to receive(:new).with(Settings.sqs_report_queue_url).and_return(sqs_client)
+    allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(sqs_client)
     allow(GmailThreadListFetcher).to receive(:new).and_return(fetcher)
   end
 

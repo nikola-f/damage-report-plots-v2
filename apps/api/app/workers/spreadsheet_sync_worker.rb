@@ -16,7 +16,7 @@ class SpreadsheetSyncWorker
   SQIDS          = Sqids.new(alphabet: SQIDS_ALPHABET)
 
   def perform
-    SqsClient.new(Settings.sqs_portal_queue_url).poll(
+    SqsClient.new(Settings.sqs_reports_queue_url).poll(
       message_attribute_names: [UserStore::USER_ID_ATTR]
     ) do |message|
       user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value

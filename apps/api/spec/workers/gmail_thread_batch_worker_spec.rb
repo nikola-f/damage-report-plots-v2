@@ -26,8 +26,8 @@ RSpec.describe GmailThreadBatchWorker do
   end
 
   before do
-    allow(SqsClient).to receive(:new).with(Settings.sqs_portal_queue_url).and_return(portal_sqs_client)
-    allow(SqsClient).to receive(:new).with(Settings.sqs_report_queue_url).and_return(report_sqs_client)
+    allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs_client)
+    allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(report_sqs_client)
     allow(report_sqs_client).to receive(:poll).and_yield(message)
     allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(GmailThreadBatchFetcher).to receive(:new).and_return(fetcher)

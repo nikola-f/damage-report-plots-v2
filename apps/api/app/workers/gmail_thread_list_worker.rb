@@ -14,7 +14,7 @@ class GmailThreadListWorker
 
     return if thread_ids.empty?
 
-    SqsClient.new(Settings.sqs_report_queue_url)
+    SqsClient.new(Settings.sqs_thread_ids_queue_url)
              .send_messages(thread_ids, attributes: { UserStore::USER_ID_ATTR => user_id })
   end
 end

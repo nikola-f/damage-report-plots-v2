@@ -17,7 +17,7 @@ RSpec.describe SpreadsheetSyncWorker do
   end
 
   before do
-    allow(SqsClient).to receive(:new).with(Settings.sqs_portal_queue_url).and_return(sqs_client)
+    allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(sqs_client)
     allow(sqs_client).to receive(:poll).and_yield(message)
     allow(described_class).to receive(:perform_in)
   end

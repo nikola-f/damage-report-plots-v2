@@ -8,10 +8,10 @@ class GmailThreadBatchWorker
   POLL_INTERVAL = 30 # seconds
 
   def perform
-    sqs             = SqsClient.new(Settings.sqs_portal_queue_url)
+    sqs             = SqsClient.new(Settings.sqs_reports_queue_url)
     portals_by_user = Hash.new { |h, k| h[k] = [] }
 
-    SqsClient.new(Settings.sqs_report_queue_url).poll(message_attribute_names: [UserStore::USER_ID_ATTR]) do |message|
+    SqsClient.new(Settings.sqs_thread_ids_queue_url).poll(message_attribute_names: [UserStore::USER_ID_ATTR]) do |message|
       user_id      = message.message_attributes[UserStore::USER_ID_ATTR].string_value
       thread_ids   = JSON.parse(message.body)
       access_token = UserStore.access_token.fetch(user_id)

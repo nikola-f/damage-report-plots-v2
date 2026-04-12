@@ -31,7 +31,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
   after(:all)  { WebMock.disable_net_connect! }
 
   let(:access_token) { ENV.fetch("TEST_GMAIL_ACCESS_TOKEN") }
-  let(:queue_url)    { Settings.sqs_report_queue_url }
+  let(:queue_url)    { Settings.sqs_thread_ids_queue_url }
   let(:user_id)      { Digest::SHA256.hexdigest(access_token) }
   let(:token_hash)   { user_id }
 
