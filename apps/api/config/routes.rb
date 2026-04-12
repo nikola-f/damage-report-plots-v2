@@ -15,6 +15,10 @@ Rails.application.routes.draw do
   # Session management routes
   delete '/auth/logout', to: 'sessions#logout'
 
+  # Incremental OAuth scope grants (require active session)
+  post '/auth/grant/spreadsheets', to: 'sessions#grant_spreadsheets'
+  post '/auth/grant/sync',         to: 'sessions#grant_sync'
+
   # API routes (versioned)
   namespace :api do
     namespace :v1 do

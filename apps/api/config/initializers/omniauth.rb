@@ -5,12 +5,17 @@ Rails.application.config.middleware.use OmniAuth::Builder do
            Rails.application.credentials.dig(:google, :client_id),
            Rails.application.credentials.dig(:google, :client_secret),
            {
-             scope: 'email,profile',
+             scope: SessionsController::LOGIN_SCOPE,
              prompt: 'select_account',
              image_aspect_ratio: 'square',
              image_size: 50,
              access_type: 'online',
-             include_granted_scopes: true
+             include_granted_scopes: true,
+             setup: proc { |env|
+               if (scope = env['rack.session']['requested_scope'])
+                 env['omniauth.strategy'].options[:scope] = scope
+               end
+             }
            }
 end
 

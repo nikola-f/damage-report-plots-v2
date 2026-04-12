@@ -42,6 +42,33 @@ RSpec.describe "Sessions", type: :request do
       end
     end
 
+    context "as a scope upgrade (requested_scope present in session)" do
+      before do
+        login_as
+        post "/auth/grant/spreadsheets"
+      end
+
+      it "updates the stored access token" do
+        get "/auth/google_oauth2/callback"
+
+        expect(access_token_store).to have_received(:store).with(test_user_id, "google_access_token_123").at_least(:once)
+      end
+
+      it "returns the granted scope" do
+        get "/auth/google_oauth2/callback"
+
+        expect(response).to have_http_status(:ok)
+        expect(json_response["granted_scope"]).to eq(SessionsController::SPREADSHEETS_SCOPE)
+      end
+
+      it "does not overwrite the user session" do
+        get "/auth/google_oauth2/callback"
+
+        expect(session[:user_id]).to eq(test_user_id)
+        expect(session[:email]).to eq(test_user_email)
+      end
+    end
+
     context "with custom user data from Google" do
       before do
         mock_google_oauth_success(
@@ -116,6 +143,60 @@ RSpec.describe "Sessions", type: :request do
 
       expect(response).to have_http_status(:unauthorized)
       expect(json_response["error"]).to eq("Authentication failed")
+    end
+  end
+
+  describe "POST /auth/grant/spreadsheets" do
+    context "without session" do
+      it "returns unauthorized" do
+        post "/auth/grant/spreadsheets"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "with active session" do
+      before { login_as }
+
+      it "returns the authorization URL" do
+        post "/auth/grant/spreadsheets"
+
+        expect(response).to have_http_status(:ok)
+        expect(json_response["authorization_url"]).to eq("/auth/google_oauth2")
+      end
+
+      it "stores the spreadsheets scope in the session" do
+        post "/auth/grant/spreadsheets"
+
+        expect(session[:requested_scope]).to eq(SessionsController::SPREADSHEETS_SCOPE)
+      end
+    end
+  end
+
+  describe "POST /auth/grant/sync" do
+    context "without session" do
+      it "returns unauthorized" do
+        post "/auth/grant/sync"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context "with active session" do
+      before { login_as }
+
+      it "returns the authorization URL" do
+        post "/auth/grant/sync"
+
+        expect(response).to have_http_status(:ok)
+        expect(json_response["authorization_url"]).to eq("/auth/google_oauth2")
+      end
+
+      it "stores the sync scope in the session" do
+        post "/auth/grant/sync"
+
+        expect(session[:requested_scope]).to eq(SessionsController::SYNC_SCOPE)
+      end
     end
   end
 end

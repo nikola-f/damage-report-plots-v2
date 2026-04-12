@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 class SessionsController < ApplicationController
+  LOGIN_SCOPE          = "email profile"
+  SPREADSHEETS_SCOPE   = "email profile https://www.googleapis.com/auth/spreadsheets.readonly"
+  SYNC_SCOPE           = "email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
+
   def google_oauth2
     # This endpoint redirects to Google OAuth
     # In an API-only app, clients should use POST to /auth/google_oauth2
@@ -13,28 +17,35 @@ class SessionsController < ApplicationController
 
     return render json: { error: "Authentication failed" }, status: :unauthorized unless auth
 
-    user_info = {
-      google_id: auth["uid"],
-      email:     auth["info"]["email"],
-      name:      auth["info"]["name"],
-      picture:   auth["info"]["image"]
-    }
-
-    UserStore.access_token.store(user_info[:google_id], auth["credentials"]["token"])
-
-    session[:user_id] = user_info[:google_id]
-    session[:email]   = user_info[:email]
-    session[:name]    = user_info[:name]
-    session[:picture] = user_info[:picture]
-
-    render json: {
-      user: {
-        id:      user_info[:google_id],
-        email:   user_info[:email],
-        name:    user_info[:name],
-        picture: user_info[:picture]
+    if (scope = session.delete(:requested_scope))
+      # Scope upgrade: just update the stored token for the current user
+      UserStore.access_token.store(session[:user_id], auth["credentials"]["token"])
+      render json: { granted_scope: scope }, status: :ok
+    else
+      # Fresh login
+      user_info = {
+        google_id: auth["uid"],
+        email:     auth["info"]["email"],
+        name:      auth["info"]["name"],
+        picture:   auth["info"]["image"]
       }
-    }, status: :ok
+
+      UserStore.access_token.store(user_info[:google_id], auth["credentials"]["token"])
+
+      session[:user_id] = user_info[:google_id]
+      session[:email]   = user_info[:email]
+      session[:name]    = user_info[:name]
+      session[:picture] = user_info[:picture]
+
+      render json: {
+        user: {
+          id:      user_info[:google_id],
+          email:   user_info[:email],
+          name:    user_info[:name],
+          picture: user_info[:picture]
+        }
+      }, status: :ok
+    end
   rescue StandardError => e
     render json: { error: "Authentication failed", message: e.message }, status: :unprocessable_entity
   end
@@ -51,5 +62,19 @@ class SessionsController < ApplicationController
       message: params[:message],
       strategy: params[:strategy]
     }, status: :unauthorized
+  end
+
+  def grant_spreadsheets
+    return render json: { error: "Unauthorized" }, status: :unauthorized unless session[:user_id]
+
+    session[:requested_scope] = SPREADSHEETS_SCOPE
+    render json: { authorization_url: "/auth/google_oauth2" }, status: :ok
+  end
+
+  def grant_sync
+    return render json: { error: "Unauthorized" }, status: :unauthorized unless session[:user_id]
+
+    session[:requested_scope] = SYNC_SCOPE
+    render json: { authorization_url: "/auth/google_oauth2" }, status: :ok
   end
 end
