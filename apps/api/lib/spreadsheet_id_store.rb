@@ -1,33 +1,34 @@
 # frozen_string_literal: true
 
-# Stores Google Spreadsheet IDs in Redis keyed by token_key.
-# Allows SpreadsheetSyncWorker to look up the target spreadsheet for each user.
+# Stores Google Spreadsheet IDs in Redis keyed by user_id (Google account ID).
+# Persists across login sessions so users can access their spreadsheet after
+# the access token expires.
 #
 # @example Storing a spreadsheet ID after creation
-#   SpreadsheetIdStore.new.store(token_key, spreadsheet_id)
+#   SpreadsheetIdStore.new.store(user_id, spreadsheet_id)
 #
 # @example Retrieving the spreadsheet ID inside a job
-#   spreadsheet_id = SpreadsheetIdStore.new.fetch(token_key)
+#   spreadsheet_id = SpreadsheetIdStore.new.fetch(user_id)
 class SpreadsheetIdStore
-  TTL        = 14 * 24 * 60 * 60 # 14 days in seconds
-  KEY_PREFIX = "spreadsheet_id"
+  KEY_PREFIX   = "spreadsheet_id"
+  USER_ID_ATTR = "user_id" # SQS message attribute name for passing user IDs between workers
 
   def initialize(redis: REDIS)
     @redis = redis
   end
 
-  # @param token_key      [String] UUID key from AccessTokenStore
+  # @param user_id        [String] Google account ID
   # @param spreadsheet_id [String]
-  def store(token_key, spreadsheet_id)
-    @redis.set(redis_key(token_key), spreadsheet_id, ex: TTL)
+  def store(user_id, spreadsheet_id)
+    @redis.set(redis_key(user_id), spreadsheet_id)
   end
 
-  # @param token_key [String]
+  # @param user_id [String] Google account ID
   # @return [String] spreadsheet ID
   # @raise [KeyError] if not found
-  def fetch(token_key)
-    id = @redis.get(redis_key(token_key))
-    raise KeyError, "Spreadsheet ID not found: #{token_key}" unless id
+  def fetch(user_id)
+    id = @redis.get(redis_key(user_id))
+    raise KeyError, "Spreadsheet ID not found: #{user_id}" unless id
 
     id
   end

@@ -3,16 +3,21 @@
 require "rails_helper"
 
 RSpec.describe SpreadsheetSyncWorker do
-  let(:token_key)  { "test-token-uuid" }
-  let(:record)     { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
-  let(:sqs_client) { instance_double(SqsClient) }
+  let(:token_key) { "test-token-uuid" }
+  let(:user_id)   { "12345678901234567" }
+  let(:record)    { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
+  let(:sqs_client){ instance_double(SqsClient) }
 
   let(:message) do
-    token_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: token_key)
+    token_attr   = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: token_key)
+    user_id_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: user_id)
     instance_double(
       Aws::SQS::Types::Message,
       body: JSON.generate([record.to_h]),
-      message_attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_attr }
+      message_attributes: {
+        AccessTokenStore::TOKEN_KEY_ATTR  => token_attr,
+        SpreadsheetIdStore::USER_ID_ATTR  => user_id_attr
+      }
     )
   end
 
@@ -25,10 +30,12 @@ RSpec.describe SpreadsheetSyncWorker do
   describe "#perform" do
     before { allow_any_instance_of(described_class).to receive(:process) }
 
-    it "polls the portal queue with token_key attribute" do
+    it "polls the portal queue with token_key and user_id attributes" do
       described_class.new.perform
 
-      expect(sqs_client).to have_received(:poll).with(message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR])
+      expect(sqs_client).to have_received(:poll).with(
+        message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR, SpreadsheetIdStore::USER_ID_ATTR]
+      )
     end
 
     it "deserializes the message body into DamageReportRecord objects" do
@@ -37,7 +44,7 @@ RSpec.describe SpreadsheetSyncWorker do
 
       worker.perform
 
-      expect(worker).to have_received(:process).with(token_key:, records: [record])
+      expect(worker).to have_received(:process).with(token_key:, user_id:, records: [record])
     end
 
     it "reschedules itself after polling" do
@@ -58,12 +65,12 @@ RSpec.describe SpreadsheetSyncWorker do
   end
 
   describe "#process" do
-    let(:access_token)        { "ya29.test_access_token" }
-    let(:spreadsheet_id)      { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
-    let(:access_token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
-    let(:spreadsheet_id_store){ instance_double(SpreadsheetIdStore, fetch: spreadsheet_id) }
-    let(:sheets_client)       { instance_double(SpreadsheetsClient, append_rows: nil) }
-    let(:worker)              { described_class.new }
+    let(:access_token)         { "ya29.test_access_token" }
+    let(:spreadsheet_id)       { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
+    let(:access_token_store)   { instance_double(AccessTokenStore, fetch: access_token) }
+    let(:spreadsheet_id_store) { instance_double(SpreadsheetIdStore, fetch: spreadsheet_id) }
+    let(:sheets_client)        { instance_double(SpreadsheetsClient, append_rows: nil) }
+    let(:worker)               { described_class.new }
 
     before do
       allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
@@ -73,19 +80,19 @@ RSpec.describe SpreadsheetSyncWorker do
     end
 
     it "fetches the access token using token_key" do
-      worker.send(:process, token_key:, records: [record])
+      worker.send(:process, token_key:, user_id:, records: [record])
 
       expect(access_token_store).to have_received(:fetch).with(token_key)
     end
 
-    it "fetches the spreadsheet ID using token_key" do
-      worker.send(:process, token_key:, records: [record])
+    it "fetches the spreadsheet ID using user_id" do
+      worker.send(:process, token_key:, user_id:, records: [record])
 
-      expect(spreadsheet_id_store).to have_received(:fetch).with(token_key)
+      expect(spreadsheet_id_store).to have_received(:fetch).with(user_id)
     end
 
     it "appends rows to the spreadsheet" do
-      worker.send(:process, token_key:, records: [record])
+      worker.send(:process, token_key:, user_id:, records: [record])
 
       expect(sheets_client).to have_received(:append_rows).with(
         spreadsheet_id: spreadsheet_id,
@@ -95,15 +102,15 @@ RSpec.describe SpreadsheetSyncWorker do
     end
 
     it "converts each record to a row via to_row" do
-      worker.send(:process, token_key:, records: [record])
+      worker.send(:process, token_key:, user_id:, records: [record])
 
       expect(worker).to have_received(:to_row).with(record)
     end
   end
 
   describe "#to_row" do
-    let(:worker)     { described_class.new }
-    let(:now)        { Time.new(2024, 1, 15, 10, 30, 45) }
+    let(:worker) { described_class.new }
+    let(:now)    { Time.new(2024, 1, 15, 10, 30, 45) }
 
     before { allow(Time).to receive(:now).and_return(now) }
 

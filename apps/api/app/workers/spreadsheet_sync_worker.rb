@@ -17,11 +17,14 @@ class SpreadsheetSyncWorker
   SQIDS          = Sqids.new(alphabet: SQIDS_ALPHABET)
 
   def perform
-    SqsClient.new(Settings.sqs_portal_queue_url).poll(message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR]) do |message|
+    SqsClient.new(Settings.sqs_portal_queue_url).poll(
+      message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR, SpreadsheetIdStore::USER_ID_ATTR]
+    ) do |message|
       token_key = message.message_attributes[AccessTokenStore::TOKEN_KEY_ATTR].string_value
+      user_id   = message.message_attributes[SpreadsheetIdStore::USER_ID_ATTR].string_value
       records   = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
 
-      process(token_key:, records:)
+      process(token_key:, user_id:, records:)
     end
   ensure
     self.class.perform_in(POLL_INTERVAL)
@@ -29,9 +32,9 @@ class SpreadsheetSyncWorker
 
   private
 
-  def process(token_key:, records:)
+  def process(token_key:, user_id:, records:)
     access_token   = AccessTokenStore.new.fetch(token_key)
-    spreadsheet_id = SpreadsheetIdStore.new.fetch(token_key)
+    spreadsheet_id = SpreadsheetIdStore.new.fetch(user_id)
     rows           = records.map { |r| to_row(r) }
 
     SpreadsheetsClient.new(access_token).append_rows(
