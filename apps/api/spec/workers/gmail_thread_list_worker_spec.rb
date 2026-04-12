@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe GmailThreadListWorker do
-  let(:token_key)    { "test-token-uuid" }
+  let(:user_id)      { "12345678901234567" }
   let(:access_token) { "ya29.test_token" }
   let(:token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
   let(:sqs_client)   { instance_double(SqsClient, send_messages: nil) }
@@ -17,32 +17,32 @@ RSpec.describe GmailThreadListWorker do
   end
 
   describe "#perform" do
-    it "fetches the access token from AccessTokenStore without deleting it" do
-      described_class.new.perform(token_key, "2024-01-01")
+    it "fetches the access token using user_id" do
+      described_class.new.perform(user_id, "2024-01-01")
 
-      expect(token_store).to have_received(:fetch).with(token_key)
+      expect(token_store).to have_received(:fetch).with(user_id)
     end
 
     it "calls GmailThreadListFetcher with the Ingress damage report query" do
-      described_class.new.perform(token_key, "2024-01-01")
+      described_class.new.perform(user_id, "2024-01-01")
 
       expect(fetcher).to have_received(:call).with(
         q: IngressDamageReportQuery.new(after_date: "2024-01-01").to_s
       )
     end
 
-    it "sends thread IDs to SQS with token_key as attribute" do
-      described_class.new.perform(token_key, "2024-01-01")
+    it "sends thread IDs to SQS with user_id as attribute" do
+      described_class.new.perform(user_id, "2024-01-01")
 
       expect(sqs_client).to have_received(:send_messages)
-        .with(%w[t1 t2], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
+        .with(%w[t1 t2], attributes: { UserStore::USER_ID_ATTR => user_id })
     end
 
     context "when there are no thread IDs" do
       let(:fetcher) { instance_double(GmailThreadListFetcher, call: []) }
 
       it "does not call send_messages" do
-        described_class.new.perform(token_key, "2024-01-01")
+        described_class.new.perform(user_id, "2024-01-01")
 
         expect(sqs_client).not_to have_received(:send_messages)
       end

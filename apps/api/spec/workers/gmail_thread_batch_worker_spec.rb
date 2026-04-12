@@ -3,25 +3,25 @@
 require "rails_helper"
 
 RSpec.describe GmailThreadBatchWorker do
-  let(:token_key)    { "test-token-uuid" }
-  let(:access_token) { "ya29.test_token" }
-  let(:thread_ids)   { %w[t1 t2 t3] }
-  let(:report_sqs_client) { instance_double(SqsClient) }
-  let(:portal_sqs_client) { instance_double(SqsClient, send_messages: nil) }
-  let(:token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
+  let(:user_id)            { "12345678901234567" }
+  let(:access_token)       { "ya29.test_token" }
+  let(:thread_ids)         { %w[t1 t2 t3] }
+  let(:report_sqs_client)  { instance_double(SqsClient) }
+  let(:portal_sqs_client)  { instance_double(SqsClient, send_messages: nil) }
+  let(:token_store)        { instance_double(AccessTokenStore, fetch: access_token) }
 
-  let(:portal) { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
-  let(:decoder) { instance_double(EmailHtmlDecoder) }
+  let(:portal)        { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
+  let(:decoder)       { instance_double(EmailHtmlDecoder) }
   let(:internal_date) { "1700000000000" }
   let(:gmail_message) { instance_double(GmailMessage, html_decoder: decoder, internal_date:) }
-  let(:fetcher) { instance_double(GmailThreadBatchFetcher, call: [gmail_message]) }
+  let(:fetcher)       { instance_double(GmailThreadBatchFetcher, call: [gmail_message]) }
 
   let(:message) do
-    token_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: token_key)
+    user_id_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: user_id)
     instance_double(
       Aws::SQS::Types::Message,
       body: JSON.generate(thread_ids),
-      message_attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_attr }
+      message_attributes: { UserStore::USER_ID_ATTR => user_id_attr }
     )
   end
 
@@ -36,16 +36,16 @@ RSpec.describe GmailThreadBatchWorker do
   end
 
   describe "#perform" do
-    it "polls the report queue with token_key attribute" do
+    it "polls the report queue with user_id attribute" do
       described_class.new.perform
 
-      expect(report_sqs_client).to have_received(:poll).with(message_attribute_names: [AccessTokenStore::TOKEN_KEY_ATTR])
+      expect(report_sqs_client).to have_received(:poll).with(message_attribute_names: [UserStore::USER_ID_ATTR])
     end
 
-    it "fetches the access token for each message" do
+    it "fetches the access token using user_id" do
       described_class.new.perform
 
-      expect(token_store).to have_received(:fetch).with(token_key)
+      expect(token_store).to have_received(:fetch).with(user_id)
     end
 
     it "calls GmailThreadBatchFetcher with access_token and thread_ids" do
@@ -55,10 +55,11 @@ RSpec.describe GmailThreadBatchWorker do
       expect(fetcher).to have_received(:call).with(thread_ids)
     end
 
-    it "sends DamageReportRecord hashes to the portal SQS queue with token_key attribute" do
+    it "sends DamageReportRecord hashes to the portal SQS queue with user_id attribute" do
       described_class.new.perform
 
-      expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
+      expect(portal_sqs_client).to have_received(:send_messages)
+        .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => user_id })
     end
 
     it "reschedules itself after polling" do
@@ -67,26 +68,27 @@ RSpec.describe GmailThreadBatchWorker do
       expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
     end
 
-    context "when the same DamageReportRecord appears twice for the same token_key" do
+    context "when the same DamageReportRecord appears twice for the same user" do
       let(:fetcher) { instance_double(GmailThreadBatchFetcher, call: [gmail_message, gmail_message]) }
 
       it "sends the portal only once" do
         described_class.new.perform
 
-        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
+        expect(portal_sqs_client).to have_received(:send_messages)
+          .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => user_id })
       end
     end
 
-    context "when two messages have different token_keys with the same DamageReportRecord" do
-      let(:other_token_key)    { "other-token-uuid" }
+    context "when two messages have different user_ids with the same DamageReportRecord" do
+      let(:other_user_id)      { "98765432109876543" }
       let(:other_access_token) { "ya29.other_token" }
       let(:other_token_store)  { instance_double(AccessTokenStore, fetch: other_access_token) }
       let(:other_message) do
-        token_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: other_token_key)
+        user_id_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: other_user_id)
         instance_double(
           Aws::SQS::Types::Message,
           body: JSON.generate(thread_ids),
-          message_attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_attr }
+          message_attributes: { UserStore::USER_ID_ATTR => user_id_attr }
         )
       end
 
@@ -96,11 +98,13 @@ RSpec.describe GmailThreadBatchWorker do
         allow(GmailThreadBatchFetcher).to receive(:new).with(access_token: other_access_token).and_return(fetcher)
       end
 
-      it "sends portals once per user with each user's token_key" do
+      it "sends portals once per user with each user's user_id" do
         described_class.new.perform
 
-        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => token_key })
-        expect(portal_sqs_client).to have_received(:send_messages).with([portal.to_h], attributes: { AccessTokenStore::TOKEN_KEY_ATTR => other_token_key })
+        expect(portal_sqs_client).to have_received(:send_messages)
+          .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => user_id })
+        expect(portal_sqs_client).to have_received(:send_messages)
+          .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => other_user_id })
       end
     end
 
