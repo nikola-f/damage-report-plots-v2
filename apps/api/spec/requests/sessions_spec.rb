@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Sessions", type: :request do
-  let(:access_token_store) { instance_double(AccessTokenStore, store: "test-token-key-uuid") }
+  let(:access_token_store) { instance_double(AccessTokenStore, store: nil) }
 
   before do
     allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
@@ -22,7 +22,6 @@ RSpec.describe "Sessions", type: :request do
         expect(session[:user_id]).to eq(test_user_id)
         expect(session[:email]).to eq(test_user_email)
         expect(session[:name]).to eq(test_user_name)
-        expect(session[:token_key]).to eq("test-token-key-uuid")
       end
 
       it "returns user information" do
@@ -36,10 +35,10 @@ RSpec.describe "Sessions", type: :request do
         expect(user["picture"]).to eq(test_user_picture)
       end
 
-      it "stores the Google access token" do
+      it "stores the Google access token keyed by user_id" do
         get "/auth/google_oauth2/callback"
 
-        expect(access_token_store).to have_received(:store).with("google_access_token_123")
+        expect(access_token_store).to have_received(:store).with(test_user_id, "google_access_token_123")
       end
     end
 

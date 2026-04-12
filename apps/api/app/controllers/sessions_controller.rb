@@ -20,13 +20,12 @@ class SessionsController < ApplicationController
       picture:   auth["info"]["image"]
     }
 
-    token_key = AccessTokenStore.new.store(auth["credentials"]["token"])
+    AccessTokenStore.new.store(user_info[:google_id], auth["credentials"]["token"])
 
-    session[:user_id]   = user_info[:google_id]
-    session[:email]     = user_info[:email]
-    session[:name]      = user_info[:name]
-    session[:picture]   = user_info[:picture]
-    session[:token_key] = token_key
+    session[:user_id] = user_info[:google_id]
+    session[:email]   = user_info[:email]
+    session[:name]    = user_info[:name]
+    session[:picture] = user_info[:picture]
 
     render json: {
       user: {
