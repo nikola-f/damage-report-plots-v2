@@ -8,8 +8,7 @@ class SpreadsheetSyncWorker
   sidekiq_options retry: 0
 
   POLL_INTERVAL = 30 # seconds
-  SHEET_NAME    = JSON.load_file(SpreadsheetsClient::DEFINITION_PATH)
-                    .dig("sheets", 0, "properties", "title")
+  SHEET_NAME    = "reports"
 
   # Printable ASCII excluding " (breaks CSV) and ' (Sheets text prefix).
   # Larger alphabet → shorter Sqids IDs.
