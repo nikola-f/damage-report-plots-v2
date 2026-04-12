@@ -5,13 +5,13 @@ require "rails_helper"
 RSpec.describe GmailThreadListWorker do
   let(:user_id)      { "12345678901234567" }
   let(:access_token) { "ya29.test_token" }
-  let(:token_store)  { instance_double(AccessTokenStore, fetch: access_token) }
+  let(:token_store)  { instance_double(UserStore, fetch: access_token) }
   let(:sqs_client)   { instance_double(SqsClient, send_messages: nil) }
   let(:thread_ids)   { %w[t1 t2] }
   let(:fetcher)      { instance_double(GmailThreadListFetcher, call: thread_ids) }
 
   before do
-    allow(AccessTokenStore).to receive(:new).and_return(token_store)
+    allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(SqsClient).to receive(:new).with(Settings.sqs_report_queue_url).and_return(sqs_client)
     allow(GmailThreadListFetcher).to receive(:new).and_return(fetcher)
   end

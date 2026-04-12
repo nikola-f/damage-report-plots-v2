@@ -14,13 +14,13 @@ module Api
       private
 
       def ensure_spreadsheet_exists
-        SpreadsheetIdStore.new.fetch(current_user_id)
+        UserStore.spreadsheet_id.fetch(current_user_id)
       rescue KeyError
-        access_token   = AccessTokenStore.new.fetch(current_user_id)
+        access_token   = UserStore.access_token.fetch(current_user_id)
         client         = SpreadsheetsClient.new(access_token)
         spreadsheet_id = client.create_spreadsheet
         client.protect_ranges(spreadsheet_id:)
-        SpreadsheetIdStore.new.store(current_user_id, spreadsheet_id)
+        UserStore.spreadsheet_id.store(current_user_id, spreadsheet_id)
       end
     end
   end

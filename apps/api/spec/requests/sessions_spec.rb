@@ -3,10 +3,10 @@
 require "rails_helper"
 
 RSpec.describe "Sessions", type: :request do
-  let(:access_token_store) { instance_double(AccessTokenStore, store: nil) }
+  let(:access_token_store) { instance_double(UserStore, store: nil) }
 
   before do
-    allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
+    allow(UserStore).to receive(:access_token).and_return(access_token_store)
   end
 
   describe "GET /auth/google_oauth2/callback" do

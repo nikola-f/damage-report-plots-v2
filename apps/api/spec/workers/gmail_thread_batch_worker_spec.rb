@@ -8,7 +8,7 @@ RSpec.describe GmailThreadBatchWorker do
   let(:thread_ids)         { %w[t1 t2 t3] }
   let(:report_sqs_client)  { instance_double(SqsClient) }
   let(:portal_sqs_client)  { instance_double(SqsClient, send_messages: nil) }
-  let(:token_store)        { instance_double(AccessTokenStore, fetch: access_token) }
+  let(:token_store)        { instance_double(UserStore, fetch: access_token) }
 
   let(:portal)        { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
   let(:decoder)       { instance_double(EmailHtmlDecoder) }
@@ -29,7 +29,7 @@ RSpec.describe GmailThreadBatchWorker do
     allow(SqsClient).to receive(:new).with(Settings.sqs_portal_queue_url).and_return(portal_sqs_client)
     allow(SqsClient).to receive(:new).with(Settings.sqs_report_queue_url).and_return(report_sqs_client)
     allow(report_sqs_client).to receive(:poll).and_yield(message)
-    allow(AccessTokenStore).to receive(:new).and_return(token_store)
+    allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(GmailThreadBatchFetcher).to receive(:new).and_return(fetcher)
     allow(decoder).to receive(:extract_portals).with(internal_date:).and_return([portal])
     allow(described_class).to receive(:perform_in)
@@ -82,7 +82,7 @@ RSpec.describe GmailThreadBatchWorker do
     context "when two messages have different user_ids with the same DamageReportRecord" do
       let(:other_user_id)      { "98765432109876543" }
       let(:other_access_token) { "ya29.other_token" }
-      let(:other_token_store)  { instance_double(AccessTokenStore, fetch: other_access_token) }
+      let(:other_token_store)  { instance_double(UserStore, fetch: other_access_token) }
       let(:other_message) do
         user_id_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: other_user_id)
         instance_double(
@@ -94,7 +94,7 @@ RSpec.describe GmailThreadBatchWorker do
 
       before do
         allow(report_sqs_client).to receive(:poll).and_yield(message).and_yield(other_message)
-        allow(AccessTokenStore).to receive(:new).and_return(token_store, other_token_store)
+        allow(UserStore).to receive(:access_token).and_return(token_store, other_token_store)
         allow(GmailThreadBatchFetcher).to receive(:new).with(access_token: other_access_token).and_return(fetcher)
       end
 

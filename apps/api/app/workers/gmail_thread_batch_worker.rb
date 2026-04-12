@@ -14,7 +14,7 @@ class GmailThreadBatchWorker
     SqsClient.new(Settings.sqs_report_queue_url).poll(message_attribute_names: [UserStore::USER_ID_ATTR]) do |message|
       user_id      = message.message_attributes[UserStore::USER_ID_ATTR].string_value
       thread_ids   = JSON.parse(message.body)
-      access_token = AccessTokenStore.new.fetch(user_id)
+      access_token = UserStore.access_token.fetch(user_id)
 
       GmailThreadBatchFetcher.new(access_token:).call(thread_ids).each do |gmail_message|
         gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date)&.each do |portal|

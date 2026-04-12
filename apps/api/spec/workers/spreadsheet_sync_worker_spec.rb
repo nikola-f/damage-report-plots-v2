@@ -12,7 +12,7 @@ RSpec.describe SpreadsheetSyncWorker do
     instance_double(
       Aws::SQS::Types::Message,
       body: JSON.generate([record.to_h]),
-      message_attributes: { SpreadsheetIdStore::USER_ID_ATTR => user_id_attr }
+      message_attributes: { UserStore::USER_ID_ATTR => user_id_attr }
     )
   end
 
@@ -29,7 +29,7 @@ RSpec.describe SpreadsheetSyncWorker do
       described_class.new.perform
 
       expect(sqs_client).to have_received(:poll).with(
-        message_attribute_names: [SpreadsheetIdStore::USER_ID_ATTR]
+        message_attribute_names: [UserStore::USER_ID_ATTR]
       )
     end
 
@@ -62,14 +62,14 @@ RSpec.describe SpreadsheetSyncWorker do
   describe "#process" do
     let(:access_token)         { "ya29.test_access_token" }
     let(:spreadsheet_id)       { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
-    let(:access_token_store)   { instance_double(AccessTokenStore, fetch: access_token) }
-    let(:spreadsheet_id_store) { instance_double(SpreadsheetIdStore, fetch: spreadsheet_id) }
+    let(:access_token_store)   { instance_double(UserStore, fetch: access_token) }
+    let(:spreadsheet_id_store) { instance_double(UserStore, fetch: spreadsheet_id) }
     let(:sheets_client)        { instance_double(SpreadsheetsClient, append_rows: nil) }
     let(:worker)               { described_class.new }
 
     before do
-      allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
-      allow(SpreadsheetIdStore).to receive(:new).and_return(spreadsheet_id_store)
+      allow(UserStore).to receive(:access_token).and_return(access_token_store)
+      allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
       allow(SpreadsheetsClient).to receive(:new).with(access_token).and_return(sheets_client)
       allow(worker).to receive(:to_row).and_return([])
     end

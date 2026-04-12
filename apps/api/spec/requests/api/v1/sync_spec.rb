@@ -3,13 +3,13 @@
 require "rails_helper"
 
 RSpec.describe "POST /api/v1/sync", type: :request do
-  let(:access_token_store)   { instance_double(AccessTokenStore, fetch: "ya29.token", store: nil) }
-  let(:spreadsheet_id_store) { instance_double(SpreadsheetIdStore, fetch: "spreadsheet-id", store: nil) }
+  let(:access_token_store)   { instance_double(UserStore, fetch: "ya29.token", store: nil) }
+  let(:spreadsheet_id_store) { instance_double(UserStore, fetch: "spreadsheet-id", store: nil) }
   let(:sheets_client)        { instance_double(SpreadsheetsClient, create_spreadsheet: "new-spreadsheet-id", protect_ranges: nil) }
 
   before do
-    allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
-    allow(SpreadsheetIdStore).to receive(:new).and_return(spreadsheet_id_store)
+    allow(UserStore).to receive(:access_token).and_return(access_token_store)
+    allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
     allow(SpreadsheetsClient).to receive(:new).and_return(sheets_client)
     allow(GmailThreadListWorker).to receive(:perform_async)
   end

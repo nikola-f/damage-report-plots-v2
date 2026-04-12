@@ -3,10 +3,10 @@
 require "rails_helper"
 
 RSpec.describe "GET /api/v1/profile", type: :request do
-  let(:access_token_store) { instance_double(AccessTokenStore, store: "test-token-key-uuid") }
+  let(:access_token_store) { instance_double(UserStore, store: nil) }
 
   before do
-    allow(AccessTokenStore).to receive(:new).and_return(access_token_store)
+    allow(UserStore).to receive(:access_token).and_return(access_token_store)
   end
 
   context "with active session" do

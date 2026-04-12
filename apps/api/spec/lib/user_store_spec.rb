@@ -26,8 +26,8 @@ RSpec.describe UserStore do
     end
   end
 
-  describe AccessTokenStore do
-    let(:store) { described_class.new(redis:) }
+  describe ".access_token" do
+    let(:store) { described_class.access_token(redis:) }
 
     include_examples "a user store", "access_token"
 
@@ -38,13 +38,13 @@ RSpec.describe UserStore do
         store.store(user_id, "ya29.token")
 
         expect(redis).to have_received(:set)
-          .with("access_token:#{user_id}", "ya29.token", ex: AccessTokenStore::TTL)
+          .with("access_token:#{user_id}", "ya29.token", ex: 3600)
       end
     end
   end
 
-  describe SpreadsheetIdStore do
-    let(:store) { described_class.new(redis:) }
+  describe ".spreadsheet_id" do
+    let(:store) { described_class.spreadsheet_id(redis:) }
 
     include_examples "a user store", "spreadsheet_id"
 

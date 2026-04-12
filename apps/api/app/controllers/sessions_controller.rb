@@ -20,7 +20,7 @@ class SessionsController < ApplicationController
       picture:   auth["info"]["image"]
     }
 
-    AccessTokenStore.new.store(user_info[:google_id], auth["credentials"]["token"])
+    UserStore.access_token.store(user_info[:google_id], auth["credentials"]["token"])
 
     session[:user_id] = user_info[:google_id]
     session[:email]   = user_info[:email]
