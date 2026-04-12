@@ -113,6 +113,22 @@ class SqsClient
     messages
   end
 
+  # Returns the approximate number of messages in the queue.
+  #
+  # @return [Hash] { available: Integer, in_flight: Integer }
+  #   available  - messages visible to consumers
+  #   in_flight  - messages currently being processed (invisible)
+  def queue_depth
+    response = @client.get_queue_attributes(
+      queue_url:       @queue_url,
+      attribute_names: %w[ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible]
+    )
+    {
+      available: response.attributes["ApproximateNumberOfMessages"].to_i,
+      in_flight:  response.attributes["ApproximateNumberOfMessagesNotVisible"].to_i
+    }
+  end
+
   # Deletes one or more messages from SQS after successful processing.
   # Batches automatically in groups of 10.
   #

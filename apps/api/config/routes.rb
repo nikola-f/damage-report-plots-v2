@@ -23,8 +23,9 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       # Protected API endpoints
-      get  '/profile', to: 'profile#show'
-      post '/sync',    to: 'sync#create'
+      get  '/profile',            to: 'profile#show'
+      post '/sync',               to: 'sync#create'
+      get  '/application_status', to: 'application_status#show'
     end
   end
 
