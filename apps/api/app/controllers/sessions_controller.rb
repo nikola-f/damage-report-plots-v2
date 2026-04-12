@@ -1,9 +1,15 @@
 # frozen_string_literal: true
 
 class SessionsController < ApplicationController
-  LOGIN_SCOPE          = "email profile"
-  SPREADSHEETS_SCOPE   = "email profile https://www.googleapis.com/auth/spreadsheets.readonly"
-  SYNC_SCOPE           = "email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
+  LOGIN_SCOPE        = "email profile"
+  SPREADSHEETS_SCOPE = "email profile https://www.googleapis.com/auth/spreadsheets.readonly"
+  SYNC_SCOPE         = "email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
+
+  SCOPE_LEVEL = {
+    LOGIN_SCOPE        => 1,
+    SPREADSHEETS_SCOPE => 2,
+    SYNC_SCOPE         => 3
+  }.freeze
 
   def google_oauth2
     # This endpoint redirects to Google OAuth
@@ -18,8 +24,9 @@ class SessionsController < ApplicationController
     return render json: { error: "Authentication failed" }, status: :unauthorized unless auth
 
     if (scope = session.delete(:requested_scope))
-      # Scope upgrade: just update the stored token for the current user
+      # Scope upgrade: update token and record the new scope level
       UserStore.access_token.store(session[:user_id], auth["credentials"]["token"])
+      session[:scope_level] = SCOPE_LEVEL[scope]
       render json: { granted_scope: scope }, status: :ok
     else
       # Fresh login
@@ -32,10 +39,11 @@ class SessionsController < ApplicationController
 
       UserStore.access_token.store(user_info[:google_id], auth["credentials"]["token"])
 
-      session[:user_id] = user_info[:google_id]
-      session[:email]   = user_info[:email]
-      session[:name]    = user_info[:name]
-      session[:picture] = user_info[:picture]
+      session[:user_id]     = user_info[:google_id]
+      session[:email]       = user_info[:email]
+      session[:name]        = user_info[:name]
+      session[:picture]     = user_info[:picture]
+      session[:scope_level] = SCOPE_LEVEL[LOGIN_SCOPE]
 
       render json: {
         user: {

@@ -25,6 +25,7 @@ Rails.application.routes.draw do
       # Protected API endpoints
       get  '/profile',            to: 'profile#show'
       post '/sync',               to: 'sync#create'
+      get  '/user_status',        to: 'user_status#show'
       get  '/application_status', to: 'application_status#show'
     end
   end

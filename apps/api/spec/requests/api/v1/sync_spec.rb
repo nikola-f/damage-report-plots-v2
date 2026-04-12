@@ -12,6 +12,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
     allow(SpreadsheetsClient).to receive(:new).and_return(sheets_client)
     allow(GmailThreadListWorker).to receive(:perform_async)
+    allow(REDIS).to receive(:set).with(start_with("sync_queued_at:"), anything)
   end
 
   context "with active session" do
@@ -29,6 +30,12 @@ RSpec.describe "POST /api/v1/sync", type: :request do
         post "/api/v1/sync"
 
         expect(sheets_client).not_to have_received(:create_spreadsheet)
+      end
+
+      it "records sync_queued_at in Redis" do
+        post "/api/v1/sync"
+
+        expect(REDIS).to have_received(:set).with("sync_queued_at:#{test_user_id}", anything)
       end
     end
 
