@@ -33,8 +33,8 @@ RSpec.describe "GET /api/v1/application_status", type: :request do
       get "/api/v1/application_status"
 
       queues = json_response["sqs_queues"]
-      expect(queues["report"]).to eq("available" => 3, "in_flight" => 1)
-      expect(queues["portal"]).to eq("available" => 0, "in_flight" => 2)
+      expect(queues["thread_ids"]).to eq("available" => 3, "in_flight" => 1)
+      expect(queues["reports"]).to eq("available" => 0, "in_flight" => 2)
     end
 
     context "when no quota has been used yet (key absent)" do

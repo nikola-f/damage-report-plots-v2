@@ -29,8 +29,8 @@ module Api
 
       def sqs_queue_status
         {
-          report: SqsClient.new(Settings.sqs_report_queue_url).queue_depth,
-          portal: SqsClient.new(Settings.sqs_portal_queue_url).queue_depth
+          thread_ids: SqsClient.new(Settings.sqs_report_queue_url).queue_depth,
+          reports:    SqsClient.new(Settings.sqs_portal_queue_url).queue_depth
         }
       end
     end
