@@ -44,6 +44,7 @@ RSpec.describe "Sessions", type: :request do
 
     context "as a scope upgrade (requested_scope present in session)" do
       before do
+        allow(REDIS).to receive(:set).with(start_with("scope_"), anything, ex: SessionsController::ACCESS_TOKEN_TTL)
         login_as
         post "/auth/grant/spreadsheets"
       end
@@ -59,6 +60,12 @@ RSpec.describe "Sessions", type: :request do
 
         expect(response).to have_http_status(:ok)
         expect(json_response["granted_scope"]).to eq(SessionsController::SPREADSHEETS_SCOPE)
+      end
+
+      it "writes the scope expiry epoch to Redis" do
+        get "/auth/google_oauth2/callback"
+
+        expect(REDIS).to have_received(:set).with("scope_spreadsheets:#{test_user_id}", anything, ex: SessionsController::ACCESS_TOKEN_TTL)
       end
 
       it "does not overwrite the user session" do

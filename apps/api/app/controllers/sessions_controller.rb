@@ -5,11 +5,14 @@ class SessionsController < ApplicationController
   SPREADSHEETS_SCOPE = "email profile https://www.googleapis.com/auth/spreadsheets.readonly"
   SYNC_SCOPE         = "email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
 
-  SCOPE_LEVEL = {
-    LOGIN_SCOPE        => 1,
-    SPREADSHEETS_SCOPE => 2,
-    SYNC_SCOPE         => 3
+  # Redis keys to set (with access token TTL) when each scope is granted.
+  # SYNC_SCOPE includes SPREADSHEETS_SCOPE capabilities via include_granted_scopes.
+  SCOPE_REDIS_KEYS = {
+    SPREADSHEETS_SCOPE => %w[scope_spreadsheets],
+    SYNC_SCOPE         => %w[scope_spreadsheets scope_sync]
   }.freeze
+
+  ACCESS_TOKEN_TTL = 3600 # seconds — matches Google OAuth access token lifetime
 
   def google_oauth2
     # This endpoint redirects to Google OAuth
@@ -24,9 +27,13 @@ class SessionsController < ApplicationController
     return render json: { error: "Authentication failed" }, status: :unauthorized unless auth
 
     if (scope = session.delete(:requested_scope))
-      # Scope upgrade: update token and record the new scope level
-      UserStore.access_token.store(session[:user_id], auth["credentials"]["token"])
-      session[:scope_level] = SCOPE_LEVEL[scope]
+      # Scope upgrade: update token and store expiry epoch for each granted scope
+      user_id    = session[:user_id]
+      expires_at = Time.now.to_i + ACCESS_TOKEN_TTL
+      UserStore.access_token.store(user_id, auth["credentials"]["token"])
+      SCOPE_REDIS_KEYS[scope].each do |key|
+        REDIS.set("#{key}:#{user_id}", expires_at, ex: ACCESS_TOKEN_TTL)
+      end
       render json: { granted_scope: scope }, status: :ok
     else
       # Fresh login
@@ -39,11 +46,10 @@ class SessionsController < ApplicationController
 
       UserStore.access_token.store(user_info[:google_id], auth["credentials"]["token"])
 
-      session[:user_id]     = user_info[:google_id]
-      session[:email]       = user_info[:email]
-      session[:name]        = user_info[:name]
-      session[:picture]     = user_info[:picture]
-      session[:scope_level] = SCOPE_LEVEL[LOGIN_SCOPE]
+      session[:user_id] = user_info[:google_id]
+      session[:email]   = user_info[:email]
+      session[:name]    = user_info[:name]
+      session[:picture] = user_info[:picture]
 
       render json: {
         user: {

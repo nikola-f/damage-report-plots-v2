@@ -8,8 +8,11 @@ module Api
       def show
         render json: {
           spreadsheet_exists: spreadsheet_exists?,
-          scope_level:        session[:scope_level],
-          sync_queued_at:     REDIS.get("sync_queued_at:#{current_user_id}")
+          sync_queued_at:     REDIS.get("sync_queued_at:#{current_user_id}"),
+          scope_expires_at:   {
+            spreadsheets: REDIS.get("scope_spreadsheets:#{current_user_id}")&.to_i,
+            sync:         REDIS.get("scope_sync:#{current_user_id}")&.to_i
+          }
         }, status: :ok
       end
 
