@@ -242,3 +242,34 @@ Each SQS message carries `user_id` as a message attribute (`UserStore::USER_ID_A
 ## Test Coverage
 
 Current test suite: **196 examples, 0 failures**
+
+## Infrastructure Setup Status
+
+### AWS Organizations
+- Management account, OU (`Workloads`), prod and dev member accounts are configured
+- SCP: not yet configured
+
+### IAM Identity Center
+- Enabled in management account
+- Identity source: Identity Center directory
+- Permission sets: `AdministratorAccess`, `TerraformAccess`
+- `TerraformAccess` is assigned to both prod and dev accounts
+- Local AWS SSO profiles are configured for management, prod, and dev accounts
+
+### Terraform State Backend (in management account)
+- S3 bucket: `drp-tfstate` (us-west-2, versioning enabled, public access blocked)
+- DynamoDB table: `drp-tfstate-lock` (us-west-2, for state locking)
+
+### Terraform Configuration
+- `terraform/environments/prod/` — AWS provider + Google provider (prod GCP project)
+- `terraform/environments/dev/`  — AWS provider + Google provider (dev GCP project)
+- Both environments initialized (`terraform init` confirmed)
+
+### GCP
+- Separate projects for prod and dev (already existed)
+- Local authentication: Application Default Credentials (`gcloud auth application-default login`)
+
+### Next Steps
+- CI/CD (GitHub Actions) setup: OIDC for AWS, Workload Identity Federation for GCP
+- GuardDuty setup (later)
+- SCP setup (later)
