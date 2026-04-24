@@ -6,6 +6,11 @@ on:
     paths:
       - 'terraform/**'
       - '.github/workflows/ci-terraform.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/ci-terraform.yml'
 
 permissions:
   id-token: write
@@ -25,9 +30,9 @@ jobs:
         run: terraform fmt -check -recursive terraform/
 
   plan:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     needs: fmt-check
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       fail-fast: false
       matrix:
@@ -72,7 +77,6 @@ jobs:
 
       - name: Post plan to PR
         uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
         with:
           script: |
             const fs = require('fs');
@@ -97,3 +101,34 @@ jobs:
       - name: Fail if plan failed
         if: steps.plan.outcome == 'failure'
         run: exit 1
+
+  apply-dev:
+    if: github.event_name == 'push'
+    needs: fmt-check
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/dev
+        run: terraform apply -auto-approve
