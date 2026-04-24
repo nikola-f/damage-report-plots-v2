@@ -79,8 +79,8 @@ resource "aws_iam_role_policy" "assume_terraform_roles" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = "sts:AssumeRole"
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
         Resource = [
           "arn:aws:iam::${var.dev_account_id}:role/github-actions-terraform",
           "arn:aws:iam::${var.prod_account_id}:role/github-actions-terraform",
