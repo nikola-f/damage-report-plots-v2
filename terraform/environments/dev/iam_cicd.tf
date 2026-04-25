@@ -15,4 +15,23 @@ resource "aws_iam_role" "github_actions_terraform" {
   })
 }
 
-# No policy attached yet — add least-privilege policies as AWS resources are provisioned in this environment
+resource "aws_iam_role_policy" "iam_read" {
+  name = "iam-read"
+  role = aws_iam_role.github_actions_terraform.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetRolePolicy",
+        ]
+        Resource = "arn:aws:iam::713500448020:role/github-actions-terraform"
+      }
+    ]
+  })
+}
