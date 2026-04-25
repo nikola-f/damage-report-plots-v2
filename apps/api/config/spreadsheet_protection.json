@@ -1,0 +1,45 @@
+{
+  "requests": [
+    {
+      "addProtectedRange": {
+        "protectedRange": {
+          "range": {
+            "sheetId": 100
+          },
+          "warningOnly": true
+        }
+      }
+    },
+    {
+      "addProtectedRange": {
+        "protectedRange": {
+          "range": {
+            "sheetId": 110
+          },
+          "warningOnly": true
+        }
+      }
+    },
+    {
+      "addProtectedRange": {
+        "protectedRange": {
+          "range": {
+            "sheetId": 120
+          },
+          "warningOnly": true
+        }
+      }
+    },
+    {
+      "addProtectedRange": {
+        "protectedRange": {
+          "range": {
+            "sheetId": 130
+          },
+          "warningOnly": true
+        }
+      }
+    }
+  ],
+  "responseIncludeGridData": false
+}

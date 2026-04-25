@@ -1,0 +1,4 @@
+redis_url: <%= ENV['REDIS_URL'] %>
+allowed_origins: <%= ENV['ALLOWED_ORIGINS'] %>
+sqs_thread_ids_queue_url: <%= ENV['SQS_THREAD_IDS_QUEUE_URL'] %>
+sqs_reports_queue_url: <%= ENV['SQS_REPORTS_QUEUE_URL'] %>

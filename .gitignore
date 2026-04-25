@@ -57,3 +57,10 @@ build-iPhoneSimulator/
 
 # symlink to AGENTS.md
 CLAUDE.md
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.tfvars.json

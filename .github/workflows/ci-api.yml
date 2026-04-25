@@ -1,0 +1,46 @@
+name: API CI
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/ci-api.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/ci-api.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.4'
+          bundler-cache: true
+          working-directory: apps/api
+
+      - name: Run RSpec
+        env:
+          RAILS_ENV: test
+        run: bundle exec rspec --exclude-pattern "spec/e2e/**/*_spec.rb"

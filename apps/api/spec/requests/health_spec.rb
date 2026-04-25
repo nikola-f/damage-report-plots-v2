@@ -1,13 +1,13 @@
-require 'rails_helper'
+# frozen_string_literal: true
+
+require "rails_helper"
 
 RSpec.describe "GET /up", type: :request do
-  it "returns http success" do
+  it "returns 200 OK with response body" do
     get "/up"
-    expect(response).to have_http_status(:success)
-  end
 
-  it "returns 200 OK" do
-    get "/up"
-    expect(response.status).to eq(200)
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to be_present
+    expect(response.content_type).to include("text/html")
   end
 end
