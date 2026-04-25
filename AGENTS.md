@@ -263,13 +263,33 @@ Current test suite: **196 examples, 0 failures**
 ### Terraform Configuration
 - `terraform/environments/prod/` — AWS provider + Google provider (prod GCP project)
 - `terraform/environments/dev/`  — AWS provider + Google provider (dev GCP project)
-- Both environments initialized (`terraform init` confirmed)
+- Both environments initialized and applied
+
+#### Local terraform workflow
+Backend (S3/DynamoDB) は management アカウントにあるため、init と apply で異なるプロファイルを使う:
+```bash
+# init: management プロファイルでバックエンドを指定
+AWS_PROFILE=drp-mgmt terraform init -reconfigure -backend-config="profile=drp-mgmt"
+
+# plan / apply: 対象環境のプロファイルを使用
+AWS_PROFILE=drp-dev  terraform plan  -var="management_account_id=<MGMT_ACCOUNT_ID>"
+AWS_PROFILE=drp-dev  terraform apply -var="management_account_id=<MGMT_ACCOUNT_ID>"
+AWS_PROFILE=drp-prod terraform plan  -var="management_account_id=<MGMT_ACCOUNT_ID>"
+AWS_PROFILE=drp-prod terraform apply -var="management_account_id=<MGMT_ACCOUNT_ID>"
+```
 
 ### GCP
 - Separate projects for prod and dev (already existed)
 - Local authentication: Application Default Credentials (`gcloud auth application-default login`)
+- Workload Identity Federation (WIF) configured in dev and prod GCP projects
+
+### CI/CD (GitHub Actions)
+- `.github/workflows/ci-terraform.yml` — PR時に plan、develop/main push 時に apply
+- AWS: OIDC via management account `github-actions-terraform` role → cross-account AssumeRole to dev/prod
+- GCP: Workload Identity Federation、`terraform-cicd` サービスアカウントに最小権限ロール付与
+- GitHub environments: `dev` / `prod`（apply用）、Secrets: `AWS_OIDC_ROLE_ARN`, `AWS_TERRAFORM_ROLE_ARN`, `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`、Repository secret: `MANAGEMENT_ACCOUNT_ID`
+- WIF attribute_condition: リポジトリ・environment・ref（develop/main またはPR）で制限済み
 
 ### Next Steps
-- CI/CD (GitHub Actions) setup: OIDC for AWS, Workload Identity Federation for GCP
 - GuardDuty setup (later)
 - SCP setup (later)

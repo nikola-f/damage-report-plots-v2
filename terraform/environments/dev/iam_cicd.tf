@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_iam_role" "github_actions_terraform" {
   name = "github-actions-terraform"
 
@@ -30,7 +32,7 @@ resource "aws_iam_role_policy" "iam_read" {
           "iam:ListAttachedRolePolicies",
           "iam:GetRolePolicy",
         ]
-        Resource = "arn:aws:iam::713500448020:role/github-actions-terraform"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/github-actions-terraform"
       }
     ]
   })
