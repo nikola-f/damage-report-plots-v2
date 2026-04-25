@@ -44,6 +44,10 @@ jobs:
 
     environment: ${{ matrix.environment }}
 
+    env:
+      TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
+      TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -108,6 +112,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
 
+    env:
+      TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
+      TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -138,6 +146,10 @@ jobs:
     needs: fmt-check
     runs-on: ubuntu-latest
     environment: prod
+
+    env:
+      TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
+      TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
 
     steps:
       - uses: actions/checkout@v4
