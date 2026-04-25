@@ -35,9 +35,10 @@ resource "google_iam_workload_identity_pool_provider" "github_actions" {
     "attribute.actor"       = "assertion.actor"
     "attribute.repository"  = "assertion.repository"
     "attribute.environment" = "assertion.environment"
+    "attribute.ref"         = "assertion.ref"
   }
 
-  attribute_condition = "assertion.repository == '${var.github_org}/${var.github_repo}' && assertion.environment == 'dev'"
+  attribute_condition = "assertion.repository == '${var.github_org}/${var.github_repo}' && assertion.environment == 'dev' && (assertion.ref == 'refs/heads/develop' || assertion.ref.startsWith('refs/pull/'))"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
