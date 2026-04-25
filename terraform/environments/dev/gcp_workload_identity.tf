@@ -55,9 +55,19 @@ resource "google_service_account_iam_member" "workload_identity_binding" {
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_actions.name}/attribute.repository/${var.github_org}/${var.github_repo}"
 }
 
-# Scoped down as resources are added to this environment
+locals {
+  terraform_cicd_roles = toset([
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/iam.workloadIdentityPoolAdmin",
+    "roles/iam.serviceAccountAdmin",
+    "roles/resourcemanager.projectIamAdmin",
+  ])
+}
+
 resource "google_project_iam_member" "terraform_cicd" {
+  for_each = local.terraform_cicd_roles
+
   project = var.gcp_project_id
-  role    = "roles/editor"
+  role    = each.value
   member  = "serviceAccount:${google_service_account.terraform_cicd.email}"
 }
