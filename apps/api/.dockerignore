@@ -1,0 +1,16 @@
+.git/
+.github/
+spec/
+log/*
+tmp/*
+.bundle/
+vendor/bundle/
+config/master.key
+.env*
+*.md
+coverage/
+.ruby-lsp/
+.rubocop.yml
+.rspec
+Dockerfile
+.dockerignore
