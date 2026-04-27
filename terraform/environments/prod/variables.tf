@@ -33,7 +33,7 @@ variable "app_name" {
   default     = "drp"
 }
 
-variable "domain_name" {
+variable "api_domain_name" {
   description = "Domain name for ACM certificate (e.g. api.example.com)"
   type        = string
 }
@@ -45,7 +45,7 @@ variable "rails_master_key_placeholder" {
   default     = "PLACEHOLDER"
 }
 
-variable "allowed_origins" {
+variable "api_allowed_origins" {
   description = "Comma-separated CORS allowed origins (e.g. https://app.example.com)"
   type        = string
 }

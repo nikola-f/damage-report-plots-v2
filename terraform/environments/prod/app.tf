@@ -3,8 +3,8 @@ module "app_infra" {
 
   app_name                        = var.app_name
   environment                     = "prod"
-  domain_name                     = var.domain_name
+  domain_name                     = var.api_domain_name
   elasticache_replication_enabled = true
   rails_master_key_placeholder    = var.rails_master_key_placeholder
-  allowed_origins                 = var.allowed_origins
+  allowed_origins                 = var.api_allowed_origins
 }
