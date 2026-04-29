@@ -80,7 +80,7 @@ resource "aws_iam_role_policy" "assume_terraform_roles" {
     Statement = [
       {
         Effect = "Allow"
-        Action = "sts:AssumeRole"
+        Action = ["sts:AssumeRole", "sts:TagSession"]
         Resource = [
           "arn:aws:iam::${var.dev_account_id}:role/github-actions-terraform",
           "arn:aws:iam::${var.prod_account_id}:role/github-actions-terraform",
