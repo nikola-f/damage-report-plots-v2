@@ -11,7 +11,7 @@ resource "aws_iam_role" "github_actions_terraform" {
         Principal = {
           AWS = "arn:aws:iam::${var.management_account_id}:role/github-actions-terraform"
         }
-        Action = "sts:AssumeRole"
+        Action = ["sts:AssumeRole", "sts:TagSession"]
       }
     ]
   })
