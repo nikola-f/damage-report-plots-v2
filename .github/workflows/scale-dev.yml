@@ -1,0 +1,49 @@
+name: Scale Dev ECS Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'stop or start dev ECS services'
+        required: true
+        type: choice
+        options: [stop, start]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  scale:
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Configure AWS credentials (management OIDC)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Configure AWS credentials (dev role)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-west-2
+          role-chaining: true
+
+      - name: Scale ECS services
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          DESIRED_COUNT=$([ "$ACTION" = "start" ] && echo 1 || echo 0)
+          aws ecs update-service --cluster drp-dev --service drp-dev-web    --desired-count "$DESIRED_COUNT"
+          aws ecs update-service --cluster drp-dev --service drp-dev-worker --desired-count "$DESIRED_COUNT"
+
+      - name: Confirm desired count
+        run: |
+          aws ecs describe-services \
+            --cluster drp-dev \
+            --services drp-dev-web drp-dev-worker \
+            --query 'services[*].{name:serviceName,desired:desiredCount,running:runningCount}' \
+            --output table
