@@ -27,3 +27,52 @@ output "rails_master_key_secret_arn" {
   description = "Secrets Manager ARN for RAILS_MASTER_KEY — set the real value after first apply"
   value       = module.app_infra.rails_master_key_secret_arn
 }
+
+output "web_target_group_arn" {
+  value = module.app_infra.web_target_group_arn
+}
+
+output "task_execution_role_arn" {
+  value = module.app_infra.task_execution_role_arn
+}
+
+output "task_role_arn" {
+  value = module.app_infra.task_role_arn
+}
+
+output "private_subnet_ids_csv" {
+  value = module.app_infra.private_subnet_ids_csv
+}
+
+output "ecs_security_group_id" {
+  value = module.app_infra.ecs_security_group_id
+}
+
+output "log_group_web" {
+  value = module.app_infra.log_group_web
+}
+
+output "log_group_worker" {
+  value = module.app_infra.log_group_worker
+}
+
+output "redis_url" {
+  value     = module.app_infra.redis_url
+  sensitive = true
+}
+
+output "sqs_thread_ids_queue_url" {
+  value = module.app_infra.sqs_thread_ids_queue_url
+}
+
+output "sqs_reports_queue_url" {
+  value = module.app_infra.sqs_reports_queue_url
+}
+
+output "allowed_origins" {
+  value = module.app_infra.allowed_origins
+}
+
+output "aws_region" {
+  value = module.app_infra.aws_region
+}
