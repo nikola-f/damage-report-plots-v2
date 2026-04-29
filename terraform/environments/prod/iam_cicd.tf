@@ -237,3 +237,24 @@ resource "aws_iam_role_policy" "ecr_ecs_deploy" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "tfstate_read" {
+  name = "tfstate-read"
+  role = aws_iam_role.github_actions_terraform.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "arn:aws:s3:::drp-tfstate/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = "arn:aws:s3:::drp-tfstate"
+      },
+    ]
+  })
+}
