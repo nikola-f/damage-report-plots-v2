@@ -68,6 +68,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "ec2:CreateTags", "ec2:DeleteTags", "ec2:DescribeTags",
           "ec2:DescribeAvailabilityZones", "ec2:DescribeAccountAttributes",
           "ec2:DescribeNetworkInterfaces", "ec2:DescribePrefixLists",
+          "ec2:DescribeVpcAttribute", "ec2:DescribeSubnetAttribute",
         ]
         Resource = "*"
       },
