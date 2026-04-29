@@ -219,10 +219,13 @@ resource "aws_iam_role_policy" "ecr_ecs_deploy" {
         Action = [
           "ecs:DescribeTaskDefinition",
           "ecs:RegisterTaskDefinition",
+          "ecs:CreateService",
+          "ecs:DeleteService",
           "ecs:DescribeServices",
           "ecs:UpdateService",
           "ecs:ListTasks",
           "ecs:DescribeTasks",
+          "ecs:TagResource",
         ]
         Resource = "*"
       },
