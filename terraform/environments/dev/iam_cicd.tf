@@ -31,8 +31,6 @@ resource "aws_iam_role_policy" "iam_read" {
           "iam:ListRolePolicies",
           "iam:ListAttachedRolePolicies",
           "iam:GetRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy",
         ]
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/github-actions-terraform"
       }
