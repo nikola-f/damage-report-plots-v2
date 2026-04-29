@@ -111,6 +111,19 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
         Resource = "*"
       },
       {
+        Effect   = "Allow"
+        Action   = "iam:CreateServiceLinkedRole"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "iam:AWSServiceName" = [
+              "elasticloadbalancing.amazonaws.com",
+              "elasticache.amazonaws.com",
+            ]
+          }
+        }
+      },
+      {
         Effect = "Allow"
         Action = [
           "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
