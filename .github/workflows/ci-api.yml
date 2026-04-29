@@ -149,7 +149,7 @@ jobs:
 
       - name: Install ecspresso
         run: |
-          curl -sL https://github.com/kayac/ecspresso/releases/download/v2.4.4/ecspresso_v2.4.4_linux_amd64.tar.gz \
+          curl -sL https://github.com/kayac/ecspresso/releases/download/v2.8.3/ecspresso_2.8.3_linux_amd64.tar.gz \
             -o /tmp/ecspresso.tar.gz
           tar xz -C /tmp -f /tmp/ecspresso.tar.gz ecspresso
           sudo mv /tmp/ecspresso /usr/local/bin/ecspresso
@@ -199,7 +199,7 @@ jobs:
 
       - name: Install ecspresso
         run: |
-          curl -sL https://github.com/kayac/ecspresso/releases/download/v2.4.4/ecspresso_v2.4.4_linux_amd64.tar.gz \
+          curl -sL https://github.com/kayac/ecspresso/releases/download/v2.8.3/ecspresso_2.8.3_linux_amd64.tar.gz \
             -o /tmp/ecspresso.tar.gz
           tar xz -C /tmp -f /tmp/ecspresso.tar.gz ecspresso
           sudo mv /tmp/ecspresso /usr/local/bin/ecspresso
