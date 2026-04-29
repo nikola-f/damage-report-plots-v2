@@ -118,6 +118,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
             "iam:AWSServiceName" = [
               "elasticloadbalancing.amazonaws.com",
               "elasticache.amazonaws.com",
+              "ecs.amazonaws.com",
             ]
           }
         }
