@@ -28,6 +28,11 @@ output "alb_dns_name" {
   value       = aws_lb.main.dns_name
 }
 
+output "public_subnet_ids_csv" {
+  description = "Public subnet IDs as a comma-separated string (for ecspresso jsonnet std.split)"
+  value       = join(",", aws_subnet.public[*].id)
+}
+
 output "private_subnet_ids_csv" {
   description = "Private subnet IDs as a comma-separated string (for ecspresso jsonnet std.split)"
   value       = join(",", aws_subnet.private[*].id)
