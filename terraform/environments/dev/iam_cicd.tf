@@ -149,6 +149,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "elasticloadbalancing:CreateRule", "elasticloadbalancing:DeleteRule",
           "elasticloadbalancing:DescribeRules", "elasticloadbalancing:ModifyRule",
           "elasticloadbalancing:AddTags", "elasticloadbalancing:DescribeTags", "elasticloadbalancing:RemoveTags",
+          "elasticloadbalancing:SetWebACL",
         ]
         Resource = "*"
       },
