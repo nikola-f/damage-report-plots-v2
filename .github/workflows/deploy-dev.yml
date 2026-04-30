@@ -46,7 +46,7 @@ jobs:
       - name: Install ecspresso
         run: |
           curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/ecspresso_${ECSPRESSO_VERSION}_linux_amd64.tar.gz" -o /tmp/ecspresso.tar.gz
-          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/ecspresso_${ECSPRESSO_VERSION}_checksums.txt" -o /tmp/ecspresso_checksums.txt
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/checksums.txt" -o /tmp/ecspresso_checksums.txt
           grep "linux_amd64.tar.gz" /tmp/ecspresso_checksums.txt | sha256sum -c
           tar xz -C /usr/local/bin -f /tmp/ecspresso.tar.gz ecspresso
           ecspresso version
