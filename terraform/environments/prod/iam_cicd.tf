@@ -119,7 +119,6 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
               "elasticloadbalancing.amazonaws.com",
               "elasticache.amazonaws.com",
               "ecs.amazonaws.com",
-              "wafv2.amazonaws.com",
             ]
           }
         }
