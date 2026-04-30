@@ -97,33 +97,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "waf_logs" {
   }
 }
 
-resource "aws_s3_bucket_policy" "waf_logs" {
-  bucket = aws_s3_bucket.waf_logs.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "delivery.logs.amazonaws.com" }
-        Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.waf_logs.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
-        Condition = {
-          StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
-        }
-      },
-      {
-        Effect    = "Allow"
-        Principal = { Service = "delivery.logs.amazonaws.com" }
-        Action    = "s3:GetBucketAcl"
-        Resource  = aws_s3_bucket.waf_logs.arn
-        Condition = {
-          StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
-        }
-      },
-    ]
-  })
-}
 
 # ---------- IAM: Firehose role (writes to S3) ----------
 
@@ -159,6 +132,8 @@ resource "aws_iam_role_policy" "firehose" {
       Resource = [
         aws_s3_bucket.logs.arn,
         "${aws_s3_bucket.logs.arn}/*",
+        aws_s3_bucket.waf_logs.arn,
+        "${aws_s3_bucket.waf_logs.arn}/*",
       ]
     }]
   })
@@ -234,6 +209,17 @@ resource "aws_kinesis_firehose_delivery_stream" "redis" {
     role_arn   = aws_iam_role.firehose.arn
     bucket_arn = aws_s3_bucket.logs.arn
     prefix     = "redis/"
+  }
+}
+
+resource "aws_kinesis_firehose_delivery_stream" "waf" {
+  name        = "aws-waf-logs-${local.name_prefix}"
+  destination = "extended_s3"
+
+  extended_s3_configuration {
+    role_arn   = aws_iam_role.firehose.arn
+    bucket_arn = aws_s3_bucket.waf_logs.arn
+    prefix     = ""
   }
 }
 
