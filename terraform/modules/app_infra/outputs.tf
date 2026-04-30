@@ -69,7 +69,7 @@ output "redis_url" {
   value = var.elasticache_replication_enabled ? (
     "rediss://:${random_password.redis_auth_token[0].result}@${aws_elasticache_replication_group.redis[0].primary_endpoint_address}:6379/0"
     ) : (
-    "rediss://${aws_elasticache_cluster.redis[0].cache_nodes[0].address}:6379/0"
+    "redis://${aws_elasticache_cluster.redis[0].cache_nodes[0].address}:6379/0"
   )
 }
 
