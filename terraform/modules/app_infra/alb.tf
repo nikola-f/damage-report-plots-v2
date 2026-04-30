@@ -5,9 +5,17 @@ resource "aws_lb" "main" {
   security_groups    = [aws_security_group.alb.id]
   subnets            = aws_subnet.public[*].id
 
+  access_logs {
+    bucket  = aws_s3_bucket.logs.id
+    prefix  = "alb"
+    enabled = true
+  }
+
   tags = {
     Name = "${local.name_prefix}-alb"
   }
+
+  depends_on = [aws_s3_bucket_policy.logs]
 }
 
 resource "aws_lb_target_group" "web" {
