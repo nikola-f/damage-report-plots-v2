@@ -283,6 +283,7 @@ resource "aws_iam_role_policy" "ecr_ecs_deploy" {
           "ecs:UpdateService",
           "ecs:ListTasks",
           "ecs:DescribeTasks",
+          "ecs:ListServiceDeployments",
           "ecs:TagResource",
         ]
         Resource = "*"
