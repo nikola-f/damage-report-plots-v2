@@ -186,6 +186,18 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
         ]
         Resource = "*"
       },
+      {
+        Effect = "Allow"
+        Action = [
+          "wafv2:CreateWebACL", "wafv2:DeleteWebACL", "wafv2:GetWebACL", "wafv2:UpdateWebACL",
+          "wafv2:ListWebACLs",
+          "wafv2:AssociateWebACL", "wafv2:DisassociateWebACL",
+          "wafv2:GetWebACLForResource", "wafv2:ListResourcesForWebACL",
+          "wafv2:ListTagsForResource", "wafv2:TagResource", "wafv2:UntagResource",
+          "wafv2:CheckCapacity", "wafv2:DescribeManagedRuleGroup",
+        ]
+        Resource = "*"
+      },
     ]
   })
 }
