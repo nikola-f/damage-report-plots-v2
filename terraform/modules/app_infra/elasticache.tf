@@ -13,6 +13,13 @@ resource "aws_elasticache_cluster" "redis" {
   parameter_group_name = "default.redis7"
   subnet_group_name    = aws_elasticache_subnet_group.main.name
   security_group_ids   = [aws_security_group.elasticache.id]
+
+  log_delivery_configuration {
+    destination      = aws_cloudwatch_log_group.redis_slow_log.arn
+    destination_type = "cloudwatch-logs"
+    log_format       = "json"
+    log_type         = "slow-log"
+  }
 }
 
 resource "aws_elasticache_replication_group" "redis" {
@@ -26,4 +33,11 @@ resource "aws_elasticache_replication_group" "redis" {
   security_group_ids         = [aws_security_group.elasticache.id]
   automatic_failover_enabled = true
   num_cache_clusters         = 2
+
+  log_delivery_configuration {
+    destination      = aws_cloudwatch_log_group.redis_slow_log.arn
+    destination_type = "cloudwatch-logs"
+    log_format       = "json"
+    log_type         = "slow-log"
+  }
 }
