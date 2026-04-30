@@ -1,0 +1,56 @@
+name: Deploy Dev ECS Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options: [all, web, worker]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+
+    env:
+      APP_NAME: drp
+      ENV: dev
+      ECSPRESSO_VERSION: 2.4.5
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Configure AWS credentials (management OIDC)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Configure AWS credentials (dev role)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-west-2
+          role-chaining: true
+
+      - name: Install ecspresso
+        run: |
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/ecspresso_${ECSPRESSO_VERSION}_linux_amd64.tar.gz" \
+            | tar xz -C /usr/local/bin ecspresso
+          ecspresso version
+
+      - name: Deploy web
+        if: inputs.service == 'all' || inputs.service == 'web'
+        working-directory: ecspresso/web
+        run: ecspresso deploy
+
+      - name: Deploy worker
+        if: inputs.service == 'all' || inputs.service == 'worker'
+        working-directory: ecspresso/worker
+        run: ecspresso deploy
