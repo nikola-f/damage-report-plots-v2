@@ -4,17 +4,16 @@ resource "aws_elasticache_subnet_group" "main" {
 }
 
 resource "aws_elasticache_cluster" "redis" {
-  count                      = var.elasticache_replication_enabled ? 0 : 1
-  cluster_id                 = "${local.name_prefix}-redis"
-  engine                     = "redis"
-  node_type                  = var.elasticache_node_type
-  num_cache_nodes            = 1
-  engine_version             = "7.1"
-  parameter_group_name       = "default.redis7"
-  subnet_group_name          = aws_elasticache_subnet_group.main.name
-  security_group_ids         = [aws_security_group.elasticache.id]
-  apply_immediately          = true
-  transit_encryption_enabled = true
+  count                = var.elasticache_replication_enabled ? 0 : 1
+  cluster_id           = "${local.name_prefix}-redis"
+  engine               = "redis"
+  node_type            = var.elasticache_node_type
+  num_cache_nodes      = 1
+  engine_version       = "7.1"
+  parameter_group_name = "default.redis7"
+  subnet_group_name    = aws_elasticache_subnet_group.main.name
+  security_group_ids   = [aws_security_group.elasticache.id]
+  apply_immediately    = true
 
   log_delivery_configuration {
     destination      = aws_cloudwatch_log_group.redis_slow_log.name
