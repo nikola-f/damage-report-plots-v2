@@ -50,6 +50,28 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
+  rule {
+    name     = "RateLimitGlobal"
+    priority = 3
+
+    action {
+      block {}
+    }
+
+    statement {
+      rate_based_statement {
+        limit              = 1000
+        aggregate_key_type = "IP"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${local.name_prefix}-rate-limit-global"
+      sampled_requests_enabled   = true
+    }
+  }
+
   visibility_config {
     cloudwatch_metrics_enabled = true
     metric_name                = "${local.name_prefix}-web-acl"
