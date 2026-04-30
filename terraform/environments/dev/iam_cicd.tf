@@ -235,11 +235,19 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       {
         Effect = "Allow"
         Action = [
-          "cloudtrail:CreateTrail",
-          "cloudtrail:DeleteTrail",
           "cloudtrail:DescribeTrails",
           "cloudtrail:GetTrail",
           "cloudtrail:GetTrailStatus",
+          "cloudtrail:ListTrails",
+          "cloudtrail:ListTags",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudtrail:CreateTrail",
+          "cloudtrail:DeleteTrail",
           "cloudtrail:UpdateTrail",
           "cloudtrail:StartLogging",
           "cloudtrail:StopLogging",
@@ -247,7 +255,6 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "cloudtrail:GetEventSelectors",
           "cloudtrail:AddTags",
           "cloudtrail:RemoveTags",
-          "cloudtrail:ListTags",
         ]
         Resource = "arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/drp-*"
       },
