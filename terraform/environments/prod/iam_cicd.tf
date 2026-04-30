@@ -235,6 +235,25 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       {
         Effect = "Allow"
         Action = [
+          "cloudtrail:CreateTrail",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:DescribeTrails",
+          "cloudtrail:GetTrail",
+          "cloudtrail:GetTrailStatus",
+          "cloudtrail:UpdateTrail",
+          "cloudtrail:StartLogging",
+          "cloudtrail:StopLogging",
+          "cloudtrail:PutEventSelectors",
+          "cloudtrail:GetEventSelectors",
+          "cloudtrail:AddTags",
+          "cloudtrail:RemoveTags",
+          "cloudtrail:ListTags",
+        ]
+        Resource = "arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/drp-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "wafv2:CreateWebACL", "wafv2:DeleteWebACL", "wafv2:GetWebACL", "wafv2:UpdateWebACL",
           "wafv2:ListWebACLs",
           "wafv2:AssociateWebACL", "wafv2:DisassociateWebACL",
