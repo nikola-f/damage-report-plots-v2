@@ -9,7 +9,7 @@ resource "aws_elasticache_cluster" "redis" {
   engine               = "valkey"
   node_type            = var.elasticache_node_type
   num_cache_nodes      = 1
-  engine_version       = "8"
+  engine_version       = "8.0"
   parameter_group_name = "default.valkey8"
   subnet_group_name    = aws_elasticache_subnet_group.main.name
   security_group_ids   = [aws_security_group.elasticache.id]
@@ -34,7 +34,7 @@ resource "aws_elasticache_replication_group" "redis" {
   replication_group_id       = "${local.name_prefix}-redis"
   description                = "${local.name_prefix} Redis replication group"
   node_type                  = var.elasticache_node_type
-  engine_version             = "8"
+  engine_version             = "8.0"
   parameter_group_name       = "default.valkey8"
   subnet_group_name          = aws_elasticache_subnet_group.main.name
   security_group_ids         = [aws_security_group.elasticache.id]
