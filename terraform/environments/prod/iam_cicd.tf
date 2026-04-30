@@ -191,16 +191,15 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
         Effect = "Allow"
         Action = [
           "s3:CreateBucket", "s3:DeleteBucket",
-          "s3:GetBucketAcl", "s3:PutBucketAcl",
-          "s3:GetBucketPolicy", "s3:PutBucketPolicy", "s3:DeleteBucketPolicy",
-          "s3:GetBucketPublicAccessBlock", "s3:PutBucketPublicAccessBlock",
-          "s3:GetLifecycleConfiguration", "s3:PutLifecycleConfiguration",
-          "s3:GetBucketTagging", "s3:PutBucketTagging",
-          "s3:GetEncryptionConfiguration", "s3:PutEncryptionConfiguration",
-          "s3:GetBucketVersioning", "s3:ListBucket",
-          "s3:GetObject", "s3:PutObject", "s3:DeleteObject",
-          "s3:GetBucketCORS", "s3:PutBucketCORS",
-          "s3:GetBucketWebsite",
+          "s3:Get*", "s3:List*",
+          "s3:PutBucketAcl",
+          "s3:PutBucketPolicy", "s3:DeleteBucketPolicy",
+          "s3:PutBucketPublicAccessBlock",
+          "s3:PutLifecycleConfiguration",
+          "s3:PutBucketTagging",
+          "s3:PutEncryptionConfiguration",
+          "s3:PutObject", "s3:DeleteObject",
+          "s3:PutBucketCORS",
         ]
         Resource = "*"
       },
