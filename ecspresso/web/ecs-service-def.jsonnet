@@ -5,9 +5,9 @@ local tfstate = std.native('tfstate');
   launchType: 'FARGATE',
   networkConfiguration: {
     awsvpcConfiguration: {
-      subnets: std.split(tfstate('output.private_subnet_ids_csv'), ','),
+      subnets: std.split(tfstate('output.public_subnet_ids_csv'), ','),
       securityGroups: [tfstate('output.ecs_security_group_id')],
-      assignPublicIp: 'DISABLED',
+      assignPublicIp: 'ENABLED',
     },
   },
   loadBalancers: [
