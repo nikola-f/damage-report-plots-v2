@@ -200,6 +200,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "s3:GetBucketVersioning", "s3:ListBucket",
           "s3:GetObject", "s3:PutObject", "s3:DeleteObject",
           "s3:GetBucketCORS", "s3:PutBucketCORS",
+          "s3:GetBucketWebsite",
         ]
         Resource = "*"
       },
