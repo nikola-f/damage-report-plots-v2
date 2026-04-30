@@ -13,6 +13,7 @@ resource "aws_elasticache_cluster" "redis" {
   parameter_group_name = "default.redis7"
   subnet_group_name    = aws_elasticache_subnet_group.main.name
   security_group_ids   = [aws_security_group.elasticache.id]
+  apply_immediately    = true
 
   log_delivery_configuration {
     destination      = aws_cloudwatch_log_group.redis_slow_log.arn
