@@ -226,6 +226,13 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       {
         Effect = "Allow"
         Action = [
+          "application-autoscaling:DescribeScalableTargets",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "wafv2:CreateWebACL", "wafv2:DeleteWebACL", "wafv2:GetWebACL", "wafv2:UpdateWebACL",
           "wafv2:ListWebACLs",
           "wafv2:AssociateWebACL", "wafv2:DisassociateWebACL",

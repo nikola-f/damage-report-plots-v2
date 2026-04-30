@@ -8,6 +8,10 @@ on:
         required: true
         type: choice
         options: [all, web, worker]
+      image_tag:
+        description: 'Docker image tag to deploy (leave empty to update service config only)'
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -48,9 +52,19 @@ jobs:
       - name: Deploy web
         if: inputs.service == 'all' || inputs.service == 'web'
         working-directory: ecspresso/web
-        run: ecspresso deploy
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            ecspresso deploy --ext-str IMAGE_TAG=${{ inputs.image_tag }}
+          else
+            ecspresso deploy --skip-task-definition
+          fi
 
       - name: Deploy worker
         if: inputs.service == 'all' || inputs.service == 'worker'
         working-directory: ecspresso/worker
-        run: ecspresso deploy
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            ecspresso deploy --ext-str IMAGE_TAG=${{ inputs.image_tag }}
+          else
+            ecspresso deploy --skip-task-definition
+          fi
