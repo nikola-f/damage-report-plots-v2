@@ -61,7 +61,8 @@ class SessionsController < ApplicationController
       }, status: :ok
     end
   rescue StandardError => e
-    render json: { error: "Authentication failed", message: e.message }, status: :unprocessable_entity
+    Rails.logger.error "OAuth callback error: #{e.class}: #{e.message}"
+    render json: { error: "Authentication failed" }, status: :unprocessable_entity
   end
 
   def logout
