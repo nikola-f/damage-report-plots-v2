@@ -20,6 +20,13 @@ terraform {
 provider "aws" {
   region = "us-west-2"
 
+  default_tags {
+    tags = {
+      Environment = "dev"
+      ManagedBy   = "terraform"
+    }
+  }
+
   dynamic "assume_role" {
     for_each = var.aws_assume_role_arn != "" ? [1] : []
     content {
