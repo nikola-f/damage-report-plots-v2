@@ -16,7 +16,7 @@ resource "aws_elasticache_cluster" "redis" {
   apply_immediately    = true
 
   log_delivery_configuration {
-    destination      = aws_cloudwatch_log_group.redis_slow_log.arn
+    destination      = aws_cloudwatch_log_group.redis_slow_log.name
     destination_type = "cloudwatch-logs"
     log_format       = "json"
     log_type         = "slow-log"
@@ -36,7 +36,7 @@ resource "aws_elasticache_replication_group" "redis" {
   num_cache_clusters         = 2
 
   log_delivery_configuration {
-    destination      = aws_cloudwatch_log_group.redis_slow_log.arn
+    destination      = aws_cloudwatch_log_group.redis_slow_log.name
     destination_type = "cloudwatch-logs"
     log_format       = "json"
     log_type         = "slow-log"

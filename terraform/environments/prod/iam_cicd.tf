@@ -230,6 +230,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "wafv2:GetWebACLForResource", "wafv2:ListResourcesForWebACL",
           "wafv2:ListTagsForResource", "wafv2:TagResource", "wafv2:UntagResource",
           "wafv2:CheckCapacity", "wafv2:DescribeManagedRuleGroup",
+          "wafv2:PutLoggingConfiguration", "wafv2:GetLoggingConfiguration", "wafv2:DeleteLoggingConfiguration",
         ]
         Resource = "*"
       },
