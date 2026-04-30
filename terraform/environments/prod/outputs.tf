@@ -54,6 +54,11 @@ output "private_subnet_ids_csv" {
   sensitive = true
 }
 
+output "public_subnet_ids_csv" {
+  value     = module.app_infra.public_subnet_ids_csv
+  sensitive = true
+}
+
 output "ecs_security_group_id" {
   value     = module.app_infra.ecs_security_group_id
   sensitive = true
