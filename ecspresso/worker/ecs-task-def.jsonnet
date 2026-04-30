@@ -11,12 +11,21 @@ local imageTag = std.extVar('IMAGE_TAG');
   requiresCompatibilities: ['FARGATE'],
   cpu: '512',
   memory: '1024',
+  volumes: [
+    { name: 'tmp' },
+    { name: 'app-tmp' },
+  ],
   containerDefinitions: [
     {
       name: 'worker',
       image: tfstate('output.ecr_repository_url') + ':' + imageTag,
       command: ['bundle', 'exec', 'sidekiq'],
       essential: true,
+      readonlyRootFilesystem: true,
+      mountPoints: [
+        { sourceVolume: 'tmp', containerPath: '/tmp', readOnly: false },
+        { sourceVolume: 'app-tmp', containerPath: '/app/tmp', readOnly: false },
+      ],
       environment: [
         { name: 'RAILS_ENV', value: 'production' },
         { name: 'REDIS_URL', value: tfstate('output.redis_url') },
