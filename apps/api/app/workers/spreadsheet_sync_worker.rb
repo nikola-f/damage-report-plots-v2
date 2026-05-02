@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "digest"
-
 class SpreadsheetSyncWorker
   include Sidekiq::Worker
 
@@ -9,11 +7,6 @@ class SpreadsheetSyncWorker
 
   POLL_INTERVAL = 30 # seconds
   SHEET_NAME    = "reports"
-
-  # Printable ASCII excluding " (breaks CSV) and ' (Sheets text prefix).
-  # Larger alphabet → shorter Sqids IDs.
-  SQIDS_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+,-./:;<=>?@[]^_`{|}~"
-  SQIDS          = Sqids.new(alphabet: SQIDS_ALPHABET)
 
   def perform
     SqsClient.new(Settings.sqs_reports_queue_url).poll(
@@ -44,7 +37,7 @@ class SpreadsheetSyncWorker
 
   def to_row(record)
     [
-      portal_id(record),
+      record.portal_id,
       record.latitude,
       record.longitude,
       record.owned ? 1 : 0,
@@ -53,9 +46,4 @@ class SpreadsheetSyncWorker
     ]
   end
 
-  def portal_id(record)
-    hash   = Digest::SHA256.digest("#{record.latitude},#{record.longitude}")
-    number = hash.unpack1("Q>") & ((1 << 62) - 1) # Sqids max: 2^62 - 1
-    SQIDS.encode([number])
-  end
 end
