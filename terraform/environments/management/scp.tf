@@ -7,7 +7,7 @@ data "aws_organizations_organizational_units" "root" {
 locals {
   workloads_ou_id = one([
     for ou in data.aws_organizations_organizational_units.root.children : ou.id
-    if ou.name == "Workloads"
+    if ou.name == "workloads"
   ])
 }
 
