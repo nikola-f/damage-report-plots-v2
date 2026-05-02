@@ -81,7 +81,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/drp-api:$IMAGE_TAG ./apps/api
+          docker build --pull -t $ECR_REGISTRY/drp-api:$IMAGE_TAG ./apps/api
           docker push $ECR_REGISTRY/drp-api:$IMAGE_TAG
 
   build-push-prod:
@@ -115,7 +115,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/drp-api:$IMAGE_TAG ./apps/api
+          docker build --pull -t $ECR_REGISTRY/drp-api:$IMAGE_TAG ./apps/api
           docker push $ECR_REGISTRY/drp-api:$IMAGE_TAG
 
   deploy-dev:
