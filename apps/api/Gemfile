@@ -45,4 +45,6 @@ group :development, :test do
   gem "rspec-rails", "~> 7.1"
   # Automatically generate descriptions for RSpec request specs
   gem "rspec-request_describer"
+  # Static analysis security scanner
+  gem "brakeman"
 end
