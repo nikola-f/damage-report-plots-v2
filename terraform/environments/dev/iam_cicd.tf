@@ -170,6 +170,15 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       {
         Effect = "Allow"
         Action = [
+          "ec2:CreateVpcEndpoint", "ec2:DeleteVpcEndpoints",
+          "ec2:DescribeVpcEndpoints", "ec2:ModifyVpcEndpoint",
+          "ec2:CreateTags",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "sqs:CreateQueue", "sqs:DeleteQueue", "sqs:GetQueueAttributes", "sqs:SetQueueAttributes",
           "sqs:GetQueueUrl", "sqs:TagQueue", "sqs:UntagQueue", "sqs:ListQueueTags", "sqs:ListQueues",
         ]
