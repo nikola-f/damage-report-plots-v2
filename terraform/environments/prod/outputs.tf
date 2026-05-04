@@ -34,6 +34,12 @@ output "rails_master_key_secret_arn" {
   sensitive   = true
 }
 
+output "redis_url_secret_arn" {
+  description = "Secrets Manager ARN for REDIS_URL"
+  value       = module.app_infra.redis_url_secret_arn
+  sensitive   = true
+}
+
 output "web_target_group_arn" {
   value     = module.app_infra.web_target_group_arn
   sensitive = true
