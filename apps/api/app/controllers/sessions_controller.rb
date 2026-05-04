@@ -28,7 +28,11 @@ class SessionsController < ApplicationController
 
     if (scope = session.delete(:requested_scope))
       # Scope upgrade: update token and store expiry epoch for each granted scope
-      user_id    = session[:user_id]
+      user_id = session[:user_id]
+
+      return render json: { error: "Account mismatch during scope upgrade" }, status: :unauthorized if auth["uid"] != user_id
+      return render json: { error: "Invalid scope" }, status: :unprocessable_entity unless SCOPE_REDIS_KEYS.key?(scope)
+
       expires_at = Time.now.to_i + ACCESS_TOKEN_TTL
       UserStore.access_token.store(user_id, auth["credentials"]["token"])
       SCOPE_REDIS_KEYS[scope].each do |key|
