@@ -1,3 +1,13 @@
+resource "google_project_service" "gmail" {
+  service            = "gmail.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "sheets" {
+  service            = "sheets.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_project_service" "cloudresourcemanager" {
   service            = "cloudresourcemanager.googleapis.com"
   disable_on_destroy = false
