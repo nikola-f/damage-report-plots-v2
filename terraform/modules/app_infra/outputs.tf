@@ -84,6 +84,11 @@ output "rails_master_key_secret_arn" {
   value       = aws_secretsmanager_secret.rails_master_key.arn
 }
 
+output "redis_url_secret_arn" {
+  description = "Secrets Manager ARN for REDIS_URL"
+  value       = aws_secretsmanager_secret.redis_url.arn
+}
+
 output "allowed_origins" {
   description = "CORS allowed origins"
   value       = var.allowed_origins

@@ -40,7 +40,6 @@ local imageTag = std.extVar('IMAGE_TAG');
       ],
       environment: [
         { name: 'RAILS_ENV', value: 'production' },
-        { name: 'REDIS_URL', value: tfstate('output.redis_url') },
         { name: 'ALLOWED_ORIGINS', value: tfstate('output.allowed_origins') },
         { name: 'SQS_THREAD_IDS_QUEUE_URL', value: tfstate('output.sqs_thread_ids_queue_url') },
         { name: 'SQS_REPORTS_QUEUE_URL', value: tfstate('output.sqs_reports_queue_url') },
@@ -49,6 +48,10 @@ local imageTag = std.extVar('IMAGE_TAG');
         {
           name: 'RAILS_MASTER_KEY',
           valueFrom: tfstate('output.rails_master_key_secret_arn'),
+        },
+        {
+          name: 'REDIS_URL',
+          valueFrom: tfstate('output.redis_url_secret_arn'),
         },
       ],
       logConfiguration: {
