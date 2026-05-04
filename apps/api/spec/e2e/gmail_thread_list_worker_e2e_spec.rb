@@ -10,9 +10,11 @@ require "rails_helper"
 #   - Docker Valkey (Redis-compatible, matching production ElastiCache Valkey)
 #
 # Required environment variables:
-#   TEST_GMAIL_ACCESS_TOKEN  - Valid Gmail OAuth access token (scope: gmail.readonly)
-#   SQS_REPORT_QUEUE_URL     - SQS FIFO queue URL (LocalStack or real AWS)
-#   REDIS_URL                - Valkey URL (e.g. redis://localhost:6380/0)
+#   GOOGLE_TEST_REFRESH_TOKEN - Long-lived OAuth refresh token (scope: gmail.readonly)
+#   GOOGLE_CLIENT_ID          - OAuth client ID
+#   GOOGLE_CLIENT_SECRET      - OAuth client secret
+#   SQS_REPORT_QUEUE_URL      - SQS FIFO queue URL (LocalStack or real AWS)
+#   REDIS_URL                 - Valkey URL (e.g. redis://localhost:6380/0)
 #
 # Start services before running:
 #   docker run -d -p 4566:4566 localstack/localstack
@@ -22,7 +24,9 @@ require "rails_helper"
 #   docker run -d -p 6380:6379 valkey/valkey
 #
 # Run:
-#   TEST_GMAIL_ACCESS_TOKEN=ya29.xxx \
+#   GOOGLE_TEST_REFRESH_TOKEN=1//xxx \
+#   GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com \
+#   GOOGLE_CLIENT_SECRET=xxx \
 #   SQS_REPORT_QUEUE_URL=http://localhost:4566/000000000000/test-report-queue.fifo \
 #   bundle exec rspec spec/e2e/gmail_thread_list_worker_e2e_spec.rb
 
@@ -30,7 +34,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
   before(:all) { WebMock.allow_net_connect! }
   after(:all)  { WebMock.disable_net_connect! }
 
-  let(:access_token) { ENV.fetch("TEST_GMAIL_ACCESS_TOKEN") }
+  let(:access_token) { fetch_google_access_token }
   let(:queue_url)    { Settings.sqs_thread_ids_queue_url }
   let(:user_id)      { Digest::SHA256.hexdigest(access_token) }
   let(:token_hash)   { user_id }
