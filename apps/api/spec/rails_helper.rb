@@ -33,6 +33,7 @@ RSpec.configure do |config|
   # Include helper modules
   config.include RequestHelpers, type: :request
   config.include AuthHelpers, type: :request
+  config.include GoogleTokenHelper, :e2e
 
   # Remove this line to enable support for ActiveRecord
   config.use_active_record = false
