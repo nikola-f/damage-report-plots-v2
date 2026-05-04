@@ -93,7 +93,10 @@ class GmailClient
 
     raise ApiError, "Gmail API error: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
-    JSON.parse(response.body)
+    body = response.body
+    return {} if body.nil? || body.strip.empty?
+
+    JSON.parse(body)
   end
 
   def build_query_string(params)
