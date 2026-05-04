@@ -171,7 +171,6 @@ resource "aws_iam_role_policy" "cwlogs_firehose" {
       Resource = [
         aws_kinesis_firehose_delivery_stream.web.arn,
         aws_kinesis_firehose_delivery_stream.worker.arn,
-        aws_kinesis_firehose_delivery_stream.redis.arn,
       ]
     }]
   })
@@ -201,16 +200,6 @@ resource "aws_kinesis_firehose_delivery_stream" "worker" {
   }
 }
 
-resource "aws_kinesis_firehose_delivery_stream" "redis" {
-  name        = "${local.name_prefix}-firehose-redis"
-  destination = "extended_s3"
-
-  extended_s3_configuration {
-    role_arn   = aws_iam_role.firehose.arn
-    bucket_arn = aws_s3_bucket.logs.arn
-    prefix     = "redis/"
-  }
-}
 
 resource "aws_kinesis_firehose_delivery_stream" "waf" {
   name        = "aws-waf-logs-${local.name_prefix}"
@@ -241,10 +230,3 @@ resource "aws_cloudwatch_log_subscription_filter" "worker" {
   role_arn        = aws_iam_role.cwlogs_firehose.arn
 }
 
-resource "aws_cloudwatch_log_subscription_filter" "redis" {
-  name            = "${local.name_prefix}-redis-to-firehose"
-  log_group_name  = aws_cloudwatch_log_group.redis_slow_log.name
-  filter_pattern  = ""
-  destination_arn = aws_kinesis_firehose_delivery_stream.redis.arn
-  role_arn        = aws_iam_role.cwlogs_firehose.arn
-}

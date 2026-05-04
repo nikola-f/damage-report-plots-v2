@@ -64,13 +64,9 @@ output "log_group_worker" {
 }
 
 output "redis_url" {
-  description = "Redis connection URL"
+  description = "Valkey connection URL"
   sensitive   = true
-  value = var.elasticache_replication_enabled ? (
-    "rediss://:${random_password.redis_auth_token[0].result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0"
-    ) : (
-    "redis://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0"
-  )
+  value       = "rediss://${aws_elasticache_serverless_cache.main.endpoint[0].address}:6379/0"
 }
 
 output "sqs_thread_ids_queue_url" {
