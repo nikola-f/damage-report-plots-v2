@@ -15,5 +15,7 @@ resource "aws_elasticache_serverless_cache" "main" {
   subnet_ids         = aws_subnet.private[*].id
   security_group_ids = [aws_security_group.elasticache.id]
 
-  major_engine_version = "8"
+  major_engine_version     = "8"
+  snapshot_retention_limit = 15
+  daily_snapshot_time      = "21:00"
 }
