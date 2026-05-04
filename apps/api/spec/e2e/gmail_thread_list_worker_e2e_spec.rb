@@ -10,25 +10,25 @@ require "rails_helper"
 #   - Docker Valkey (Redis-compatible, matching production ElastiCache Valkey)
 #
 # Required environment variables:
-#   GOOGLE_TEST_REFRESH_TOKEN - Long-lived OAuth refresh token (scope: gmail.readonly)
-#   GOOGLE_CLIENT_ID          - OAuth client ID
-#   GOOGLE_CLIENT_SECRET      - OAuth client secret
-#   SQS_REPORT_QUEUE_URL      - SQS FIFO queue URL (LocalStack or real AWS)
-#   REDIS_URL                 - Valkey URL (e.g. redis://localhost:6380/0)
+#   GOOGLE_TEST_REFRESH_TOKEN            - Long-lived OAuth refresh token (scope: gmail.readonly)
+#   GOOGLE_CLIENT_ID                     - OAuth client ID
+#   GOOGLE_CLIENT_SECRET                 - OAuth client secret
+#   SETTINGS__SQS_THREAD_IDS_QUEUE_URL  - SQS FIFO queue URL (LocalStack or real AWS)
+#   SETTINGS__REDIS_URL                  - Valkey URL (e.g. redis://localhost:6380/0)
+#   AWS_ENDPOINT_URL                     - LocalStack endpoint (e.g. http://localhost:4566)
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY - dummy credentials for LocalStack
 #
 # Start services before running:
-#   docker run -d -p 4566:4566 localstack/localstack
-#   aws --endpoint-url=http://localhost:4566 sqs create-queue \
+#   docker run -d -p 4566:4566 localstack/localstack:3
+#   AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+#     aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
 #     --queue-name test-report-queue.fifo \
 #     --attributes FifoQueue=true,ContentBasedDeduplication=false
 #   docker run -d -p 6380:6379 valkey/valkey
 #
 # Run:
-#   GOOGLE_TEST_REFRESH_TOKEN=1//xxx \
-#   GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com \
-#   GOOGLE_CLIENT_SECRET=xxx \
-#   SQS_REPORT_QUEUE_URL=http://localhost:4566/000000000000/test-report-queue.fifo \
-#   bundle exec rspec spec/e2e/gmail_thread_list_worker_e2e_spec.rb
+#   export BW_SESSION=$(bw unlock --raw)
+#   bin/e2e spec/e2e/gmail_thread_list_worker_e2e_spec.rb
 
 RSpec.describe GmailThreadListWorker, :e2e do
   before(:all) { WebMock.allow_net_connect! }
@@ -50,6 +50,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
   end
 
   before do
+    sqs.purge_queue(queue_url: queue_url)
     UserStore.access_token.store(user_id, access_token)
   end
 
