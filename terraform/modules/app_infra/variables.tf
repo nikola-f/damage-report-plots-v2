@@ -43,17 +43,6 @@ variable "availability_zones" {
   default     = ["us-west-2a", "us-west-2b"]
 }
 
-variable "elasticache_node_type" {
-  description = "ElastiCache node type"
-  type        = string
-  default     = "cache.t3.micro"
-}
-
-variable "elasticache_replication_enabled" {
-  description = "Enable ElastiCache replication group with automatic failover (for prod HA)"
-  type        = bool
-  default     = false
-}
 
 variable "rails_master_key_placeholder" {
   description = "Initial placeholder value for RAILS_MASTER_KEY in Secrets Manager. Replace manually after first apply."
