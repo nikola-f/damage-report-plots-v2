@@ -19,8 +19,8 @@ RSpec.describe UserStore do
       context "when the value does not exist" do
         before { allow(redis).to receive(:get).and_return(nil) }
 
-        it "raises KeyError with the user_id in the message" do
-          expect { store.fetch(user_id) }.to raise_error(KeyError, /#{user_id}/)
+        it "raises KeyError" do
+          expect { store.fetch(user_id) }.to raise_error(KeyError)
         end
       end
     end

@@ -40,7 +40,8 @@ class SessionsController < ApplicationController
       end
       render json: { granted_scope: scope }, status: :ok
     else
-      # Fresh login
+      # Fresh login — reset session to prevent fixation
+      reset_session
       user_info = {
         google_id: auth["uid"],
         email:     auth["info"]["email"],
@@ -75,12 +76,7 @@ class SessionsController < ApplicationController
   end
 
   def failure
-    # OmniAuth failure callback
-    render json: {
-      error: "Authentication failed",
-      message: params[:message],
-      strategy: params[:strategy]
-    }, status: :unauthorized
+    render json: { error: "Authentication failed" }, status: :unauthorized
   end
 
   def grant_spreadsheets
