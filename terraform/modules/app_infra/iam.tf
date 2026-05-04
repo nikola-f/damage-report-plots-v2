@@ -46,9 +46,12 @@ resource "aws_iam_role_policy" "ecs_execution" {
         Resource = aws_ecr_repository.api.arn
       },
       {
-        Effect   = "Allow"
-        Action   = "secretsmanager:GetSecretValue"
-        Resource = aws_secretsmanager_secret.rails_master_key.arn
+        Effect = "Allow"
+        Action = "secretsmanager:GetSecretValue"
+        Resource = [
+          aws_secretsmanager_secret.rails_master_key.arn,
+          aws_secretsmanager_secret.redis_url.arn,
+        ]
       },
     ]
   })
