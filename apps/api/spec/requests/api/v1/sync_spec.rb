@@ -65,6 +65,15 @@ RSpec.describe "POST /api/v1/sync", type: :request do
         expect(GmailThreadListWorker).to have_received(:perform_async).with(test_user_id, "2024-01-01")
       end
     end
+
+    context "with invalid after_date parameter" do
+      it "returns 422 without enqueuing" do
+        post "/api/v1/sync", params: { after_date: "not-a-date" }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(GmailThreadListWorker).not_to have_received(:perform_async)
+      end
+    end
   end
 
   context "without session" do

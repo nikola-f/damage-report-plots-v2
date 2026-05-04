@@ -45,6 +45,10 @@ module Api
 
     # Add session middleware for OmniAuth
     config.middleware.use ActionDispatch::Cookies
-    config.middleware.use ActionDispatch::Session::CookieStore, key: '_api_session', expire_after: 7 * 24 * 60 * 60, same_site: :none
+    config.middleware.use ActionDispatch::Session::CookieStore,
+      key: '_api_session',
+      expire_after: 7 * 24 * 60 * 60,
+      same_site: :none,
+      secure: Rails.env.production?
   end
 end

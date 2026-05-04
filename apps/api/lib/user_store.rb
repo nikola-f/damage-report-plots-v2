@@ -31,7 +31,7 @@ class UserStore
   # @raise [KeyError] if not found
   def fetch(user_id)
     value = @redis.get(redis_key(user_id))
-    raise KeyError, "#{@prefix} not found: #{user_id}" unless value
+    raise KeyError, "#{@prefix} not found for user" unless value
 
     value
   end
