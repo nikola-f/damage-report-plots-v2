@@ -9,9 +9,10 @@ set -euo pipefail
 #   bw unlock  # sets BW_SESSION
 #
 # Bitwarden items (type: Login, store secret in Password field):
-#   drp-e2e-refresh-token  -> GOOGLE_TEST_REFRESH_TOKEN
-#   drp-e2e-client-id      -> GOOGLE_CLIENT_ID
-#   drp-e2e-client-secret  -> GOOGLE_CLIENT_SECRET
+#   drp-e2e-refresh-token     -> GOOGLE_TEST_REFRESH_TOKEN
+#   drp-e2e-client-id         -> GOOGLE_CLIENT_ID
+#   drp-e2e-client-secret     -> GOOGLE_CLIENT_SECRET
+#   drp-e2e-spreadsheet-id    -> GOOGLE_TEST_SPREADSHEET_ID (optional; auto-created on first run)
 #
 # Local services required before running:
 #   docker run -d -p 4566:4566 localstack/localstack:3
@@ -39,6 +40,7 @@ exec env \
   GOOGLE_TEST_REFRESH_TOKEN="$(fetch drp-e2e-refresh-token)" \
   GOOGLE_CLIENT_ID="$(fetch drp-e2e-client-id)" \
   GOOGLE_CLIENT_SECRET="$(fetch drp-e2e-client-secret)" \
+  GOOGLE_TEST_SPREADSHEET_ID="$(fetch drp-e2e-spreadsheet-id 2>/dev/null || true)" \
   AWS_ACCESS_KEY_ID=test \
   AWS_SECRET_ACCESS_KEY=test \
   AWS_DEFAULT_REGION=us-east-1 \
