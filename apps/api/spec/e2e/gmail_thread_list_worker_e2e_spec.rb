@@ -54,9 +54,8 @@ RSpec.describe GmailThreadListWorker, :e2e do
     UserStore.access_token.store(user_id, access_token)
   end
 
-  after do
-    REDIS.del("gmail_quota:project", "gmail_quota:user:#{token_hash}")
-  end
+  # quota キーは削除しない。TTL (60s) で自然にリセットされることで、
+  # Gmail 側のレートリミッターと Redis カウンターの同期が保たれる。
 
   describe "#perform" do
     it "fetches Gmail threads matching the query and enqueues thread IDs to SQS as a JSON array" do

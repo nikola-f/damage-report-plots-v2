@@ -15,9 +15,13 @@ set -euo pipefail
 #
 # Local services required before running:
 #   docker run -d -p 4566:4566 localstack/localstack:3
-#   aws --endpoint-url=http://localhost:4566 --region us-east-1 \
-#     AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
-#     sqs create-queue --queue-name test-report-queue.fifo \
+#   AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+#     aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
+#     --queue-name test-report-queue.fifo \
+#     --attributes FifoQueue=true,ContentBasedDeduplication=false
+#   AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+#     aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
+#     --queue-name test-reports-queue.fifo \
 #     --attributes FifoQueue=true,ContentBasedDeduplication=false
 #   docker run -d -p 6380:6379 valkey/valkey
 #
@@ -40,5 +44,6 @@ exec env \
   AWS_DEFAULT_REGION=us-east-1 \
   AWS_ENDPOINT_URL=http://localhost:4566 \
   SETTINGS__SQS_THREAD_IDS_QUEUE_URL=http://localhost:4566/000000000000/test-report-queue.fifo \
+  SETTINGS__SQS_REPORTS_QUEUE_URL=http://localhost:4566/000000000000/test-reports-queue.fifo \
   SETTINGS__REDIS_URL=redis://localhost:6380/0 \
   bundle exec rspec spec/e2e "$@"
