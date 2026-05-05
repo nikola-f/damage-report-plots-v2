@@ -77,6 +77,23 @@ RSpec.describe GmailThreadBatchFetcher do
       end
     end
 
+    context "when batch_get_threads returns nil for some entries" do
+      let(:thread_ids) { %w[t1 t2 t3] }
+
+      before do
+        allow(gmail_client).to receive(:batch_get_threads).and_return([
+          { "id" => "t1", "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }] },
+          nil,
+          { "id" => "t3", "messages" => [{ "id" => "m3", "internalDate" => "3000", "payload" => {} }] }
+        ])
+      end
+
+      it "skips nil entries and returns messages from non-nil threads" do
+        result = fetcher.call(thread_ids)
+        expect(result.map(&:id)).to eq(%w[m1 m3])
+      end
+    end
+
     context "when GmailClient raises QuotaExceededError" do
       before do
         allow(gmail_client).to receive(:batch_get_threads)

@@ -36,6 +36,8 @@ require "rails_helper"
 #   bin/e2e spec/e2e/gmail_thread_batch_worker_e2e_spec.rb
 
 RSpec.describe GmailThreadBatchWorker, :e2e do
+  SEED_THREAD_COUNT = 3
+
   before(:all) do
     WebMock.allow_net_connect!
 
@@ -84,7 +86,21 @@ RSpec.describe GmailThreadBatchWorker, :e2e do
   describe "#perform" do
     context "when thread_ids queue has messages" do
       before do
-        GmailThreadListWorker.new.perform(user_id, (Date.today - 7).iso8601)
+        # GmailThreadListWorker を経由せず直接シードして quota 消費を抑える。
+        # list_threads(10 units) + batch_get × SEED_THREAD_COUNT(40 units each) のみ消費する。
+        query      = IngressDamageReportQuery.new(after_date: (Date.today - 7).iso8601)
+        thread_ids = GmailClient.new(access_token, redis: REDIS)
+                                .list_threads(q: query.to_s)
+                                .fetch("threads", [])
+                                .first(SEED_THREAD_COUNT)
+                                .map { |t| t["id"] }
+
+        skip "No matching Gmail threads in the last 7 days" if thread_ids.empty?
+
+        SqsClient.new(thread_ids_url).send_messages(
+          thread_ids,
+          attributes: { UserStore::USER_ID_ATTR => user_id }
+        )
       end
 
       it "processes threads and sends any found portals to the reports queue with correct user_id" do
@@ -102,11 +118,6 @@ RSpec.describe GmailThreadBatchWorker, :e2e do
           expect(portals).to be_an(Array)
           expect(message.message_attributes[UserStore::USER_ID_ATTR].string_value).to eq(user_id)
         end
-      rescue GmailClient::QuotaExceededError
-        skip "Gmail quota pre-empted by consume_quota — re-run after 60s"
-      rescue GmailClient::ApiError => e
-        raise unless e.message.include?("429")
-        skip "Gmail API rate limited (429) — re-run after quota resets"
       end
     end
 

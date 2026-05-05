@@ -23,6 +23,7 @@ class GmailThreadBatchFetcher
 
     thread_ids.each_slice(BATCH_SIZE).flat_map do |batch|
       @gmail_client.batch_get_threads(batch).flat_map do |raw|
+        next [] if raw.nil?
         (raw["messages"] || []).map { |m| GmailMessage.new(m) }
       end
     end
