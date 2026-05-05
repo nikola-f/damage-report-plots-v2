@@ -51,14 +51,25 @@ RSpec.describe SpreadsheetSyncWorker, :e2e do
       attributes: { "FifoQueue" => "true", "ContentBasedDeduplication" => "false" }
     )
 
-    # Auto-create a test spreadsheet when GOOGLE_TEST_SPREADSHEET_ID is not set.
+    # Auto-create (or recreate) a test spreadsheet when GOOGLE_TEST_SPREADSHEET_ID is
+    # unset, blank, or points to a spreadsheet that no longer exists.
+    # Sets ENV so that let(:spreadsheet_id) can read it in example scope.
     # The created ID is printed — save it to Bitwarden as drp-e2e-spreadsheet-id.
-    unless ENV["GOOGLE_TEST_SPREADSHEET_ID"]
-      token  = fetch_google_access_token
-      client = SpreadsheetsClient.new(token)
-      id     = client.create_spreadsheet
+    token  = fetch_google_access_token
+    client = SpreadsheetsClient.new(token)
+
+    existing_id = ENV.fetch("GOOGLE_TEST_SPREADSHEET_ID", "")
+    spreadsheet_valid = !existing_id.empty? && begin
+      client.get_spreadsheet(spreadsheet_id: existing_id)
+      true
+    rescue SpreadsheetsClient::ApiError
+      false
+    end
+
+    unless spreadsheet_valid
+      id = client.create_spreadsheet
       client.protect_ranges(spreadsheet_id: id)
-      @auto_spreadsheet_id = id
+      ENV["GOOGLE_TEST_SPREADSHEET_ID"] = id
       puts "\n[e2e setup] Created test spreadsheet: #{id}" \
            "\n            Save to Bitwarden as drp-e2e-spreadsheet-id\n"
     end
@@ -68,7 +79,7 @@ RSpec.describe SpreadsheetSyncWorker, :e2e do
 
   let(:access_token)   { fetch_google_access_token }
   let(:user_id)        { Digest::SHA256.hexdigest(access_token) }
-  let(:spreadsheet_id) { @auto_spreadsheet_id || ENV.fetch("GOOGLE_TEST_SPREADSHEET_ID") }
+  let(:spreadsheet_id) { ENV.fetch("GOOGLE_TEST_SPREADSHEET_ID") }
   let(:reports_url)    { Settings.sqs_reports_queue_url }
 
   let(:sqs) do
