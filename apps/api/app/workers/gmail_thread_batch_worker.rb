@@ -7,6 +7,7 @@ class GmailThreadBatchWorker
 
   POLL_INTERVAL = 30 # seconds
   MAX_BACKOFF   = 32 # seconds; exponential backoff cap for Gmail 429 / quota errors
+  MAX_RETRIES   = 6  # 1+2+4+8+16+32 = 63s total wait, covering one quota window
 
   def perform
     sqs             = SqsClient.new(Settings.sqs_reports_queue_url)
@@ -39,10 +40,12 @@ class GmailThreadBatchWorker
       yield
     rescue GmailClient::ApiError => e
       raise unless e.message.include?("429")
+      raise if attempt >= MAX_RETRIES
       sleep [2**attempt, MAX_BACKOFF].min
       attempt += 1
       retry
     rescue GmailClient::QuotaExceededError
+      raise if attempt >= MAX_RETRIES
       sleep [2**attempt, MAX_BACKOFF].min
       attempt += 1
       retry

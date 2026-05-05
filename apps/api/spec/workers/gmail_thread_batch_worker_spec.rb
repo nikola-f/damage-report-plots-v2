@@ -200,6 +200,21 @@ RSpec.describe GmailThreadBatchWorker do
         expect(worker).not_to have_received(:sleep).with(be > GmailThreadBatchWorker::MAX_BACKOFF)
       end
     end
+
+    context "when 429 persists beyond MAX_RETRIES" do
+      let(:worker) { described_class.new }
+
+      before do
+        allow(worker).to receive(:sleep)
+        allow(fetcher).to receive(:call).and_raise(GmailClient::ApiError, "Gmail API error: 429 (batch part 0)")
+      end
+
+      it "re-raises after MAX_RETRIES attempts" do
+        expect { worker.perform }.to raise_error(GmailClient::ApiError, /429/)
+
+        expect(worker).to have_received(:sleep).exactly(GmailThreadBatchWorker::MAX_RETRIES).times
+      end
+    end
   end
 
   describe "Sidekiq options" do
