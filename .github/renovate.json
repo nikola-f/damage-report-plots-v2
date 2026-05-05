@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "5 days",
+  "schedule": ["every weekend"],
+  "packageRules": [
+    {
+      "matchManagers": ["terraform"],
+      "groupName": "terraform providers"
+    }
+  ]
+}
