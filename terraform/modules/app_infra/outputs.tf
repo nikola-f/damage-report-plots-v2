@@ -79,6 +79,16 @@ output "sqs_reports_queue_url" {
   value       = aws_sqs_queue.reports.url
 }
 
+output "sqs_thread_ids_dlq_url" {
+  description = "SQS FIFO DLQ URL for thread IDs"
+  value       = aws_sqs_queue.thread_ids_dlq.url
+}
+
+output "sqs_reports_dlq_url" {
+  description = "SQS FIFO DLQ URL for reports"
+  value       = aws_sqs_queue.reports_dlq.url
+}
+
 output "rails_master_key_secret_arn" {
   description = "Secrets Manager ARN for RAILS_MASTER_KEY"
   value       = aws_secretsmanager_secret.rails_master_key.arn
