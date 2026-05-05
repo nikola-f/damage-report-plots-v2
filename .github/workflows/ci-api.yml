@@ -109,13 +109,16 @@ jobs:
           bundler-cache: true
           working-directory: apps/api
 
-      - name: Create SQS queue
+      - name: Create SQS queues
         env:
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
         run: |
           aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
             --queue-name test-report-queue.fifo \
+            --attributes FifoQueue=true,ContentBasedDeduplication=false
+          aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
+            --queue-name test-reports-queue.fifo \
             --attributes FifoQueue=true,ContentBasedDeduplication=false
 
       - name: Run e2e specs
@@ -129,6 +132,7 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
           AWS_ENDPOINT_URL: http://localhost:4566
           SETTINGS__SQS_THREAD_IDS_QUEUE_URL: http://localhost:4566/000000000000/test-report-queue.fifo
+          SETTINGS__SQS_REPORTS_QUEUE_URL: http://localhost:4566/000000000000/test-reports-queue.fifo
           SETTINGS__REDIS_URL: redis://localhost:6380/0
         run: bundle exec rspec spec/e2e
 
