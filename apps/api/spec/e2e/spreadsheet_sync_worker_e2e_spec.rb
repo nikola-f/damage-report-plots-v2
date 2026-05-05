@@ -13,7 +13,10 @@ require "rails_helper"
 #   GOOGLE_TEST_REFRESH_TOKEN           - Long-lived OAuth refresh token (scope: gmail.readonly spreadsheets)
 #   GOOGLE_CLIENT_ID                    - OAuth client ID
 #   GOOGLE_CLIENT_SECRET                - OAuth client secret
-#   GOOGLE_TEST_SPREADSHEET_ID          - Existing Google Spreadsheet ID with a "reports" sheet
+#   GOOGLE_TEST_SPREADSHEET_ID          - (optional) Reuse an existing spreadsheet ID.
+#                                         If unset, a new spreadsheet is auto-created on the first run
+#                                         and its ID is printed. Save it to Bitwarden as
+#                                         drp-e2e-spreadsheet-id to reuse on subsequent runs.
 #   SETTINGS__SQS_REPORTS_QUEUE_URL    - SQS FIFO queue URL for reports
 #   SETTINGS__REDIS_URL                 - Valkey URL (e.g. redis://localhost:6380/0)
 #   AWS_ENDPOINT_URL                    - LocalStack endpoint (e.g. http://localhost:4566)
@@ -47,13 +50,25 @@ RSpec.describe SpreadsheetSyncWorker, :e2e do
       queue_name: reports_url.split("/").last,
       attributes: { "FifoQueue" => "true", "ContentBasedDeduplication" => "false" }
     )
+
+    # Auto-create a test spreadsheet when GOOGLE_TEST_SPREADSHEET_ID is not set.
+    # The created ID is printed — save it to Bitwarden as drp-e2e-spreadsheet-id.
+    unless ENV["GOOGLE_TEST_SPREADSHEET_ID"]
+      token  = fetch_google_access_token
+      client = SpreadsheetsClient.new(token)
+      id     = client.create_spreadsheet
+      client.protect_ranges(spreadsheet_id: id)
+      @auto_spreadsheet_id = id
+      puts "\n[e2e setup] Created test spreadsheet: #{id}" \
+           "\n            Save to Bitwarden as drp-e2e-spreadsheet-id\n"
+    end
   end
 
   after(:all) { WebMock.disable_net_connect! }
 
   let(:access_token)   { fetch_google_access_token }
   let(:user_id)        { Digest::SHA256.hexdigest(access_token) }
-  let(:spreadsheet_id) { ENV.fetch("GOOGLE_TEST_SPREADSHEET_ID") }
+  let(:spreadsheet_id) { @auto_spreadsheet_id || ENV.fetch("GOOGLE_TEST_SPREADSHEET_ID") }
   let(:reports_url)    { Settings.sqs_reports_queue_url }
 
   let(:sqs) do
