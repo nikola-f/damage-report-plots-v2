@@ -3,11 +3,6 @@ output "cluster_name" {
   value       = aws_ecs_cluster.main.name
 }
 
-output "cluster_arn" {
-  description = "ECS cluster ARN"
-  value       = aws_ecs_cluster.main.arn
-}
-
 output "task_execution_role_arn" {
   description = "ECS task execution role ARN"
   value       = aws_iam_role.ecs_execution.arn
@@ -117,11 +112,6 @@ output "allowed_origins" {
 output "aws_region" {
   description = "AWS region"
   value       = var.aws_region
-}
-
-output "acm_certificate_arn" {
-  description = "ACM certificate ARN"
-  value       = aws_acm_certificate.main.arn
 }
 
 output "frontend_bucket_name" {
