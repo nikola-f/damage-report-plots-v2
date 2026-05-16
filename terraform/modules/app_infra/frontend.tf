@@ -113,8 +113,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
 
     # CachingOptimized
-    cache_policy_id             = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    response_headers_policy_id  = aws_cloudfront_response_headers_policy.frontend_security.id
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security.id
   }
 
   # /api/* → ALB
