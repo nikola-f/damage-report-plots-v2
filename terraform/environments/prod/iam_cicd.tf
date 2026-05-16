@@ -71,6 +71,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "ec2:DescribeNetworkInterfaces", "ec2:DescribePrefixLists",
           "ec2:DescribeVpcAttribute", "ec2:DescribeSubnetAttribute",
           "ec2:GetSecurityGroupsForVpc",
+          "ec2:DescribeManagedPrefixLists",
         ]
         Resource = "*"
       },
