@@ -51,6 +51,8 @@ resource "aws_iam_role_policy" "ecs_execution" {
         Resource = [
           aws_secretsmanager_secret.rails_master_key.arn,
           aws_secretsmanager_secret.redis_url.arn,
+          aws_secretsmanager_secret.google_client_id.arn,
+          aws_secretsmanager_secret.google_client_secret.arn,
         ]
       },
     ]

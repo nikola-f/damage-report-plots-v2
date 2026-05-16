@@ -99,6 +99,16 @@ output "redis_url_secret_arn" {
   value       = aws_secretsmanager_secret.redis_url.arn
 }
 
+output "google_client_id_secret_arn" {
+  description = "Secrets Manager ARN for GOOGLE_CLIENT_ID"
+  value       = aws_secretsmanager_secret.google_client_id.arn
+}
+
+output "google_client_secret_secret_arn" {
+  description = "Secrets Manager ARN for GOOGLE_CLIENT_SECRET"
+  value       = aws_secretsmanager_secret.google_client_secret.arn
+}
+
 output "allowed_origins" {
   description = "CORS allowed origins"
   value       = var.allowed_origins
