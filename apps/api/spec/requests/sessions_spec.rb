@@ -18,21 +18,15 @@ RSpec.describe "Sessions", type: :request do
       it "sets user session" do
         get "/auth/google_oauth2/callback"
 
-        expect(response).to have_http_status(:ok)
         expect(session[:user_id]).to eq(test_user_id)
         expect(session[:email]).to eq(test_user_email)
         expect(session[:name]).to eq(test_user_name)
       end
 
-      it "returns user information" do
+      it "redirects to SPA root" do
         get "/auth/google_oauth2/callback"
 
-        expect(response).to have_http_status(:ok)
-        user = json_response["user"]
-        expect(user["id"]).to eq(test_user_id)
-        expect(user["email"]).to eq(test_user_email)
-        expect(user["name"]).to eq(test_user_name)
-        expect(user["picture"]).to eq(test_user_picture)
+        expect(response).to redirect_to("/")
       end
 
       it "stores the Google access token keyed by user_id" do
@@ -55,11 +49,10 @@ RSpec.describe "Sessions", type: :request do
         expect(access_token_store).to have_received(:store).with(test_user_id, "google_access_token_123").at_least(:once)
       end
 
-      it "returns the granted scope" do
+      it "redirects to SPA root" do
         get "/auth/google_oauth2/callback"
 
-        expect(response).to have_http_status(:ok)
-        expect(json_response["granted_scope"]).to eq(SessionsController::SPREADSHEETS_SCOPE)
+        expect(response).to redirect_to("/")
       end
 
       it "writes the scope expiry epoch to Redis" do
@@ -99,12 +92,12 @@ RSpec.describe "Sessions", type: :request do
         )
       end
 
-      it "uses the custom user data in session and response" do
+      it "uses the custom user data in session" do
         get "/auth/google_oauth2/callback"
 
         expect(session[:user_id]).to eq("custom_id_789")
-        expect(json_response["user"]["email"]).to eq("custom@example.com")
-        expect(json_response["user"]["name"]).to eq("Custom User")
+        expect(session[:email]).to eq("custom@example.com")
+        expect(session[:name]).to eq("Custom User")
       end
     end
 
