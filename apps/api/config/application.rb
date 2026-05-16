@@ -48,7 +48,7 @@ module Api
     config.middleware.use ActionDispatch::Session::CookieStore,
       key: '_api_session',
       expire_after: 7 * 24 * 60 * 60,
-      same_site: :none,
+      same_site: :lax,
       secure: Rails.env.production?
   end
 end

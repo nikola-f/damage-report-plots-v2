@@ -54,6 +54,30 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_response_headers_policy" "frontend_security" {
+  name = "${local.name_prefix}-frontend-security-headers"
+
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 31536000
+      include_subdomains         = true
+      preload                    = true
+      override                   = true
+    }
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   default_root_object = "index.html"
@@ -76,7 +100,7 @@ resource "aws_cloudfront_distribution" "frontend" {
       http_port              = 80
       https_port             = 443
       origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
+      origin_ssl_protocols   = ["TLSv1.2", "TLSv1.3"]
     }
   }
 
@@ -89,7 +113,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
 
     # CachingOptimized
-    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security.id
   }
 
   # /api/* → ALB
