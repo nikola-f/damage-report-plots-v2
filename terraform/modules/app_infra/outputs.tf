@@ -43,6 +43,11 @@ output "ecr_repository_url" {
   value       = aws_ecr_repository.api.repository_url
 }
 
+output "ecr_repository_arn" {
+  description = "ECR repository ARN"
+  value       = aws_ecr_repository.api.arn
+}
+
 output "log_group_web" {
   description = "CloudWatch log group name for web service"
   value       = aws_cloudwatch_log_group.web.name
