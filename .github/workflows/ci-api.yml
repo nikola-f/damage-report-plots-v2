@@ -37,11 +37,11 @@ jobs:
         working-directory: apps/api
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
-      - uses: ruby/setup-ruby@0cb964fd540e0a24c900370abf38a33466142735  # v1
+      - uses: ruby/setup-ruby@c4e5b1316158f92e3d49443a9d58b31d25ac0f8f  # v1.306.0
         with:
-          ruby-version: '3.4.4'
+          ruby-version: '4.0.3'
           bundler-cache: true
           working-directory: apps/api
 
@@ -50,23 +50,110 @@ jobs:
           RAILS_ENV: test
         run: bundle exec rspec --exclude-pattern "spec/e2e/**/*_spec.rb"
 
+  brakeman:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - uses: ruby/setup-ruby@c4e5b1316158f92e3d49443a9d58b31d25ac0f8f  # v1.306.0
+        with:
+          ruby-version: '4.0.3'
+          bundler-cache: true
+          working-directory: apps/api
+
+      - name: Run Brakeman
+        run: bundle exec brakeman --no-pager
+
+  e2e:
+    needs: [test, brakeman]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    services:
+      localstack:
+        image: localstack/localstack:4
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+          --health-start-period 10s
+      valkey:
+        image: valkey/valkey
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - uses: ruby/setup-ruby@c4e5b1316158f92e3d49443a9d58b31d25ac0f8f  # v1.306.0
+        with:
+          ruby-version: '4.0.3'
+          bundler-cache: true
+          working-directory: apps/api
+
+      - name: Create SQS queues
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+        run: |
+          aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
+            --queue-name test-report-queue.fifo \
+            --attributes FifoQueue=true,ContentBasedDeduplication=false
+          aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
+            --queue-name test-reports-queue.fifo \
+            --attributes FifoQueue=true,ContentBasedDeduplication=false
+
+      - name: Run e2e specs
+        env:
+          RAILS_ENV: test
+          GOOGLE_TEST_REFRESH_TOKEN: ${{ secrets.GOOGLE_TEST_REFRESH_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_TEST_SPREADSHEET_ID: ${{ secrets.GOOGLE_TEST_SPREADSHEET_ID }}
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ENDPOINT_URL: http://localhost:4566
+          SETTINGS__SQS_THREAD_IDS_QUEUE_URL: http://localhost:4566/000000000000/test-report-queue.fifo
+          SETTINGS__SQS_REPORTS_QUEUE_URL: http://localhost:4566/000000000000/test-reports-queue.fifo
+          SETTINGS__REDIS_URL: redis://localhost:6380/0
+        run: bundle exec rspec spec/e2e
+
   build-push-dev:
-    needs: test
+    needs: [test, brakeman]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     environment: dev
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Configure AWS credentials (management OIDC)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: us-west-2
 
       - name: Configure AWS credentials (dev role)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
           aws-region: us-west-2
@@ -74,37 +161,33 @@ jobs:
 
       - name: Login to Amazon ECR
         id: ecr-login
-        uses: aws-actions/amazon-ecr-login@19d944daaa35f0fa1d3f7f8af1d3f2e5de25c5b7  # v2
+        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419  # v2
 
       - name: Build and push Docker image
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build \
-            -t $ECR_REGISTRY/drp-api:$IMAGE_TAG \
-            -t $ECR_REGISTRY/drp-api:latest \
-            ./apps/api
+          docker build --pull -t $ECR_REGISTRY/drp-api:$IMAGE_TAG ./apps/api
           docker push $ECR_REGISTRY/drp-api:$IMAGE_TAG
-          docker push $ECR_REGISTRY/drp-api:latest
 
   build-push-prod:
-    needs: test
+    needs: [test, brakeman]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Configure AWS credentials (management OIDC)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: us-west-2
 
       - name: Configure AWS credentials (prod role)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
           aws-region: us-west-2
@@ -112,19 +195,15 @@ jobs:
 
       - name: Login to Amazon ECR
         id: ecr-login
-        uses: aws-actions/amazon-ecr-login@19d944daaa35f0fa1d3f7f8af1d3f2e5de25c5b7  # v2
+        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419  # v2
 
       - name: Build and push Docker image
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build \
-            -t $ECR_REGISTRY/drp-api:$IMAGE_TAG \
-            -t $ECR_REGISTRY/drp-api:latest \
-            ./apps/api
+          docker build --pull -t $ECR_REGISTRY/drp-api:$IMAGE_TAG ./apps/api
           docker push $ECR_REGISTRY/drp-api:$IMAGE_TAG
-          docker push $ECR_REGISTRY/drp-api:latest
 
   deploy-dev:
     needs: build-push-dev
@@ -132,16 +211,16 @@ jobs:
     environment: dev
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Configure AWS credentials (management OIDC)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: us-west-2
 
       - name: Configure AWS credentials (dev role)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
           aws-region: us-west-2
@@ -149,10 +228,14 @@ jobs:
 
       - name: Install ecspresso
         run: |
-          curl -sL https://github.com/kayac/ecspresso/releases/download/v2.8.3/ecspresso_2.8.3_linux_amd64.tar.gz \
-            -o /tmp/ecspresso.tar.gz
-          tar xz -C /tmp -f /tmp/ecspresso.tar.gz ecspresso
-          sudo mv /tmp/ecspresso /usr/local/bin/ecspresso
+          ECSPRESSO_VERSION=2.8.3
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/ecspresso_${ECSPRESSO_VERSION}_linux_amd64.tar.gz" -o /tmp/ecspresso.tar.gz
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/checksums.txt" -o /tmp/ecspresso_checksums.txt
+          EXPECTED=$(grep "linux_amd64.tar.gz" /tmp/ecspresso_checksums.txt | awk '{print $1}')
+          ACTUAL=$(sha256sum /tmp/ecspresso.tar.gz | awk '{print $1}')
+          [ "$EXPECTED" = "$ACTUAL" ] || { echo "checksum mismatch"; exit 1; }
+          tar xz -C /usr/local/bin -f /tmp/ecspresso.tar.gz ecspresso
+          ecspresso version
 
       - name: Deploy web
         env:
@@ -182,16 +265,16 @@ jobs:
     environment: prod
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Configure AWS credentials (management OIDC)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: us-west-2
 
       - name: Configure AWS credentials (prod role)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
         with:
           role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
           aws-region: us-west-2
@@ -199,10 +282,14 @@ jobs:
 
       - name: Install ecspresso
         run: |
-          curl -sL https://github.com/kayac/ecspresso/releases/download/v2.8.3/ecspresso_2.8.3_linux_amd64.tar.gz \
-            -o /tmp/ecspresso.tar.gz
-          tar xz -C /tmp -f /tmp/ecspresso.tar.gz ecspresso
-          sudo mv /tmp/ecspresso /usr/local/bin/ecspresso
+          ECSPRESSO_VERSION=2.8.3
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/ecspresso_${ECSPRESSO_VERSION}_linux_amd64.tar.gz" -o /tmp/ecspresso.tar.gz
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/checksums.txt" -o /tmp/ecspresso_checksums.txt
+          EXPECTED=$(grep "linux_amd64.tar.gz" /tmp/ecspresso_checksums.txt | awk '{print $1}')
+          ACTUAL=$(sha256sum /tmp/ecspresso.tar.gz | awk '{print $1}')
+          [ "$EXPECTED" = "$ACTUAL" ] || { echo "checksum mismatch"; exit 1; }
+          tar xz -C /usr/local/bin -f /tmp/ecspresso.tar.gz ecspresso
+          ecspresso version
 
       - name: Deploy web
         env:

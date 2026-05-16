@@ -14,12 +14,12 @@ class GmailClient
   THREAD_FIELDS = "messages/id,messages/internalDate,messages/payload/parts/mimeType,messages/payload/parts/body/data"
 
   PER_PROJECT_LIMIT = 1_200_000  # quota units per minute
-  PER_USER_LIMIT    = 15_000     # quota units per minute per user
+  PER_USER_LIMIT    = 6_000      # quota units per minute per user
   QUOTA_WINDOW      = 60         # seconds
 
   QUOTA_UNITS = {
     list_threads: 10,
-    batch_get_threads_per_id: 10
+    batch_get_threads_per_id: 40
   }.freeze
 
   def initialize(access_token, redis: nil)
@@ -93,7 +93,10 @@ class GmailClient
 
     raise ApiError, "Gmail API error: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
-    JSON.parse(response.body)
+    body = response.body
+    return {} if body.nil? || body.strip.empty?
+
+    JSON.parse(body)
   end
 
   def build_query_string(params)

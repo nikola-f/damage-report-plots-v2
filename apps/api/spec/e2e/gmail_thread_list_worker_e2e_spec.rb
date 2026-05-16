@@ -10,27 +10,31 @@ require "rails_helper"
 #   - Docker Valkey (Redis-compatible, matching production ElastiCache Valkey)
 #
 # Required environment variables:
-#   TEST_GMAIL_ACCESS_TOKEN  - Valid Gmail OAuth access token (scope: gmail.readonly)
-#   SQS_REPORT_QUEUE_URL     - SQS FIFO queue URL (LocalStack or real AWS)
-#   REDIS_URL                - Valkey URL (e.g. redis://localhost:6380/0)
+#   GOOGLE_TEST_REFRESH_TOKEN            - Long-lived OAuth refresh token (scope: gmail.readonly)
+#   GOOGLE_CLIENT_ID                     - OAuth client ID
+#   GOOGLE_CLIENT_SECRET                 - OAuth client secret
+#   SETTINGS__SQS_THREAD_IDS_QUEUE_URL  - SQS FIFO queue URL (LocalStack or real AWS)
+#   SETTINGS__REDIS_URL                  - Valkey URL (e.g. redis://localhost:6380/0)
+#   AWS_ENDPOINT_URL                     - LocalStack endpoint (e.g. http://localhost:4566)
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY - dummy credentials for LocalStack
 #
 # Start services before running:
-#   docker run -d -p 4566:4566 localstack/localstack
-#   aws --endpoint-url=http://localhost:4566 sqs create-queue \
+#   docker run -d -p 4566:4566 localstack/localstack:3
+#   AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+#     aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs create-queue \
 #     --queue-name test-report-queue.fifo \
 #     --attributes FifoQueue=true,ContentBasedDeduplication=false
 #   docker run -d -p 6380:6379 valkey/valkey
 #
 # Run:
-#   TEST_GMAIL_ACCESS_TOKEN=ya29.xxx \
-#   SQS_REPORT_QUEUE_URL=http://localhost:4566/000000000000/test-report-queue.fifo \
-#   bundle exec rspec spec/e2e/gmail_thread_list_worker_e2e_spec.rb
+#   export BW_SESSION=$(bw unlock --raw)
+#   bin/e2e spec/e2e/gmail_thread_list_worker_e2e_spec.rb
 
 RSpec.describe GmailThreadListWorker, :e2e do
   before(:all) { WebMock.allow_net_connect! }
   after(:all)  { WebMock.disable_net_connect! }
 
-  let(:access_token) { ENV.fetch("TEST_GMAIL_ACCESS_TOKEN") }
+  let(:access_token) { fetch_google_access_token }
   let(:queue_url)    { Settings.sqs_thread_ids_queue_url }
   let(:user_id)      { Digest::SHA256.hexdigest(access_token) }
   let(:token_hash)   { user_id }
@@ -46,12 +50,12 @@ RSpec.describe GmailThreadListWorker, :e2e do
   end
 
   before do
+    sqs.purge_queue(queue_url: queue_url)
     UserStore.access_token.store(user_id, access_token)
   end
 
-  after do
-    REDIS.del("gmail_quota:project", "gmail_quota:user:#{token_hash}")
-  end
+  # quota キーは削除しない。TTL (60s) で自然にリセットされることで、
+  # Gmail 側のレートリミッターと Redis カウンターの同期が保たれる。
 
   describe "#perform" do
     it "fetches Gmail threads matching the query and enqueues thread IDs to SQS as a JSON array" do

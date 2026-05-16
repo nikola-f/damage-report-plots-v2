@@ -28,7 +28,11 @@ class SessionsController < ApplicationController
 
     if (scope = session.delete(:requested_scope))
       # Scope upgrade: update token and store expiry epoch for each granted scope
-      user_id    = session[:user_id]
+      user_id = session[:user_id]
+
+      return render json: { error: "Account mismatch during scope upgrade" }, status: :unauthorized if auth["uid"] != user_id
+      return render json: { error: "Invalid scope" }, status: :unprocessable_entity unless SCOPE_REDIS_KEYS.key?(scope)
+
       expires_at = Time.now.to_i + ACCESS_TOKEN_TTL
       UserStore.access_token.store(user_id, auth["credentials"]["token"])
       SCOPE_REDIS_KEYS[scope].each do |key|
@@ -36,7 +40,8 @@ class SessionsController < ApplicationController
       end
       redirect_to "/"
     else
-      # Fresh login
+      # Fresh login — reset session to prevent fixation
+      reset_session
       user_info = {
         google_id: auth["uid"],
         email:     auth["info"]["email"],
@@ -54,7 +59,8 @@ class SessionsController < ApplicationController
       redirect_to "/"
     end
   rescue StandardError => e
-    render json: { error: "Authentication failed", message: e.message }, status: :unprocessable_entity
+    Rails.logger.error "OAuth callback error: #{e.class}: #{e.message}"
+    render json: { error: "Authentication failed" }, status: :unprocessable_entity
   end
 
   def logout
@@ -63,12 +69,7 @@ class SessionsController < ApplicationController
   end
 
   def failure
-    # OmniAuth failure callback
-    render json: {
-      error: "Authentication failed",
-      message: params[:message],
-      strategy: params[:strategy]
-    }, status: :unauthorized
+    render json: { error: "Authentication failed" }, status: :unauthorized
   end
 
   def grant_spreadsheets

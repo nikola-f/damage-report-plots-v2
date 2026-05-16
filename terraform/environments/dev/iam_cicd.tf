@@ -31,6 +31,8 @@ resource "aws_iam_role_policy" "iam_read" {
           "iam:ListRolePolicies",
           "iam:ListAttachedRolePolicies",
           "iam:GetRolePolicy",
+          "iam:TagRole",
+          "iam:UntagRole",
         ]
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/github-actions-terraform"
       }
@@ -52,7 +54,8 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets", "ec2:ModifySubnetAttribute",
           "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway", "ec2:DescribeInternetGateways",
           "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
-          "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:DescribeAddresses", "ec2:DescribeAddressesAttribute",
+          "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:AssociateAddress", "ec2:DisassociateAddress",
+          "ec2:DescribeAddresses", "ec2:DescribeAddressesAttribute",
           "ec2:CreateNatGateway", "ec2:DeleteNatGateway", "ec2:DescribeNatGateways",
           "ec2:CreateRouteTable", "ec2:DeleteRouteTable", "ec2:DescribeRouteTables",
           "ec2:CreateRoute", "ec2:DeleteRoute",
@@ -119,6 +122,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
               "elasticloadbalancing.amazonaws.com",
               "elasticache.amazonaws.com",
               "ecs.amazonaws.com",
+              "wafv2.amazonaws.com",
             ]
           }
         }
@@ -156,15 +160,19 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       {
         Effect = "Allow"
         Action = [
-          "elasticache:CreateCacheSubnetGroup", "elasticache:DeleteCacheSubnetGroup",
-          "elasticache:DescribeCacheSubnetGroups",
-          "elasticache:CreateCacheCluster", "elasticache:DeleteCacheCluster",
-          "elasticache:DescribeCacheClusters", "elasticache:ModifyCacheCluster",
-          "elasticache:CreateReplicationGroup", "elasticache:DeleteReplicationGroup",
-          "elasticache:DescribeReplicationGroups", "elasticache:ModifyReplicationGroup",
+          "elasticache:CreateServerlessCache", "elasticache:DeleteServerlessCache",
+          "elasticache:DescribeServerlessCaches", "elasticache:ModifyServerlessCache",
           "elasticache:AddTagsToResource", "elasticache:ListTagsForResource", "elasticache:RemoveTagsFromResource",
-          "elasticache:DescribeCacheEngineVersions", "elasticache:DescribeCacheParameterGroups",
-          "elasticache:DescribeCacheParameters",
+          "elasticache:DescribeCacheEngineVersions",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateVpcEndpoint", "ec2:DeleteVpcEndpoints",
+          "ec2:DescribeVpcEndpoints", "ec2:ModifyVpcEndpoint",
+          "ec2:CreateTags",
         ]
         Resource = "*"
       },
@@ -220,6 +228,39 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "logs:DescribeSubscriptionFilters",
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "application-autoscaling:DescribeScalableTargets",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudtrail:DescribeTrails",
+          "cloudtrail:GetTrail",
+          "cloudtrail:GetTrailStatus",
+          "cloudtrail:ListTrails",
+          "cloudtrail:ListTags",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudtrail:CreateTrail",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:UpdateTrail",
+          "cloudtrail:StartLogging",
+          "cloudtrail:StopLogging",
+          "cloudtrail:PutEventSelectors",
+          "cloudtrail:GetEventSelectors",
+          "cloudtrail:AddTags",
+          "cloudtrail:RemoveTags",
+        ]
+        Resource = "arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/drp-*"
       },
       {
         Effect = "Allow"
@@ -299,6 +340,8 @@ resource "aws_iam_role_policy" "ecr_ecs_deploy" {
           "ecs:UpdateService",
           "ecs:ListTasks",
           "ecs:DescribeTasks",
+          "ecs:ListServiceDeployments",
+          "ecs:DescribeServiceDeployments",
           "ecs:TagResource",
         ]
         Resource = "*"

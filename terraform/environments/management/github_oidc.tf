@@ -58,15 +58,6 @@ resource "aws_iam_role_policy" "terraform_state_access" {
           "arn:aws:s3:::drp-tfstate/*",
         ]
       },
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:DeleteItem",
-        ]
-        Resource = "arn:aws:dynamodb:us-west-2:${data.aws_caller_identity.current.account_id}:table/drp-tfstate-lock"
-      },
     ]
   })
 }

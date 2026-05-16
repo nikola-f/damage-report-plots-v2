@@ -32,6 +32,15 @@ class SpreadsheetsClient
     post("/spreadsheets/#{spreadsheet_id}:batchUpdate", body)
   end
 
+  # スプレッドシートのメタデータを取得する。
+  # 存在しない場合は ApiError (404) を送出する。
+  #
+  # @param spreadsheet_id [String]
+  # @return [Hash]
+  def get_spreadsheet(spreadsheet_id:)
+    get("/spreadsheets/#{spreadsheet_id}")
+  end
+
   # 既存シートの末尾に行データをバッチ追加する。
   #
   # @param spreadsheet_id [String]       対象スプレッドシートの ID
@@ -47,6 +56,18 @@ class SpreadsheetsClient
   end
 
   private
+
+  def get(path, query: {})
+    uri       = URI("#{BASE_URL}#{path}")
+    uri.query = URI.encode_www_form(query) unless query.empty?
+    request   = Net::HTTP::Get.new(uri)
+    request["Authorization"] = "Bearer #{@access_token}"
+
+    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(request) }
+    raise ApiError, "Sheets API error: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+    JSON.parse(response.body)
+  end
 
   def post(path, body, query: {})
     uri       = URI("#{BASE_URL}#{path}")

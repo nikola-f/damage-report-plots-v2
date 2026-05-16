@@ -97,24 +97,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "waf_logs" {
   }
 }
 
-resource "aws_s3_bucket_policy" "waf_logs" {
-  bucket = aws_s3_bucket.waf_logs.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "delivery.logs.amazonaws.com" }
-        Action    = ["s3:PutObject", "s3:GetBucketAcl"]
-        Resource = [
-          aws_s3_bucket.waf_logs.arn,
-          "${aws_s3_bucket.waf_logs.arn}/*",
-        ]
-      },
-    ]
-  })
-}
 
 # ---------- IAM: Firehose role (writes to S3) ----------
 
@@ -150,6 +132,8 @@ resource "aws_iam_role_policy" "firehose" {
       Resource = [
         aws_s3_bucket.logs.arn,
         "${aws_s3_bucket.logs.arn}/*",
+        aws_s3_bucket.waf_logs.arn,
+        "${aws_s3_bucket.waf_logs.arn}/*",
       ]
     }]
   })
@@ -187,7 +171,6 @@ resource "aws_iam_role_policy" "cwlogs_firehose" {
       Resource = [
         aws_kinesis_firehose_delivery_stream.web.arn,
         aws_kinesis_firehose_delivery_stream.worker.arn,
-        aws_kinesis_firehose_delivery_stream.redis.arn,
       ]
     }]
   })
@@ -217,14 +200,15 @@ resource "aws_kinesis_firehose_delivery_stream" "worker" {
   }
 }
 
-resource "aws_kinesis_firehose_delivery_stream" "redis" {
-  name        = "${local.name_prefix}-firehose-redis"
+
+resource "aws_kinesis_firehose_delivery_stream" "waf" {
+  name        = "aws-waf-logs-${local.name_prefix}"
   destination = "extended_s3"
 
   extended_s3_configuration {
     role_arn   = aws_iam_role.firehose.arn
-    bucket_arn = aws_s3_bucket.logs.arn
-    prefix     = "redis/"
+    bucket_arn = aws_s3_bucket.waf_logs.arn
+    prefix     = ""
   }
 }
 
@@ -246,10 +230,3 @@ resource "aws_cloudwatch_log_subscription_filter" "worker" {
   role_arn        = aws_iam_role.cwlogs_firehose.arn
 }
 
-resource "aws_cloudwatch_log_subscription_filter" "redis" {
-  name            = "${local.name_prefix}-redis-to-firehose"
-  log_group_name  = aws_cloudwatch_log_group.redis_slow_log.name
-  filter_pattern  = ""
-  destination_arn = aws_kinesis_firehose_delivery_stream.redis.arn
-  role_arn        = aws_iam_role.cwlogs_firehose.arn
-}

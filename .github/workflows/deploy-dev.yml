@@ -1,0 +1,74 @@
+name: Deploy Dev ECS Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options: [all, web, worker]
+      image_tag:
+        description: 'Docker image tag to deploy (leave empty to update service config only)'
+        required: false
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+
+    env:
+      APP_NAME: drp
+      ENV: dev
+      ECSPRESSO_VERSION: 2.8.3
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - name: Configure AWS credentials (management OIDC)
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Configure AWS credentials (dev role)
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885  # v6
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-west-2
+          role-chaining: true
+
+      - name: Install ecspresso
+        run: |
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/ecspresso_${ECSPRESSO_VERSION}_linux_amd64.tar.gz" -o /tmp/ecspresso.tar.gz
+          curl -fsSL "https://github.com/kayac/ecspresso/releases/download/v${ECSPRESSO_VERSION}/checksums.txt" -o /tmp/ecspresso_checksums.txt
+          EXPECTED=$(grep "linux_amd64.tar.gz" /tmp/ecspresso_checksums.txt | awk '{print $1}')
+          ACTUAL=$(sha256sum /tmp/ecspresso.tar.gz | awk '{print $1}')
+          [ "$EXPECTED" = "$ACTUAL" ] || { echo "checksum mismatch"; exit 1; }
+          tar xz -C /usr/local/bin -f /tmp/ecspresso.tar.gz ecspresso
+          ecspresso version
+
+      - name: Deploy web
+        if: inputs.service == 'all' || inputs.service == 'web'
+        working-directory: ecspresso/web
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --ext-str IMAGE_TAG=${{ inputs.image_tag }}
+          else
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --skip-task-definition
+          fi
+
+      - name: Deploy worker
+        if: inputs.service == 'all' || inputs.service == 'worker'
+        working-directory: ecspresso/worker
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --ext-str IMAGE_TAG=${{ inputs.image_tag }}
+          else
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --skip-task-definition
+          fi

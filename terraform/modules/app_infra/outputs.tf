@@ -28,6 +28,11 @@ output "alb_dns_name" {
   value       = aws_lb.main.dns_name
 }
 
+output "public_subnet_ids_csv" {
+  description = "Public subnet IDs as a comma-separated string (for ecspresso jsonnet std.split)"
+  value       = join(",", aws_subnet.public[*].id)
+}
+
 output "private_subnet_ids_csv" {
   description = "Private subnet IDs as a comma-separated string (for ecspresso jsonnet std.split)"
   value       = join(",", aws_subnet.private[*].id)
@@ -59,12 +64,9 @@ output "log_group_worker" {
 }
 
 output "redis_url" {
-  description = "Redis connection URL"
-  value = var.elasticache_replication_enabled ? (
-    "redis://${aws_elasticache_replication_group.redis[0].primary_endpoint_address}:6379/0"
-    ) : (
-    "redis://${aws_elasticache_cluster.redis[0].cache_nodes[0].address}:6379/0"
-  )
+  description = "Valkey connection URL"
+  sensitive   = true
+  value       = "rediss://${aws_elasticache_serverless_cache.main.endpoint[0].address}:6379/0"
 }
 
 output "sqs_thread_ids_queue_url" {
@@ -77,9 +79,24 @@ output "sqs_reports_queue_url" {
   value       = aws_sqs_queue.reports.url
 }
 
+output "sqs_thread_ids_dlq_url" {
+  description = "SQS FIFO DLQ URL for thread IDs"
+  value       = aws_sqs_queue.thread_ids_dlq.url
+}
+
+output "sqs_reports_dlq_url" {
+  description = "SQS FIFO DLQ URL for reports"
+  value       = aws_sqs_queue.reports_dlq.url
+}
+
 output "rails_master_key_secret_arn" {
   description = "Secrets Manager ARN for RAILS_MASTER_KEY"
   value       = aws_secretsmanager_secret.rails_master_key.arn
+}
+
+output "redis_url_secret_arn" {
+  description = "Secrets Manager ARN for REDIS_URL"
+  value       = aws_secretsmanager_secret.redis_url.arn
 }
 
 output "allowed_origins" {

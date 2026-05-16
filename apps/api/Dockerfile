@@ -1,5 +1,5 @@
 # --- builder ---
-FROM ruby:3.4.4-slim AS builder
+FROM ruby:4.0.3-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libssl-dev zlib1g-dev libyaml-dev && \
@@ -16,7 +16,7 @@ RUN bundle install --jobs 4
 COPY . .
 
 # --- runtime ---
-FROM ruby:3.4.4-slim
+FROM ruby:4.0.3-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 zlib1g curl && \

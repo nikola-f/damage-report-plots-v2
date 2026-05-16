@@ -76,6 +76,20 @@ RSpec.describe "Sessions", type: :request do
       end
     end
 
+    context "as a scope upgrade with a different Google account" do
+      before do
+        login_as
+        post "/auth/grant/spreadsheets"
+        mock_google_oauth_success(uid: "different_google_id")
+      end
+
+      it "returns unauthorized" do
+        get "/auth/google_oauth2/callback"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
     context "with custom user data from Google" do
       before do
         mock_google_oauth_success(
@@ -129,20 +143,13 @@ RSpec.describe "Sessions", type: :request do
   end
 
   describe "GET /auth/failure" do
-    it "returns authentication failure message with details" do
+    it "returns authentication failure" do
       get "/auth/failure", params: { message: "invalid_credentials", strategy: "google_oauth2" }
 
       expect(response).to have_http_status(:unauthorized)
       expect(json_response["error"]).to eq("Authentication failed")
-      expect(json_response["message"]).to eq("invalid_credentials")
-      expect(json_response["strategy"]).to eq("google_oauth2")
-    end
-
-    it "handles different failure messages" do
-      get "/auth/failure", params: { message: "access_denied", strategy: "google_oauth2" }
-
-      expect(response).to have_http_status(:unauthorized)
-      expect(json_response["message"]).to eq("access_denied")
+      expect(json_response).not_to have_key("message")
+      expect(json_response).not_to have_key("strategy")
     end
 
     it "handles missing parameters gracefully" do
