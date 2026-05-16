@@ -279,6 +279,31 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
   })
 }
 
+resource "aws_iam_role_policy" "cloudfront_frontend" {
+  name = "cloudfront-frontend"
+  role = aws_iam_role.github_actions_terraform.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateDistribution", "cloudfront:DeleteDistribution",
+          "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig",
+          "cloudfront:UpdateDistribution", "cloudfront:ListDistributions",
+          "cloudfront:CreateOriginAccessControl", "cloudfront:DeleteOriginAccessControl",
+          "cloudfront:GetOriginAccessControl", "cloudfront:GetOriginAccessControlConfig",
+          "cloudfront:UpdateOriginAccessControl", "cloudfront:ListOriginAccessControls",
+          "cloudfront:TagResource", "cloudfront:UntagResource", "cloudfront:ListTagsForResource",
+          "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation",
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "ecr_ecs_deploy" {
   name = "ecr-ecs-deploy"
   role = aws_iam_role.github_actions_terraform.id

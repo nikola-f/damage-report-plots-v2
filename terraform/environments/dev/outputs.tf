@@ -102,3 +102,19 @@ output "allowed_origins" {
 output "aws_region" {
   value = module.app_infra.aws_region
 }
+
+output "frontend_bucket_name" {
+  value     = module.app_infra.frontend_bucket_name
+  sensitive = true
+}
+
+output "frontend_cloudfront_domain" {
+  description = "Set as authorized redirect URI in Google Cloud Console: https://<domain>/auth/google_oauth2/callback"
+  value       = module.app_infra.frontend_cloudfront_domain
+  sensitive   = true
+}
+
+output "frontend_cloudfront_distribution_id" {
+  value     = module.app_infra.frontend_cloudfront_distribution_id
+  sensitive = true
+}

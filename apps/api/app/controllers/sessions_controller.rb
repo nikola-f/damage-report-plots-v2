@@ -38,7 +38,7 @@ class SessionsController < ApplicationController
       SCOPE_REDIS_KEYS[scope].each do |key|
         REDIS.set("#{key}:#{user_id}", expires_at, ex: ACCESS_TOKEN_TTL)
       end
-      render json: { granted_scope: scope }, status: :ok
+      redirect_to "/"
     else
       # Fresh login — reset session to prevent fixation
       reset_session
@@ -56,14 +56,7 @@ class SessionsController < ApplicationController
       session[:name]    = user_info[:name]
       session[:picture] = user_info[:picture]
 
-      render json: {
-        user: {
-          id:      user_info[:google_id],
-          email:   user_info[:email],
-          name:    user_info[:name],
-          picture: user_info[:picture]
-        }
-      }, status: :ok
+      redirect_to "/"
     end
   rescue StandardError => e
     Rails.logger.error "OAuth callback error: #{e.class}: #{e.message}"
