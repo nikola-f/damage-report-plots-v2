@@ -35,6 +35,25 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Environment = "dev"
+      ManagedBy   = "terraform"
+    }
+  }
+
+  dynamic "assume_role" {
+    for_each = var.aws_assume_role_arn != "" ? [1] : []
+    content {
+      role_arn = var.aws_assume_role_arn
+    }
+  }
+}
+
 provider "google" {
   project = var.gcp_project_id
   region  = "us-central1"

@@ -130,3 +130,9 @@ output "frontend_cloudfront_distribution_id" {
   value     = module.app_infra.frontend_cloudfront_distribution_id
   sensitive = true
 }
+
+output "frontend_acm_validation_records" {
+  description = "DNS CNAME records required to validate the frontend ACM certificate (us-east-1)"
+  value       = module.app_infra.frontend_acm_validation_records
+  sensitive   = true
+}

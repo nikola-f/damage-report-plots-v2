@@ -49,3 +49,9 @@ variable "api_allowed_origins" {
   description = "Comma-separated CORS allowed origins (e.g. https://app.dev.example.com)"
   type        = string
 }
+
+variable "frontend_domain_name" {
+  description = "Custom domain for the CloudFront frontend distribution"
+  type        = string
+  sensitive   = true
+}
