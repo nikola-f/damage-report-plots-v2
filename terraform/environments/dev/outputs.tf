@@ -22,12 +22,6 @@ output "alb_dns_name" {
   sensitive   = true
 }
 
-output "acm_validation_records" {
-  description = "DNS CNAME records required to validate the ACM certificate"
-  value       = module.app_infra.acm_validation_records
-  sensitive   = true
-}
-
 output "rails_master_key_secret_arn" {
   description = "Secrets Manager ARN for RAILS_MASTER_KEY — set the real value after first apply"
   value       = module.app_infra.rails_master_key_secret_arn
@@ -131,8 +125,3 @@ output "frontend_cloudfront_distribution_id" {
   sensitive = true
 }
 
-output "frontend_acm_validation_records" {
-  description = "DNS CNAME records required to validate the frontend ACM certificate (us-east-1)"
-  value       = module.app_infra.frontend_acm_validation_records
-  sensitive   = true
-}
