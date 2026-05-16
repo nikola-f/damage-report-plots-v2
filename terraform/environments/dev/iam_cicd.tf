@@ -298,6 +298,9 @@ resource "aws_iam_role_policy" "cloudfront_frontend" {
           "cloudfront:UpdateOriginAccessControl", "cloudfront:ListOriginAccessControls",
           "cloudfront:TagResource", "cloudfront:UntagResource", "cloudfront:ListTagsForResource",
           "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation",
+          "cloudfront:CreateResponseHeadersPolicy", "cloudfront:DeleteResponseHeadersPolicy",
+          "cloudfront:GetResponseHeadersPolicy", "cloudfront:GetResponseHeadersPolicyConfig",
+          "cloudfront:UpdateResponseHeadersPolicy", "cloudfront:ListResponseHeadersPolicies",
         ]
         Resource = "*"
       }
