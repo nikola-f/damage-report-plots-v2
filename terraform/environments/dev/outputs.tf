@@ -40,6 +40,18 @@ output "redis_url_secret_arn" {
   sensitive   = true
 }
 
+output "google_client_id_secret_arn" {
+  description = "Secrets Manager ARN for GOOGLE_CLIENT_ID"
+  value       = module.app_infra.google_client_id_secret_arn
+  sensitive   = true
+}
+
+output "google_client_secret_secret_arn" {
+  description = "Secrets Manager ARN for GOOGLE_CLIENT_SECRET"
+  value       = module.app_infra.google_client_secret_secret_arn
+  sensitive   = true
+}
+
 output "web_target_group_arn" {
   value     = module.app_infra.web_target_group_arn
   sensitive = true
