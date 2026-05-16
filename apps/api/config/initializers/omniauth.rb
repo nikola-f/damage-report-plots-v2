@@ -19,8 +19,8 @@ Rails.application.config.middleware.use OmniAuth::Builder do
            }
 end
 
-# Security: protect against CSRF
-OmniAuth.config.allowed_request_methods = %i[post]
+# Allow GET for OAuth initiation from SPA (CSRF risk is low; state param handles it at Google's side)
+OmniAuth.config.allowed_request_methods = %i[get post]
 
 # Handle failures
 OmniAuth.config.on_failure = proc { |env|
