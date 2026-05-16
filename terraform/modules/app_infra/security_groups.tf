@@ -4,7 +4,7 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 
 resource "aws_security_group" "alb" {
   name        = "${local.name_prefix}-alb"
-  description = "Allow HTTPS inbound to ALB from CloudFront only"
+  description = "Allow HTTP/HTTPS inbound to ALB"
   vpc_id      = aws_vpc.main.id
 
   ingress {
