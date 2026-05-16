@@ -56,6 +56,14 @@ local imageTag = std.extVar('IMAGE_TAG');
           name: 'REDIS_URL',
           valueFrom: tfstate('output.redis_url_secret_arn'),
         },
+        {
+          name: 'GOOGLE_CLIENT_ID',
+          valueFrom: tfstate('output.google_client_id_secret_arn'),
+        },
+        {
+          name: 'GOOGLE_CLIENT_SECRET',
+          valueFrom: tfstate('output.google_client_secret_secret_arn'),
+        },
       ],
       logConfiguration: {
         logDriver: 'awslogs',
