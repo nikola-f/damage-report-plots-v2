@@ -87,7 +87,7 @@ export default function App() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  center: { textAlign: "center", marginTop: "4rem", color: "#666" },
+  center: { textAlign: "center", marginTop: "4rem", color: "#8a8f83" },
   container: {
     maxWidth: 480,
     margin: "4rem auto",
@@ -101,11 +101,11 @@ const styles: Record<string, React.CSSProperties> = {
   profile: { display: "flex", alignItems: "center", gap: "0.75rem" },
   avatar: { width: 48, height: 48, borderRadius: "50%" },
   name: { margin: 0, fontWeight: 600 },
-  email: { margin: 0, color: "#666", fontSize: "0.875rem" },
+  email: { margin: 0, color: "#8a8f83", fontSize: "0.875rem" },
   button: {
     padding: "0.625rem 1.25rem",
-    background: "#4285f4",
-    color: "#fff",
+    background: "#5AB5B2",
+    color: "#0F0F0F",
     border: "none",
     borderRadius: 6,
     cursor: "pointer",
@@ -114,12 +114,12 @@ const styles: Record<string, React.CSSProperties> = {
   buttonSecondary: {
     padding: "0.5rem 1rem",
     background: "transparent",
-    color: "#666",
-    border: "1px solid #ccc",
+    color: "#EEF0E3",
+    border: "1px solid #333",
     borderRadius: 6,
     cursor: "pointer",
     fontSize: "0.875rem",
   },
-  success: { color: "#1a7f37", margin: 0 },
-  error: { color: "#cf222e", margin: 0 },
+  success: { color: "#3fb950", margin: 0 },
+  error: { color: "#f85149", margin: 0 },
 };
