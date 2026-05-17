@@ -30,9 +30,10 @@ module Api
       def sqs_queue_status
         thread_ids = SqsClient.new(Settings.sqs_thread_ids_queue_url).queue_depth
         reports    = SqsClient.new(Settings.sqs_reports_queue_url).queue_depth
-        total      = thread_ids[:available] + thread_ids[:in_flight] +
-                     reports[:available]    + reports[:in_flight]
-        { total: total }
+        {
+          thread_ids: thread_ids[:available] + thread_ids[:in_flight],
+          reports:    reports[:available]    + reports[:in_flight]
+        }
       end
     end
   end

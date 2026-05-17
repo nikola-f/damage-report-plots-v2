@@ -32,7 +32,8 @@ export async function logout(): Promise<void> {
 
 export interface ApplicationStatus {
   sqs_queues: {
-    total: number;
+    thread_ids: number;
+    reports: number;
   };
 }
 
