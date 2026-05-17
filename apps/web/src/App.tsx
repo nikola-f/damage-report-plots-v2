@@ -4,7 +4,7 @@ import { getApplicationStatus, getProfile, logout, sync, type Profile } from "./
 type Status = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
 
-const QUEUE_POLL_INTERVAL_MS = 30_000;
+const QUEUE_POLL_INTERVAL_MS = 60_000;
 const QUEUE_GREEN_MAX = 10;
 const QUEUE_RED_MIN = 61;
 
@@ -51,7 +51,7 @@ export default function App() {
     function fetchStatus() {
       getApplicationStatus()
         .then((s) => {
-          const total = s.sqs_queues.total;
+          const total = s.sqs_queues.thread_ids + s.sqs_queues.reports;
           setQueueStatus(queueLevel(total));
         })
         .catch(console.error);
