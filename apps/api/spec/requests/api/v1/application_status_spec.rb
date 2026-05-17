@@ -29,11 +29,12 @@ RSpec.describe "GET /api/v1/application_status", type: :request do
       expect(quota["resets_in_seconds"]).to eq(42)
     end
 
-    it "returns SQS queue total depth" do
+    it "returns SQS queue depth per queue" do
       get "/api/v1/application_status"
 
-      # thread_ids: 3+1=4, reports: 0+2=2 → total 6
-      expect(json_response["sqs_queues"]["total"]).to eq(6)
+      # thread_ids: 3+1=4, reports: 0+2=2
+      expect(json_response["sqs_queues"]["thread_ids"]).to eq(4)
+      expect(json_response["sqs_queues"]["reports"]).to eq(2)
     end
 
     context "when no quota has been used yet (key absent)" do
