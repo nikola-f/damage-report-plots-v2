@@ -29,3 +29,15 @@ export async function sync(): Promise<void> {
 export async function logout(): Promise<void> {
   await request("/auth/logout", { method: "DELETE" });
 }
+
+export interface ApplicationStatus {
+  sqs_queues: {
+    total: number;
+  };
+}
+
+export async function getApplicationStatus(): Promise<ApplicationStatus> {
+  const res = await request("/api/v1/application_status");
+  if (!res.ok) throw new Error(`Status fetch failed: ${res.status}`);
+  return res.json() as Promise<ApplicationStatus>;
+}
