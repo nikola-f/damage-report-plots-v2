@@ -1,13 +1,38 @@
-import { useEffect, useState } from "react";
-import { getProfile, logout, sync, type Profile } from "./api.ts";
+import { useEffect, useRef, useState } from "react";
+import { getApplicationStatus, getProfile, logout, sync, type Profile } from "./api.ts";
 
 type Status = "idle" | "loading" | "success" | "error";
+type QueueLevel = "green" | "yellow" | "red";
+
+const QUEUE_POLL_INTERVAL_MS = 30_000;
+const QUEUE_GREEN_MAX = 10;
+const QUEUE_RED_MIN = 61;
+
+function queueLevel(available: number): QueueLevel {
+  if (available <= QUEUE_GREEN_MAX) return "green";
+  if (available < QUEUE_RED_MIN) return "yellow";
+  return "red";
+}
+
+const LEVEL_COLOR: Record<QueueLevel, string> = {
+  green: "#3fb950",
+  yellow: "#d29922",
+  red: "#f85149",
+};
+
+const LEVEL_LABEL: Record<QueueLevel, string> = {
+  green: "Idle",
+  yellow: "Busy",
+  red: "Congested",
+};
 
 export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<Status>("idle");
   const [syncMessage, setSyncMessage] = useState("");
+  const [queueStatus, setQueueStatus] = useState<QueueLevel | null>(null);
+  const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     getProfile()
@@ -15,6 +40,27 @@ export default function App() {
       .catch(console.error)
       .finally(() => setAuthLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!profile) {
+      setQueueStatus(null);
+      if (queueTimerRef.current) clearInterval(queueTimerRef.current);
+      return;
+    }
+
+    function fetchStatus() {
+      getApplicationStatus()
+        .then((s) => {
+          const total = s.sqs_queues.total;
+          setQueueStatus(queueLevel(total));
+        })
+        .catch(console.error);
+    }
+
+    fetchStatus();
+    queueTimerRef.current = setInterval(fetchStatus, QUEUE_POLL_INTERVAL_MS);
+    return () => { if (queueTimerRef.current) clearInterval(queueTimerRef.current); };
+  }, [profile]);
 
   function handleLogin() {
     window.location.href = "/auth/google_oauth2";
@@ -79,6 +125,20 @@ export default function App() {
         </p>
       )}
 
+      {queueStatus && (
+        <div style={styles.statusRow}>
+          <span
+            style={{
+              ...styles.statusDot,
+              background: LEVEL_COLOR[queueStatus],
+            }}
+          />
+          <span style={styles.statusLabel}>
+            Queue: {LEVEL_LABEL[queueStatus]}
+          </span>
+        </div>
+      )}
+
       <button onClick={handleLogout} style={styles.buttonSecondary}>
         Logout
       </button>
@@ -122,4 +182,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   success: { color: "#3fb950", margin: 0 },
   error: { color: "#f85149", margin: 0 },
+  statusRow: { display: "flex", alignItems: "center", gap: "0.5rem" },
+  statusDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0 } as React.CSSProperties,
+  statusLabel: { fontSize: "0.8rem", color: "#8a8f83" },
 };
