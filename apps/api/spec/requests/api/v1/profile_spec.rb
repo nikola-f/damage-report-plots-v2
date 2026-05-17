@@ -12,14 +12,14 @@ RSpec.describe "GET /api/v1/profile", type: :request do
   context "with active session" do
     before { login_as }
 
-    it "returns user profile with complete user data" do
+    it "returns user profile" do
       get "/api/v1/profile"
 
       expect(response).to have_http_status(:ok)
-      expect(json_response["message"]).to eq("Access granted to protected resource")
-      expect(json_response["user"]["id"]).to eq(test_user_id)
-      expect(json_response["user"]["email"]).to eq(test_user_email)
-      expect(json_response["user"]["name"]).to eq(test_user_name)
+      expect(json_response["id"]).to eq(test_user_id)
+      expect(json_response["email"]).to eq(test_user_email)
+      expect(json_response["name"]).to eq(test_user_name)
+      expect(json_response["picture"]).to eq(test_user_picture)
     end
   end
 

@@ -27,9 +27,10 @@ module Authenticatable
 
   def current_user
     {
-      id:    session[:user_id],
-      email: session[:email],
-      name:  session[:name]
+      id:      session[:user_id],
+      email:   session[:email],
+      name:    session[:name],
+      picture: session[:picture]
     }
   end
 end
