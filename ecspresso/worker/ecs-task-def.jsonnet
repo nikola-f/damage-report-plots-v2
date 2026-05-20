@@ -9,6 +9,10 @@ local imageTag = std.extVar('IMAGE_TAG');
   taskRoleArn: tfstate('output.task_role_arn'),
   networkMode: 'awsvpc',
   requiresCompatibilities: ['FARGATE'],
+  runtimePlatform: {
+    cpuArchitecture: 'ARM64',
+    operatingSystemFamily: 'LINUX',
+  },
   cpu: '256',
   memory: '512',
   volumes: [
