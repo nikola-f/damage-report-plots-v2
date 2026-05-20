@@ -80,6 +80,7 @@ resource "aws_cloudfront_response_headers_policy" "frontend_security" {
 
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
+  is_ipv6_enabled     = true
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
   aliases             = [var.frontend_domain_name]
