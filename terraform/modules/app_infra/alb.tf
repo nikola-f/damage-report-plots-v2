@@ -2,6 +2,7 @@ resource "aws_lb" "main" {
   name               = "${local.name_prefix}-alb"
   internal           = false
   load_balancer_type = "application"
+  ip_address_type    = "dualstack-without-public-ipv4"
   security_groups    = [aws_security_group.alb.id]
   subnets            = aws_subnet.public[*].id
 
