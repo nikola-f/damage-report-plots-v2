@@ -52,6 +52,7 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
         Action = [
           "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:DescribeVpcs", "ec2:ModifyVpcAttribute",
           "ec2:AssociateVpcCidrBlock", "ec2:DisassociateVpcCidrBlock",
+          "ec2:AssociateSubnetCidrBlock", "ec2:DisassociateSubnetCidrBlock",
           "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets", "ec2:ModifySubnetAttribute",
           "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway", "ec2:DescribeInternetGateways",
           "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
