@@ -175,6 +175,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker buildx build --platform linux/arm64 --pull \
+          --cache-from type=gha \
+          --cache-to type=gha,mode=max \
           -t $ECR_REGISTRY/drp-api:$IMAGE_TAG --push ./apps/api
 
   build-push-prod:
@@ -215,6 +217,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker buildx build --platform linux/arm64 --pull \
+          --cache-from type=gha \
+          --cache-to type=gha,mode=max \
           -t $ECR_REGISTRY/drp-api:$IMAGE_TAG --push ./apps/api
 
   deploy-dev:
