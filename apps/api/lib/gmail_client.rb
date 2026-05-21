@@ -14,7 +14,7 @@ class GmailClient
   THREAD_FIELDS = "messages/id,messages/internalDate,messages/payload/parts/mimeType,messages/payload/parts/body/data"
 
   PER_PROJECT_LIMIT = 1_200_000  # quota units per minute
-  PER_USER_LIMIT    = 6_000      # quota units per minute per user
+  PER_USER_LIMIT    = 15_000     # quota units per minute per user (Gmail API limit: 250 units/sec)
   QUOTA_WINDOW      = 60         # seconds
 
   QUOTA_UNITS = {
@@ -74,7 +74,10 @@ class GmailClient
     ].each do |key, limit|
       new_count = @redis.incrby(key, units)
       @redis.expire(key, QUOTA_WINDOW) if new_count == units
-      raise QuotaExceededError, "Gmail API quota exceeded: #{key}" if new_count > limit
+      if new_count > limit
+        @redis.decrby(key, units)
+        raise QuotaExceededError, "Gmail API quota exceeded: #{key}"
+      end
     end
   end
 
