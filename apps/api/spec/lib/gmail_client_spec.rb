@@ -68,6 +68,7 @@ RSpec.describe GmailClient do
           .with("gmail_quota:project", 10)
           .and_return(GmailClient::PER_PROJECT_LIMIT + 1)
         allow(redis).to receive(:expire)
+        allow(redis).to receive(:decrby)
       end
 
       it "raises QuotaExceededError" do
@@ -84,6 +85,7 @@ RSpec.describe GmailClient do
           .with("gmail_quota:user:#{token_hash}", 10)
           .and_return(GmailClient::PER_USER_LIMIT + 1)
         allow(redis).to receive(:expire)
+        allow(redis).to receive(:decrby)
       end
 
       it "raises QuotaExceededError" do
