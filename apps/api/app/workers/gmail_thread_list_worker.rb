@@ -9,12 +9,20 @@ class GmailThreadListWorker
   # @param after_date [String, nil] ISO 8601 date string (e.g. "2024-01-01")
   def perform(user_id, after_date)
     access_token = UserStore.access_token.fetch(user_id)
-    query        = IngressDamageReportQuery.new(after_date:)
-    thread_ids   = GmailThreadListFetcher.new(access_token:).call(q: query.to_s)
 
-    return if thread_ids.empty?
+    query = IngressDamageReportQuery.new(after_date:)
+    logger.debug "query: #{query}"
+
+    thread_ids = GmailThreadListFetcher.new(access_token:).call(q: query.to_s)
+    logger.debug "found #{thread_ids.size} threads"
+
+    if thread_ids.empty?
+      logger.debug "no threads found, skipping SQS"
+      return
+    end
 
     SqsClient.new(Settings.sqs_thread_ids_queue_url)
              .send_messages(thread_ids, attributes: { UserStore::USER_ID_ATTR => user_id })
+    logger.debug "sent #{thread_ids.size} thread_ids to SQS"
   end
 end
