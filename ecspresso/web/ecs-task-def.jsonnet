@@ -50,7 +50,7 @@ local imageTag = std.extVar('IMAGE_TAG');
         { name: 'ALLOWED_ORIGINS', value: tfstate('output.allowed_origins') },
         { name: 'SQS_THREAD_IDS_QUEUE_URL', value: tfstate('output.sqs_thread_ids_queue_url') },
         { name: 'SQS_REPORTS_QUEUE_URL', value: tfstate('output.sqs_reports_queue_url') },
-      ],
+      ] + (if env == 'dev' then [{ name: 'RAILS_LOG_LEVEL', value: 'debug' }] else []),
       secrets: [
         {
           name: 'RAILS_MASTER_KEY',
