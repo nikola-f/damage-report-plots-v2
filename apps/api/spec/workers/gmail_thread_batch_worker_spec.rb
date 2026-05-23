@@ -26,6 +26,10 @@ RSpec.describe GmailThreadBatchWorker do
   end
 
   before do
+    allow(REDIS).to receive(:set)
+      .with(GmailThreadBatchWorker::LOCK_KEY, "1", nx: true, ex: GmailThreadBatchWorker::LOCK_TTL)
+      .and_return("OK")
+    allow(REDIS).to receive(:del).with(GmailThreadBatchWorker::LOCK_KEY)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs_client)
     allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(report_sqs_client)
     allow(report_sqs_client).to receive(:poll).and_yield(message)
@@ -133,6 +137,37 @@ RSpec.describe GmailThreadBatchWorker do
 
       it "re-raises" do
         expect { described_class.new.perform }.to raise_error(GmailClient::ApiError)
+      end
+    end
+
+    context "when the lock is already held by another worker" do
+      before do
+        allow(REDIS).to receive(:set)
+          .with(GmailThreadBatchWorker::LOCK_KEY, "1", nx: true, ex: GmailThreadBatchWorker::LOCK_TTL)
+          .and_return(nil)
+      end
+
+      it "skips processing" do
+        described_class.new.perform
+        expect(report_sqs_client).not_to have_received(:poll)
+      end
+
+      it "does not reschedule itself" do
+        described_class.new.perform
+        expect(described_class).not_to have_received(:perform_in)
+      end
+    end
+
+    context "when the lock is acquired" do
+      it "releases the lock in ensure" do
+        described_class.new.perform
+        expect(REDIS).to have_received(:del).with(GmailThreadBatchWorker::LOCK_KEY)
+      end
+
+      it "releases the lock even when processing raises" do
+        allow(report_sqs_client).to receive(:poll).and_raise(RuntimeError)
+        expect { described_class.new.perform }.to raise_error(RuntimeError)
+        expect(REDIS).to have_received(:del).with(GmailThreadBatchWorker::LOCK_KEY)
       end
     end
   end

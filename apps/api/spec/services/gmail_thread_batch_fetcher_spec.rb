@@ -201,5 +201,40 @@ RSpec.describe GmailThreadBatchFetcher do
         expect(gmail_client).to have_received(:batch_get_threads).with(second_batch).twice
       end
     end
+
+    context "when 403 userRateLimitExceeded is raised" do
+      let(:raw_thread) { { "id" => "t1", "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }] } }
+
+      before do
+        allow(fetcher).to receive(:sleep)
+        responses = [
+          -> { raise GmailClient::ApiError, "Gmail API error: 403 User Rate Limit Exceeded (batch part 0)" },
+          -> { [raw_thread] }
+        ]
+        allow(gmail_client).to receive(:batch_get_threads) { responses.shift.call }
+      end
+
+      it "retries and returns results" do
+        result = fetcher.call(%w[t1])
+        expect(result).not_to be_empty
+      end
+
+      it "sleeps before retrying" do
+        fetcher.call(%w[t1])
+        expect(fetcher).to have_received(:sleep).with(1)
+      end
+    end
+
+    context "when 403 insufficientPermissions is raised" do
+      before do
+        allow(gmail_client).to receive(:batch_get_threads)
+          .and_raise(GmailClient::ApiError, "Gmail API error: 403 Insufficient Permission (batch part 0)")
+      end
+
+      it "re-raises immediately without retrying" do
+        expect { fetcher.call(%w[t1]) }
+          .to raise_error(GmailClient::ApiError, /Insufficient Permission/)
+      end
+    end
   end
 end
