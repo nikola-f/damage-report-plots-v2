@@ -17,6 +17,10 @@ RSpec.describe SpreadsheetSyncWorker do
   end
 
   before do
+    allow(REDIS).to receive(:set)
+      .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: SpreadsheetSyncWorker::LOCK_TTL)
+      .and_return("OK")
+    allow(REDIS).to receive(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(sqs_client)
     allow(sqs_client).to receive(:poll).and_yield(message)
     allow(described_class).to receive(:perform_in)
@@ -55,6 +59,37 @@ RSpec.describe SpreadsheetSyncWorker do
         expect { described_class.new.perform }.to raise_error(RuntimeError)
 
         expect(described_class).to have_received(:perform_in).with(SpreadsheetSyncWorker::POLL_INTERVAL)
+      end
+    end
+
+    context "when the lock is already held by another worker" do
+      before do
+        allow(REDIS).to receive(:set)
+          .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: SpreadsheetSyncWorker::LOCK_TTL)
+          .and_return(nil)
+      end
+
+      it "skips processing" do
+        described_class.new.perform
+        expect(sqs_client).not_to have_received(:poll)
+      end
+
+      it "does not reschedule itself" do
+        described_class.new.perform
+        expect(described_class).not_to have_received(:perform_in)
+      end
+    end
+
+    context "when the lock is acquired" do
+      it "releases the lock in ensure" do
+        described_class.new.perform
+        expect(REDIS).to have_received(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
+      end
+
+      it "releases the lock even when processing raises" do
+        allow(sqs_client).to receive(:poll).and_raise(RuntimeError)
+        expect { described_class.new.perform }.to raise_error(RuntimeError)
+        expect(REDIS).to have_received(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
       end
     end
   end
