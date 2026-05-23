@@ -52,9 +52,9 @@ RSpec.describe GmailThreadBatchFetcher do
     end
 
     context "when thread_ids exceeds BATCH_SIZE" do
-      let(:all_ids) { (1..150).map { |i| "t#{i}" } }
-      let(:first_batch)  { all_ids[0..99] }
-      let(:second_batch) { all_ids[100..149] }
+      let(:all_ids) { (1..75).map { |i| "t#{i}" } }
+      let(:first_batch)  { all_ids[0..49] }
+      let(:second_batch) { all_ids[50..74] }
 
       def raw_threads_for(ids)
         ids.map { |id| { "id" => id, "messages" => [{ "id" => "m_#{id}", "internalDate" => "0", "payload" => {} }] } }
@@ -72,7 +72,7 @@ RSpec.describe GmailThreadBatchFetcher do
 
       it "returns all messages concatenated in order" do
         result = fetcher.call(all_ids)
-        expect(result.length).to eq(150)
+        expect(result.length).to eq(75)
         expect(result.map(&:id)).to eq(all_ids.map { |id| "m_#{id}" })
       end
     end
@@ -175,9 +175,9 @@ RSpec.describe GmailThreadBatchFetcher do
     end
 
     context "when 429 affects only one slice of a multi-batch call" do
-      let(:all_ids)      { (1..150).map { |i| "t#{i}" } }
-      let(:first_batch)  { all_ids[0..99] }
-      let(:second_batch) { all_ids[100..149] }
+      let(:all_ids)      { (1..75).map { |i| "t#{i}" } }
+      let(:first_batch)  { all_ids[0..49] }
+      let(:second_batch) { all_ids[50..74] }
 
       def raw_threads_for(ids)
         ids.map { |id| { "id" => id, "messages" => [{ "id" => "m_#{id}", "internalDate" => "0", "payload" => {} }] } }

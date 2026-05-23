@@ -10,7 +10,7 @@
 #     access_token: token
 #   ).call(["id1", "id2", "id3"])
 class GmailThreadBatchFetcher
-  BATCH_SIZE  = 100
+  BATCH_SIZE  = 50
   MAX_BACKOFF = 32  # seconds; exponential backoff cap for Gmail 429 errors
   MAX_RETRIES = 6   # 1+2+4+8+16+32 = 63s total wait, covering one quota window
 
