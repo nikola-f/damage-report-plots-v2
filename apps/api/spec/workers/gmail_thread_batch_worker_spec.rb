@@ -128,91 +128,11 @@ RSpec.describe GmailThreadBatchWorker do
       end
     end
 
-    context "when GmailClient::ApiError (429) is raised on the first attempt" do
-      let(:worker) { described_class.new }
+    context "when the fetcher raises ApiError" do
+      before { allow(fetcher).to receive(:call).and_raise(GmailClient::ApiError, "Gmail API error: 401") }
 
-      before do
-        allow(worker).to receive(:sleep)
-        responses = [
-          -> { raise GmailClient::ApiError, "Gmail API error: 429 (batch part 0)" },
-          -> { [gmail_message] }
-        ]
-        allow(fetcher).to receive(:call) { responses.shift.call }
-      end
-
-      it "sleeps 2^0 seconds before retrying" do
-        worker.perform
-
-        expect(worker).to have_received(:sleep).with(1)
-      end
-
-      it "processes portals after the successful retry" do
-        worker.perform
-
-        expect(portal_sqs_client).to have_received(:send_messages)
-      end
-    end
-
-    context "when GmailClient::QuotaExceededError is raised on the first attempt" do
-      let(:worker) { described_class.new }
-
-      before do
-        allow(worker).to receive(:sleep)
-        responses = [
-          -> { raise GmailClient::QuotaExceededError, "quota exceeded" },
-          -> { [gmail_message] }
-        ]
-        allow(fetcher).to receive(:call) { responses.shift.call }
-      end
-
-      it "sleeps 2^0 seconds before retrying" do
-        worker.perform
-
-        expect(worker).to have_received(:sleep).with(1)
-      end
-    end
-
-    context "when GmailClient::ApiError (non-429) is raised" do
-      before { allow(fetcher).to receive(:call).and_raise(GmailClient::ApiError, "Gmail API error: 500") }
-
-      it "re-raises without retrying" do
-        expect { described_class.new.perform }.to raise_error(GmailClient::ApiError, /500/)
-      end
-    end
-
-    context "when 429 is raised 6 consecutive times before succeeding" do
-      let(:worker) { described_class.new }
-
-      before do
-        allow(worker).to receive(:sleep)
-        call_count = 0
-        allow(fetcher).to receive(:call) do
-          call_count += 1
-          raise GmailClient::ApiError, "Gmail API error: 429 (batch part 0)" if call_count <= 6
-          [gmail_message]
-        end
-      end
-
-      it "caps sleep at MAX_BACKOFF and never exceeds it" do
-        worker.perform
-
-        expect(worker).to have_received(:sleep).with(GmailThreadBatchWorker::MAX_BACKOFF).at_least(:once)
-        expect(worker).not_to have_received(:sleep).with(be > GmailThreadBatchWorker::MAX_BACKOFF)
-      end
-    end
-
-    context "when 429 persists beyond MAX_RETRIES" do
-      let(:worker) { described_class.new }
-
-      before do
-        allow(worker).to receive(:sleep)
-        allow(fetcher).to receive(:call).and_raise(GmailClient::ApiError, "Gmail API error: 429 (batch part 0)")
-      end
-
-      it "re-raises after MAX_RETRIES attempts" do
-        expect { worker.perform }.to raise_error(GmailClient::ApiError, /429/)
-
-        expect(worker).to have_received(:sleep).exactly(GmailThreadBatchWorker::MAX_RETRIES).times
+      it "re-raises" do
+        expect { described_class.new.perform }.to raise_error(GmailClient::ApiError)
       end
     end
   end

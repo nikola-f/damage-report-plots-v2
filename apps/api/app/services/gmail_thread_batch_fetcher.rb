@@ -10,7 +10,9 @@
 #     access_token: token
 #   ).call(["id1", "id2", "id3"])
 class GmailThreadBatchFetcher
-  BATCH_SIZE = 100
+  BATCH_SIZE  = 100
+  MAX_BACKOFF = 32  # seconds; exponential backoff cap for Gmail 429 errors
+  MAX_RETRIES = 6   # 1+2+4+8+16+32 = 63s total wait, covering one quota window
 
   def initialize(access_token:, gmail_client: nil)
     @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)
@@ -22,10 +24,21 @@ class GmailThreadBatchFetcher
     return [] if thread_ids.empty?
 
     thread_ids.each_slice(BATCH_SIZE).flat_map do |batch|
-      @gmail_client.batch_get_threads(batch).flat_map do |raw|
-        next [] if raw.nil?
-        (raw["messages"] || []).map { |m| GmailMessage.new(m) }
-      end
+      fetch_with_retry(batch)
     end
+  end
+
+  private
+
+  def fetch_with_retry(batch, attempt: 0)
+    @gmail_client.batch_get_threads(batch).flat_map do |raw|
+      next [] if raw.nil?
+      (raw["messages"] || []).map { |m| GmailMessage.new(m) }
+    end
+  rescue GmailClient::ApiError => e
+    raise unless e.message.include?("429")
+    raise if attempt >= MAX_RETRIES
+    sleep [2**attempt, MAX_BACKOFF].min
+    fetch_with_retry(batch, attempt: attempt + 1)
   end
 end
