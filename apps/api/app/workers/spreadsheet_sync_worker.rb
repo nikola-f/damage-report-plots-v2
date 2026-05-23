@@ -5,20 +5,32 @@ class SpreadsheetSyncWorker
 
   sidekiq_options retry: 0
 
-  POLL_INTERVAL = 30 # seconds
+  POLL_INTERVAL = 30  # seconds
   SHEET_NAME    = "reports"
+  LOCK_KEY      = "spreadsheet_sync_worker:lock"
+  LOCK_TTL      = 300 # seconds
 
   def perform
-    SqsClient.new(Settings.sqs_reports_queue_url).poll(
-      message_attribute_names: [UserStore::USER_ID_ATTR]
-    ) do |message|
-      user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
-      records = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
+    acquired = REDIS.set(LOCK_KEY, "1", nx: true, ex: LOCK_TTL)
 
-      process(user_id:, records:)
+    unless acquired
+      logger.debug "another SpreadsheetSyncWorker is running, skipping"
+      return
     end
-  ensure
-    self.class.perform_in(POLL_INTERVAL)
+
+    begin
+      SqsClient.new(Settings.sqs_reports_queue_url).poll(
+        message_attribute_names: [UserStore::USER_ID_ATTR]
+      ) do |message|
+        user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
+        records = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
+
+        process(user_id:, records:)
+      end
+    ensure
+      REDIS.del(LOCK_KEY)
+      self.class.perform_in(POLL_INTERVAL)
+    end
   end
 
   private
