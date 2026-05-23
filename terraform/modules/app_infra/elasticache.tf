@@ -8,7 +8,7 @@ resource "aws_elasticache_replication_group" "main" {
   description          = "Valkey for ${local.name_prefix}"
 
   engine         = "valkey"
-  engine_version = "8"
+  engine_version = "8.0"
   node_type      = "cache.t4g.micro"
   num_cache_clusters = 1
 
