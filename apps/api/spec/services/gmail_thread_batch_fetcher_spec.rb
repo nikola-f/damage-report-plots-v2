@@ -225,6 +225,30 @@ RSpec.describe GmailThreadBatchFetcher do
       end
     end
 
+    context "when 403 Quota exceeded (per-user QPM limit) is raised" do
+      let(:quota_error) { "Gmail API error: 403 Quota exceeded for quota metric 'Queries' and limit 'Queries per minute per user' of service 'gmail.googleapis.com' (batch part 0)" }
+      let(:raw_thread) { { "id" => "t1", "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }] } }
+
+      before do
+        allow(fetcher).to receive(:sleep)
+        responses = [
+          -> { raise GmailClient::ApiError, quota_error },
+          -> { [raw_thread] }
+        ]
+        allow(gmail_client).to receive(:batch_get_threads) { responses.shift.call }
+      end
+
+      it "retries and returns results" do
+        result = fetcher.call(%w[t1])
+        expect(result).not_to be_empty
+      end
+
+      it "sleeps before retrying" do
+        fetcher.call(%w[t1])
+        expect(fetcher).to have_received(:sleep).with(1)
+      end
+    end
+
     context "when 403 insufficientPermissions is raised" do
       before do
         allow(gmail_client).to receive(:batch_get_threads)
