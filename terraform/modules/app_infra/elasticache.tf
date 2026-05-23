@@ -7,9 +7,9 @@ resource "aws_elasticache_replication_group" "main" {
   replication_group_id = "${local.name_prefix}-valkey"
   description          = "Valkey for ${local.name_prefix}"
 
-  engine         = "valkey"
-  engine_version = "8.0"
-  node_type      = "cache.t4g.micro"
+  engine             = "valkey"
+  engine_version     = "8.0"
+  node_type          = "cache.t4g.micro"
   num_cache_clusters = 1
 
   subnet_group_name  = aws_elasticache_subnet_group.main.name
