@@ -61,7 +61,7 @@ output "log_group_worker" {
 output "redis_url" {
   description = "Valkey connection URL"
   sensitive   = true
-  value       = "rediss://${aws_elasticache_serverless_cache.main.endpoint[0].address}:6379/0"
+  value       = "rediss://${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0"
 }
 
 output "sqs_thread_ids_queue_url" {

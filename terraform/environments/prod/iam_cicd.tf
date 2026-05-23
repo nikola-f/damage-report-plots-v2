@@ -163,8 +163,11 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       {
         Effect = "Allow"
         Action = [
-          "elasticache:CreateServerlessCache", "elasticache:DeleteServerlessCache",
-          "elasticache:DescribeServerlessCaches", "elasticache:ModifyServerlessCache",
+          "elasticache:CreateReplicationGroup", "elasticache:DeleteReplicationGroup",
+          "elasticache:DescribeReplicationGroups", "elasticache:ModifyReplicationGroup",
+          "elasticache:CreateCacheSubnetGroup", "elasticache:DeleteCacheSubnetGroup",
+          "elasticache:DescribeCacheSubnetGroups", "elasticache:ModifyCacheSubnetGroup",
+          "elasticache:DescribeCacheClusters",
           "elasticache:AddTagsToResource", "elasticache:ListTagsForResource", "elasticache:RemoveTagsFromResource",
           "elasticache:DescribeCacheEngineVersions",
         ]
