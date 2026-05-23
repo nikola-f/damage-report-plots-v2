@@ -44,4 +44,8 @@ resource "aws_secretsmanager_secret" "redis_url" {
 resource "aws_secretsmanager_secret_version" "redis_url" {
   secret_id     = aws_secretsmanager_secret.redis_url.id
   secret_string = "rediss://${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0"
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }
