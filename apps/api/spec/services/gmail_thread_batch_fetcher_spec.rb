@@ -117,5 +117,89 @@ RSpec.describe GmailThreadBatchFetcher do
           .to raise_error(GmailClient::ApiError, "401 Unauthorized")
       end
     end
+
+    context "when batch_get_threads raises 429 on the first attempt" do
+      let(:raw_thread) { { "id" => "t1", "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }] } }
+
+      before do
+        allow(fetcher).to receive(:sleep)
+        responses = [
+          -> { raise GmailClient::ApiError, "Gmail API error: 429 (batch part 0)" },
+          -> { [raw_thread] }
+        ]
+        allow(gmail_client).to receive(:batch_get_threads) { responses.shift.call }
+      end
+
+      it "sleeps 2^0 seconds before retrying" do
+        fetcher.call(%w[t1])
+        expect(fetcher).to have_received(:sleep).with(1)
+      end
+
+      it "returns results after the successful retry" do
+        result = fetcher.call(%w[t1])
+        expect(result).not_to be_empty
+      end
+    end
+
+    context "when 429 persists beyond MAX_RETRIES" do
+      before do
+        allow(fetcher).to receive(:sleep)
+        allow(gmail_client).to receive(:batch_get_threads)
+          .and_raise(GmailClient::ApiError, "Gmail API error: 429 (batch part 0)")
+      end
+
+      it "re-raises after MAX_RETRIES attempts" do
+        expect { fetcher.call(%w[t1]) }.to raise_error(GmailClient::ApiError, /429/)
+        expect(fetcher).to have_received(:sleep).exactly(GmailThreadBatchFetcher::MAX_RETRIES).times
+      end
+    end
+
+    context "when 429 is raised 6 consecutive times before succeeding" do
+      let(:raw_thread) { { "id" => "t1", "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }] } }
+
+      before do
+        allow(fetcher).to receive(:sleep)
+        call_count = 0
+        allow(gmail_client).to receive(:batch_get_threads) do
+          call_count += 1
+          raise GmailClient::ApiError, "Gmail API error: 429 (batch part 0)" if call_count <= 6
+          [raw_thread]
+        end
+      end
+
+      it "caps sleep at MAX_BACKOFF" do
+        fetcher.call(%w[t1])
+        expect(fetcher).to have_received(:sleep).with(GmailThreadBatchFetcher::MAX_BACKOFF).at_least(:once)
+        expect(fetcher).not_to have_received(:sleep).with(be > GmailThreadBatchFetcher::MAX_BACKOFF)
+      end
+    end
+
+    context "when 429 affects only one slice of a multi-batch call" do
+      let(:all_ids)      { (1..150).map { |i| "t#{i}" } }
+      let(:first_batch)  { all_ids[0..99] }
+      let(:second_batch) { all_ids[100..149] }
+
+      def raw_threads_for(ids)
+        ids.map { |id| { "id" => id, "messages" => [{ "id" => "m_#{id}", "internalDate" => "0", "payload" => {} }] } }
+      end
+
+      before do
+        allow(fetcher).to receive(:sleep)
+        second_batch_calls = 0
+        allow(gmail_client).to receive(:batch_get_threads).with(first_batch)
+          .and_return(raw_threads_for(first_batch))
+        allow(gmail_client).to receive(:batch_get_threads).with(second_batch) do
+          second_batch_calls += 1
+          raise GmailClient::ApiError, "Gmail API error: 429 (batch part 0)" if second_batch_calls == 1
+          raw_threads_for(second_batch)
+        end
+      end
+
+      it "retries only the failing slice without repeating the first slice" do
+        fetcher.call(all_ids)
+        expect(gmail_client).to have_received(:batch_get_threads).with(first_batch).once
+        expect(gmail_client).to have_received(:batch_get_threads).with(second_batch).twice
+      end
+    end
   end
 end
