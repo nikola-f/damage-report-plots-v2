@@ -168,6 +168,8 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "elasticache:CreateCacheSubnetGroup", "elasticache:DeleteCacheSubnetGroup",
           "elasticache:DescribeCacheSubnetGroups", "elasticache:ModifyCacheSubnetGroup",
           "elasticache:DescribeCacheClusters",
+          # keep Serverless read/delete until migration is complete
+          "elasticache:DescribeServerlessCaches", "elasticache:DeleteServerlessCache",
           "elasticache:AddTagsToResource", "elasticache:ListTagsForResource", "elasticache:RemoveTagsFromResource",
           "elasticache:DescribeCacheEngineVersions",
         ]
