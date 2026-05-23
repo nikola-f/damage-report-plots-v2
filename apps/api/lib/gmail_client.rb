@@ -162,7 +162,11 @@ class GmailClient
 
     status_code = http_head.lines.first.to_s.split[1].to_i
 
-    raise ApiError, "Gmail API error: #{status_code} (batch part #{index})" unless (200..299).cover?(status_code)
+    unless (200..299).cover?(status_code)
+      error_message = JSON.parse(json_body.strip).dig("error", "message") rescue nil
+      detail = [status_code.to_s, error_message, "(batch part #{index})"].compact.join(" ")
+      raise ApiError, "Gmail API error: #{detail}"
+    end
 
     [index, JSON.parse(json_body.strip)]
   end

@@ -340,6 +340,11 @@ RSpec.describe GmailClient do
         expect { client.batch_get_threads(%w[thread_1 thread_missing]) }
           .to raise_error(GmailClient::ApiError, /404/)
       end
+
+      it "includes the error message from the response body" do
+        expect { client.batch_get_threads(%w[thread_1 thread_missing]) }
+          .to raise_error(GmailClient::ApiError, /Not Found/)
+      end
     end
 
     context "when the outer request returns 401" do
