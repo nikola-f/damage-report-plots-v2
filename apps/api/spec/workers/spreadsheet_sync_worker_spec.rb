@@ -3,16 +3,18 @@
 require "rails_helper"
 
 RSpec.describe SpreadsheetSyncWorker do
-  let(:user_id) { "12345678901234567" }
-  let(:record)    { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
-  let(:sqs_client){ instance_double(SqsClient) }
+  let(:user_id)        { "12345678901234567" }
+  let(:receipt_handle) { "fake-receipt-handle" }
+  let(:record)         { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
+  let(:sqs_client)     { instance_double(SqsClient) }
 
   let(:message) do
     user_id_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: user_id)
     instance_double(
       Aws::SQS::Types::Message,
       body: JSON.generate([record.to_h]),
-      message_attributes: { UserStore::USER_ID_ATTR => user_id_attr }
+      message_attributes: { UserStore::USER_ID_ATTR => user_id_attr },
+      receipt_handle: receipt_handle
     )
   end
 
@@ -22,19 +24,21 @@ RSpec.describe SpreadsheetSyncWorker do
       .and_return("OK")
     allow(REDIS).to receive(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(sqs_client)
-    allow(sqs_client).to receive(:poll).and_yield(message)
+    allow(sqs_client).to receive(:receive_messages).and_return([message], [])
+    allow(sqs_client).to receive(:delete_messages)
     allow(described_class).to receive(:perform_in)
   end
 
   describe "#perform" do
     before { allow_any_instance_of(described_class).to receive(:process) }
 
-    it "polls the portal queue with user_id attribute" do
+    it "receives messages with user_id attribute" do
       described_class.new.perform
 
-      expect(sqs_client).to have_received(:poll).with(
-        message_attribute_names: [UserStore::USER_ID_ATTR]
-      )
+      expect(sqs_client).to have_received(:receive_messages).with(
+        message_attribute_names: [UserStore::USER_ID_ATTR],
+        max_messages: 1
+      ).at_least(:once)
     end
 
     it "deserializes the message body into DamageReportRecord objects" do
@@ -46,6 +50,12 @@ RSpec.describe SpreadsheetSyncWorker do
       expect(worker).to have_received(:process).with(user_id:, records: [record])
     end
 
+    it "deletes the SQS message after successful processing" do
+      described_class.new.perform
+
+      expect(sqs_client).to have_received(:delete_messages).with(receipt_handle)
+    end
+
     it "reschedules itself after polling" do
       described_class.new.perform
 
@@ -53,7 +63,7 @@ RSpec.describe SpreadsheetSyncWorker do
     end
 
     context "when an error occurs during processing" do
-      before { allow(sqs_client).to receive(:poll).and_raise(RuntimeError) }
+      before { allow(sqs_client).to receive(:receive_messages).and_raise(RuntimeError) }
 
       it "still reschedules itself" do
         expect { described_class.new.perform }.to raise_error(RuntimeError)
@@ -71,7 +81,7 @@ RSpec.describe SpreadsheetSyncWorker do
 
       it "skips processing" do
         described_class.new.perform
-        expect(sqs_client).not_to have_received(:poll)
+        expect(sqs_client).not_to have_received(:receive_messages)
       end
 
       it "does not reschedule itself" do
@@ -87,7 +97,7 @@ RSpec.describe SpreadsheetSyncWorker do
       end
 
       it "releases the lock even when processing raises" do
-        allow(sqs_client).to receive(:poll).and_raise(RuntimeError)
+        allow(sqs_client).to receive(:receive_messages).and_raise(RuntimeError)
         expect { described_class.new.perform }.to raise_error(RuntimeError)
         expect(REDIS).to have_received(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
       end

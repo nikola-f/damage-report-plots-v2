@@ -19,14 +19,24 @@ class SpreadsheetSyncWorker
     end
 
     begin
-      SqsClient.new(Settings.sqs_reports_queue_url).poll(
-        message_attribute_names: [UserStore::USER_ID_ATTR]
-      ) do |message|
+      sqs = SqsClient.new(Settings.sqs_reports_queue_url)
+
+      loop do
+        messages = sqs.receive_messages(
+          message_attribute_names: [UserStore::USER_ID_ATTR],
+          max_messages: 1
+        )
+        break if messages.empty?
+
+        message = messages.first
         user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
         records = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
         logger.debug "received #{records.size} records for user #{user_id}"
 
         process(user_id:, records:)
+
+        sqs.delete_messages(message.receipt_handle)
+        logger.debug "deleted records message for user #{user_id}"
       end
     ensure
       REDIS.del(LOCK_KEY)
