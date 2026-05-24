@@ -5,9 +5,10 @@ class GmailThreadBatchWorker
 
   sidekiq_options retry: 0
 
-  POLL_INTERVAL = 30  # seconds
-  LOCK_KEY      = "gmail_thread_batch_worker:lock"
-  LOCK_TTL      = 900 # seconds; covers actual processing time (~530s observed)
+  POLL_INTERVAL      = 30  # seconds
+  LOCK_KEY           = "gmail_thread_batch_worker:lock"
+  LOCK_TTL           = 900 # seconds; covers actual processing time (~530s observed)
+  PORTALS_CHUNK_SIZE = 10 * 1024 # bytes; keeps send_message_batch well under SQS 1MB batch limit
 
   def perform
     acquired = REDIS.set(LOCK_KEY, "1", nx: true, ex: LOCK_TTL)
@@ -42,7 +43,9 @@ class GmailThreadBatchWorker
       else
         portals_by_user.each do |user_id, portals|
           unique_portals = portals.uniq
-          sqs.send_messages(unique_portals.map(&:to_h), attributes: { UserStore::USER_ID_ATTR => user_id })
+          sqs.send_messages(unique_portals.map(&:to_h),
+                            attributes: { UserStore::USER_ID_ATTR => user_id },
+                            max_message_size: PORTALS_CHUNK_SIZE)
           logger.debug "sent #{unique_portals.size} portals to SQS for user #{user_id}"
         end
       end
