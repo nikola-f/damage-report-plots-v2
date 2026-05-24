@@ -73,8 +73,8 @@ class SqsClient
   #
   # @param message_attribute_names [Array<String>] SQS message attribute names to retrieve
   # @yieldparam message [Aws::SQS::Types::Message]
-  def poll(message_attribute_names: [], &block)
-    messages = receive_messages(message_attribute_names:)
+  def poll(message_attribute_names: [], max_messages: MAX_RECEIVE_MESSAGES, &block)
+    messages = receive_messages(message_attribute_names:, max_messages:)
     messages.each { |msg| block.call(msg) }
     delete_messages(messages.map(&:receipt_handle)) if messages.any?
   end
@@ -89,9 +89,10 @@ class SqsClient
   # This method stops early if an empty response is returned.
   #
   # @param message_attribute_names [Array<String>] SQS message attribute names to retrieve (e.g. ["token_key"])
+  # @param max_messages [Integer] maximum number of messages to receive (default: MAX_RECEIVE_MESSAGES)
   # @return [Array<Aws::SQS::Types::Message>] each element has .body, .receipt_handle, and .message_attributes
-  def receive_messages(message_attribute_names: [])
-    remaining = MAX_RECEIVE_MESSAGES
+  def receive_messages(message_attribute_names: [], max_messages: MAX_RECEIVE_MESSAGES)
+    remaining = max_messages
     messages  = []
 
     while remaining.positive?

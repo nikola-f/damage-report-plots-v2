@@ -34,8 +34,8 @@ RSpec.describe GmailThreadBatchWorker do
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs_client)
     allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(report_sqs_client)
     allow(report_sqs_client).to receive(:receive_messages)
-      .with(message_attribute_names: [UserStore::USER_ID_ATTR])
-      .and_return([message])
+      .with(message_attribute_names: [UserStore::USER_ID_ATTR], max_messages: 1)
+      .and_return([message], [])
     allow(report_sqs_client).to receive(:delete_messages)
     allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(GmailThreadBatchFetcher).to receive(:new).and_return(fetcher)
@@ -44,11 +44,12 @@ RSpec.describe GmailThreadBatchWorker do
   end
 
   describe "#perform" do
-    it "receives messages from the thread_ids queue with user_id attribute" do
+    it "receives messages one at a time with user_id attribute" do
       described_class.new.perform
 
       expect(report_sqs_client).to have_received(:receive_messages)
-        .with(message_attribute_names: [UserStore::USER_ID_ATTR])
+        .with(message_attribute_names: [UserStore::USER_ID_ATTR], max_messages: 1)
+        .at_least(:once)
     end
 
     it "fetches the access token using user_id" do
@@ -114,8 +115,8 @@ RSpec.describe GmailThreadBatchWorker do
 
       before do
         allow(report_sqs_client).to receive(:receive_messages)
-          .with(message_attribute_names: [UserStore::USER_ID_ATTR])
-          .and_return([message, other_message])
+          .with(message_attribute_names: [UserStore::USER_ID_ATTR], max_messages: 1)
+          .and_return([message], [other_message], [])
         allow(UserStore).to receive(:access_token).and_return(token_store, other_token_store)
         allow(GmailThreadBatchFetcher).to receive(:new).with(access_token: other_access_token).and_return(fetcher)
       end
