@@ -19,35 +19,36 @@ class GmailThreadBatchWorker
     end
 
     begin
-      sqs             = SqsClient.new(Settings.sqs_reports_queue_url)
-      portals_by_user = Hash.new { |h, k| h[k] = [] }
+      portal_sqs = SqsClient.new(Settings.sqs_reports_queue_url)
+      thread_sqs = SqsClient.new(Settings.sqs_thread_ids_queue_url)
+      messages   = thread_sqs.receive_messages(message_attribute_names: [UserStore::USER_ID_ATTR])
 
-      SqsClient.new(Settings.sqs_thread_ids_queue_url).poll(message_attribute_names: [UserStore::USER_ID_ATTR]) do |message|
-        user_id      = message.message_attributes[UserStore::USER_ID_ATTR].string_value
-        thread_ids   = JSON.parse(message.body)
+      messages.each do |message|
+        user_id    = message.message_attributes[UserStore::USER_ID_ATTR].string_value
+        thread_ids = JSON.parse(message.body)
         logger.debug "received #{thread_ids.size} thread_ids for user #{user_id}"
 
         access_token   = UserStore.access_token.fetch(user_id)
         gmail_messages = GmailThreadBatchFetcher.new(access_token:).call(thread_ids)
         logger.debug "fetched #{gmail_messages.size} gmail messages"
 
+        portals = []
         gmail_messages.each do |gmail_message|
           gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date)&.each do |portal|
-            portals_by_user[user_id] << portal
+            portals << portal
           end
         end
-      end
 
-      if portals_by_user.empty?
-        logger.debug "no portals to send"
-      else
-        portals_by_user.each do |user_id, portals|
-          unique_portals = portals.uniq
-          sqs.send_messages(unique_portals.map(&:to_h),
-                            attributes: { UserStore::USER_ID_ATTR => user_id },
-                            max_message_size: PORTALS_CHUNK_SIZE)
+        unique_portals = portals.uniq
+        if unique_portals.any?
+          portal_sqs.send_messages(unique_portals.map(&:to_h),
+                                   attributes: { UserStore::USER_ID_ATTR => user_id },
+                                   max_message_size: PORTALS_CHUNK_SIZE)
           logger.debug "sent #{unique_portals.size} portals to SQS for user #{user_id}"
         end
+
+        thread_sqs.delete_messages(message.receipt_handle)
+        logger.debug "deleted thread_ids message for user #{user_id}"
       end
     ensure
       REDIS.del(LOCK_KEY)
