@@ -68,7 +68,7 @@ jobs:
         working-directory: ecspresso/worker
         run: |
           if [ -n "${{ inputs.image_tag }}" ]; then
-            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --ext-str IMAGE_TAG=${{ inputs.image_tag }}
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --ext-str IMAGE_TAG=${{ inputs.image_tag }} --force-new-deployment
           else
-            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --skip-task-definition
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --skip-task-definition --force-new-deployment
           fi
