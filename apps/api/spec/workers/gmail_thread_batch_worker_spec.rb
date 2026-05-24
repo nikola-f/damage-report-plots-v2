@@ -21,7 +21,8 @@ RSpec.describe GmailThreadBatchWorker do
     instance_double(
       Aws::SQS::Types::Message,
       body: JSON.generate(thread_ids),
-      message_attributes: { UserStore::USER_ID_ATTR => user_id_attr }
+      message_attributes: { UserStore::USER_ID_ATTR => user_id_attr },
+      receipt_handle: "rh-1"
     )
   end
 
@@ -32,7 +33,10 @@ RSpec.describe GmailThreadBatchWorker do
     allow(REDIS).to receive(:del).with(GmailThreadBatchWorker::LOCK_KEY)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs_client)
     allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(report_sqs_client)
-    allow(report_sqs_client).to receive(:poll).and_yield(message)
+    allow(report_sqs_client).to receive(:receive_messages)
+      .with(message_attribute_names: [UserStore::USER_ID_ATTR])
+      .and_return([message])
+    allow(report_sqs_client).to receive(:delete_messages)
     allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(GmailThreadBatchFetcher).to receive(:new).and_return(fetcher)
     allow(decoder).to receive(:extract_portals).with(internal_date:).and_return([portal])
@@ -40,10 +44,11 @@ RSpec.describe GmailThreadBatchWorker do
   end
 
   describe "#perform" do
-    it "polls the report queue with user_id attribute" do
+    it "receives messages from the thread_ids queue with user_id attribute" do
       described_class.new.perform
 
-      expect(report_sqs_client).to have_received(:poll).with(message_attribute_names: [UserStore::USER_ID_ATTR])
+      expect(report_sqs_client).to have_received(:receive_messages)
+        .with(message_attribute_names: [UserStore::USER_ID_ATTR])
     end
 
     it "fetches the access token using user_id" do
@@ -68,7 +73,13 @@ RSpec.describe GmailThreadBatchWorker do
               max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
     end
 
-    it "reschedules itself after polling" do
+    it "deletes the thread_ids message after successfully processing it" do
+      described_class.new.perform
+
+      expect(report_sqs_client).to have_received(:delete_messages).with("rh-1")
+    end
+
+    it "reschedules itself after processing" do
       described_class.new.perform
 
       expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
@@ -96,17 +107,20 @@ RSpec.describe GmailThreadBatchWorker do
         instance_double(
           Aws::SQS::Types::Message,
           body: JSON.generate(thread_ids),
-          message_attributes: { UserStore::USER_ID_ATTR => user_id_attr }
+          message_attributes: { UserStore::USER_ID_ATTR => user_id_attr },
+          receipt_handle: "rh-2"
         )
       end
 
       before do
-        allow(report_sqs_client).to receive(:poll).and_yield(message).and_yield(other_message)
+        allow(report_sqs_client).to receive(:receive_messages)
+          .with(message_attribute_names: [UserStore::USER_ID_ATTR])
+          .and_return([message, other_message])
         allow(UserStore).to receive(:access_token).and_return(token_store, other_token_store)
         allow(GmailThreadBatchFetcher).to receive(:new).with(access_token: other_access_token).and_return(fetcher)
       end
 
-      it "sends portals once per user with each user's user_id" do
+      it "sends portals once per message with each user's user_id" do
         described_class.new.perform
 
         expect(portal_sqs_client).to have_received(:send_messages)
@@ -118,6 +132,13 @@ RSpec.describe GmailThreadBatchWorker do
                 attributes: { UserStore::USER_ID_ATTR => other_user_id },
                 max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
       end
+
+      it "deletes both messages" do
+        described_class.new.perform
+
+        expect(report_sqs_client).to have_received(:delete_messages).with("rh-1")
+        expect(report_sqs_client).to have_received(:delete_messages).with("rh-2")
+      end
     end
 
     context "when html_decoder returns nil" do
@@ -128,10 +149,16 @@ RSpec.describe GmailThreadBatchWorker do
 
         expect(portal_sqs_client).not_to have_received(:send_messages)
       end
+
+      it "still deletes the message" do
+        described_class.new.perform
+
+        expect(report_sqs_client).to have_received(:delete_messages).with("rh-1")
+      end
     end
 
     context "when an error occurs during processing" do
-      before { allow(report_sqs_client).to receive(:poll).and_raise(RuntimeError) }
+      before { allow(fetcher).to receive(:call).and_raise(RuntimeError) }
 
       it "still reschedules itself" do
         expect { described_class.new.perform }.to raise_error(RuntimeError)
@@ -146,6 +173,12 @@ RSpec.describe GmailThreadBatchWorker do
       it "re-raises" do
         expect { described_class.new.perform }.to raise_error(GmailClient::ApiError)
       end
+
+      it "does not delete the message" do
+        expect { described_class.new.perform }.to raise_error(GmailClient::ApiError)
+
+        expect(report_sqs_client).not_to have_received(:delete_messages)
+      end
     end
 
     context "when the lock is already held by another worker" do
@@ -157,7 +190,7 @@ RSpec.describe GmailThreadBatchWorker do
 
       it "skips processing" do
         described_class.new.perform
-        expect(report_sqs_client).not_to have_received(:poll)
+        expect(report_sqs_client).not_to have_received(:receive_messages)
       end
 
       it "does not reschedule itself" do
@@ -173,7 +206,7 @@ RSpec.describe GmailThreadBatchWorker do
       end
 
       it "releases the lock even when processing raises" do
-        allow(report_sqs_client).to receive(:poll).and_raise(RuntimeError)
+        allow(fetcher).to receive(:call).and_raise(RuntimeError)
         expect { described_class.new.perform }.to raise_error(RuntimeError)
         expect(REDIS).to have_received(:del).with(GmailThreadBatchWorker::LOCK_KEY)
       end
