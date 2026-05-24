@@ -24,6 +24,7 @@ class SpreadsheetSyncWorker
       ) do |message|
         user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
         records = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
+        logger.debug "received #{records.size} records for user #{user_id}"
 
         process(user_id:, records:)
       end
@@ -45,6 +46,7 @@ class SpreadsheetSyncWorker
       sheet_name:     SHEET_NAME,
       rows:           rows
     )
+    logger.debug "appended #{rows.size} rows for user #{user_id}"
   end
 
   def to_row(record)
