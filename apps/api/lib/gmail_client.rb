@@ -155,7 +155,7 @@ class GmailClient
     # Split outer MIME headers from inner HTTP response on first blank line
     mime_headers_section, http_response = part.split(/\r?\n\r?\n/, 2)
 
-    index = mime_headers_section[/Content-ID:\s*response-(\d+)/i, 1].to_i
+    index = mime_headers_section[/Content-ID:\s*<?response-(\d+)>?/i, 1].to_i
 
     # Split HTTP status line + headers from JSON body on first blank line
     http_head, json_body = http_response.split(/\r?\n\r?\n/, 2)

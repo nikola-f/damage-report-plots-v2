@@ -278,6 +278,41 @@ RSpec.describe GmailClient do
       end
     end
 
+    context "when Content-ID uses angle brackets (<response-N> format, as per RFC 2392)" do
+      let(:thread_1) { { "id" => "thread_1", "messages" => [] } }
+      let(:thread_2) { { "id" => "thread_2", "messages" => [] } }
+
+      before do
+        body =
+          "--#{boundary}\r\n" \
+          "Content-Type: application/http\r\n" \
+          "Content-ID: <response-0>\r\n" \
+          "\r\n" \
+          "HTTP/1.1 200 OK\r\n" \
+          "Content-Type: application/json\r\n" \
+          "\r\n" \
+          "#{thread_1.to_json}\r\n" \
+          "--#{boundary}\r\n" \
+          "Content-Type: application/http\r\n" \
+          "Content-ID: <response-1>\r\n" \
+          "\r\n" \
+          "HTTP/1.1 200 OK\r\n" \
+          "Content-Type: application/json\r\n" \
+          "\r\n" \
+          "#{thread_2.to_json}\r\n" \
+          "--#{boundary}--\r\n"
+
+        stub_request(:post, "https://www.googleapis.com/batch/gmail/v1")
+          .to_return(status: 200, body: body,
+                     headers: { "Content-Type" => content_type })
+      end
+
+      it "returns all threads in the correct order" do
+        result = client.batch_get_threads(%w[thread_1 thread_2])
+        expect(result.map { |t| t["id"] }).to eq(%w[thread_1 thread_2])
+      end
+    end
+
     context "when response parts arrive in reverse order" do
       let(:thread_a) { { "id" => "thread_a", "messages" => [] } }
       let(:thread_b) { { "id" => "thread_b", "messages" => [] } }
