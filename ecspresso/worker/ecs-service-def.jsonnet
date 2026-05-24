@@ -2,7 +2,9 @@ local tfstate = std.native('tfstate');
 
 {
   desiredCount: 1,
-  launchType: 'FARGATE',
+  capacityProviderStrategy: [
+    { capacityProvider: 'FARGATE_SPOT', weight: 1, base: 0 },
+  ],
   networkConfiguration: {
     awsvpcConfiguration: {
       subnets: std.split(tfstate('output.public_subnet_ids_csv'), ','),
