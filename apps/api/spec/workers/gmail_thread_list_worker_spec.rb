@@ -31,11 +31,13 @@ RSpec.describe GmailThreadListWorker do
       )
     end
 
-    it "sends thread IDs to SQS with user_id as attribute" do
+    it "sends thread IDs to SQS with user_id as attribute and 10KB chunk size" do
       described_class.new.perform(user_id, "2024-01-01")
 
       expect(sqs_client).to have_received(:send_messages)
-        .with(%w[t1 t2], attributes: { UserStore::USER_ID_ATTR => user_id })
+        .with(%w[t1 t2],
+              attributes: { UserStore::USER_ID_ATTR => user_id },
+              max_message_size: GmailThreadListWorker::THREAD_IDS_CHUNK_SIZE)
     end
 
     context "when there are no thread IDs" do
