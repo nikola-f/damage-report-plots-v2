@@ -259,7 +259,19 @@ RSpec.describe SqsClient do
       it "passes them to receive_messages" do
         client.poll(message_attribute_names: ["token_key"]) { }
 
-        expect(client).to have_received(:receive_messages).with(message_attribute_names: ["token_key"])
+        expect(client).to have_received(:receive_messages)
+          .with(message_attribute_names: ["token_key"], max_messages: SqsClient::MAX_RECEIVE_MESSAGES)
+      end
+    end
+
+    context "when max_messages: is specified" do
+      before { allow(client).to receive(:receive_messages).and_return([]) }
+
+      it "passes max_messages to receive_messages" do
+        client.poll(max_messages: 3) { }
+
+        expect(client).to have_received(:receive_messages)
+          .with(message_attribute_names: [], max_messages: 3)
       end
     end
 
@@ -365,6 +377,21 @@ RSpec.describe SqsClient do
         ).and_return(build_response)
 
         client.receive_messages
+      end
+    end
+
+    context "when max_messages: is specified" do
+      it "limits the number of messages returned" do
+        msgs = Array.new(3) { |i| build_message(i) }
+
+        allow(aws_client).to receive(:receive_message)
+          .and_return(build_response(*msgs), build_response)
+
+        result = client.receive_messages(max_messages: 3)
+
+        expect(result.size).to eq(3)
+        expect(aws_client).to have_received(:receive_message)
+          .with(hash_including(max_number_of_messages: 3)).once
       end
     end
   end

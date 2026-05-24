@@ -21,9 +21,15 @@ class GmailThreadBatchWorker
     begin
       portal_sqs = SqsClient.new(Settings.sqs_reports_queue_url)
       thread_sqs = SqsClient.new(Settings.sqs_thread_ids_queue_url)
-      messages   = thread_sqs.receive_messages(message_attribute_names: [UserStore::USER_ID_ATTR])
 
-      messages.each do |message|
+      loop do
+        messages = thread_sqs.receive_messages(
+          message_attribute_names: [UserStore::USER_ID_ATTR],
+          max_messages: 1
+        )
+        break if messages.empty?
+
+        message    = messages.first
         user_id    = message.message_attributes[UserStore::USER_ID_ATTR].string_value
         thread_ids = JSON.parse(message.body)
         logger.debug "received #{thread_ids.size} thread_ids for user #{user_id}"
