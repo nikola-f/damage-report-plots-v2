@@ -30,7 +30,8 @@ COPY --chown=rails:rails --from=builder /app /app
 
 ENV RAILS_ENV=production \
     BUNDLE_DEPLOYMENT=1 \
-    BUNDLE_WITHOUT=development:test
+    BUNDLE_WITHOUT=development:test \
+    HOME=/tmp
 
 USER rails
 
