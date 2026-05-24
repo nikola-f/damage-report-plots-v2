@@ -67,12 +67,19 @@ class GmailClient
   def consume_quota(units)
     return unless @redis
 
-    key = "gmail_quota:project"
-    new_count = @redis.incrby(key, units)
-    @redis.expire(key, QUOTA_WINDOW) if new_count == units
-    if new_count > PER_PROJECT_LIMIT
-      @redis.decrby(key, units)
-      raise QuotaExceededError, "Gmail API quota exceeded: #{key}"
+    project_key = "gmail_quota:project"
+    user_key    = "gmail_quota:user:#{@token_hash}"
+
+    new_project = @redis.incrby(project_key, units)
+    @redis.expire(project_key, QUOTA_WINDOW) if new_project == units
+
+    new_user = @redis.incrby(user_key, units)
+    @redis.expire(user_key, QUOTA_WINDOW) if new_user == units
+
+    if new_project > PER_PROJECT_LIMIT
+      @redis.decrby(project_key, units)
+      @redis.decrby(user_key, units)
+      raise QuotaExceededError, "Gmail API quota exceeded: #{project_key}"
     end
   end
 

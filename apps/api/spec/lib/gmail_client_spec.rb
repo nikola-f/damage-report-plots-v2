@@ -9,6 +9,7 @@ RSpec.describe GmailClient do
   describe "#consume_quota (via public methods)" do
     let(:redis) { instance_double(Redis) }
     let(:client_with_redis) { described_class.new(access_token, redis: redis) }
+    let(:token_hash) { Digest::SHA256.hexdigest(access_token) }
 
     before do
       stub_request(:get, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
@@ -24,13 +25,18 @@ RSpec.describe GmailClient do
 
     context "when within quota limits" do
       before do
-        allow(redis).to receive(:incrby).with("gmail_quota:project", 10).and_return(10)
+        allow(redis).to receive(:incrby).and_return(10)
         allow(redis).to receive(:expire)
       end
 
       it "calls incrby for the per-project key" do
         client_with_redis.list_threads
         expect(redis).to have_received(:incrby).with("gmail_quota:project", 10)
+      end
+
+      it "calls incrby for the per-user key" do
+        client_with_redis.list_threads
+        expect(redis).to have_received(:incrby).with("gmail_quota:user:#{token_hash}", 10)
       end
     end
 
@@ -40,9 +46,14 @@ RSpec.describe GmailClient do
         allow(redis).to receive(:expire)
       end
 
-      it "sets TTL of QUOTA_WINDOW seconds on the key" do
+      it "sets TTL of QUOTA_WINDOW seconds on the project key" do
         client_with_redis.list_threads
         expect(redis).to have_received(:expire).with("gmail_quota:project", GmailClient::QUOTA_WINDOW)
+      end
+
+      it "sets TTL of QUOTA_WINDOW seconds on the user key" do
+        client_with_redis.list_threads
+        expect(redis).to have_received(:expire).with("gmail_quota:user:#{token_hash}", GmailClient::QUOTA_WINDOW)
       end
     end
 
@@ -63,6 +74,9 @@ RSpec.describe GmailClient do
         allow(redis).to receive(:incrby)
           .with("gmail_quota:project", 10)
           .and_return(GmailClient::PER_PROJECT_LIMIT + 1)
+        allow(redis).to receive(:incrby)
+          .with("gmail_quota:user:#{token_hash}", 10)
+          .and_return(10)
         allow(redis).to receive(:expire)
         allow(redis).to receive(:decrby)
       end
@@ -70,6 +84,12 @@ RSpec.describe GmailClient do
       it "raises QuotaExceededError" do
         expect { client_with_redis.list_threads }
           .to raise_error(GmailClient::QuotaExceededError, /gmail_quota:project/)
+      end
+
+      it "decrements both project and user keys" do
+        expect { client_with_redis.list_threads }.to raise_error(GmailClient::QuotaExceededError)
+        expect(redis).to have_received(:decrby).with("gmail_quota:project", 10)
+        expect(redis).to have_received(:decrby).with("gmail_quota:user:#{token_hash}", 10)
       end
     end
 
