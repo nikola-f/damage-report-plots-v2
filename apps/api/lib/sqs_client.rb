@@ -46,9 +46,9 @@ class SqsClient
   # @param attributes [Hash] optional metadata applied to every message ({ "key" => value, ... })
   #   Values are typed automatically: Numeric => Number, others => String
   # @return [Array<Aws::SQS::Types::SendMessageBatchResult>]
-  def send_messages(items, attributes: {})
+  def send_messages(items, attributes: {}, max_message_size: MAX_MESSAGE_SIZE)
     sqs_attributes  = build_message_attributes(attributes)
-    body_budget     = MAX_MESSAGE_SIZE - message_attributes_size(sqs_attributes)
+    body_budget     = max_message_size - message_attributes_size(sqs_attributes)
 
     chunk_by_size(items, body_budget).each_slice(10).map do |batch|
       entries = batch.each_with_index.map do |chunk, index|

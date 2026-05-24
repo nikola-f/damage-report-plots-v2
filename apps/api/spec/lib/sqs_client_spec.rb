@@ -115,6 +115,32 @@ RSpec.describe SqsClient do
       end
     end
 
+    context "when max_message_size: is specified" do
+      # JSON.generate(["t1","t2"]) = '["t1","t2"]' = 11 bytes > 6
+      # JSON.generate(["t1"])      = '["t1"]'       =  6 bytes <= 6
+      let(:thread_ids) { %w[t1 t2 t3] }
+
+      it "splits into chunks respecting the given size limit" do
+        allow(aws_client).to receive(:send_message_batch)
+
+        client.send_messages(thread_ids, max_message_size: 6)
+
+        expect(aws_client).to have_received(:send_message_batch).once.with(
+          hash_including(entries: have_attributes(size: 3))
+        )
+      end
+
+      it "does not affect the default MAX_MESSAGE_SIZE" do
+        allow(aws_client).to receive(:send_message_batch)
+
+        client.send_messages(thread_ids)
+
+        expect(aws_client).to have_received(:send_message_batch).once.with(
+          hash_including(entries: have_attributes(size: 1))
+        )
+      end
+    end
+
     context "when thread_ids exceed MAX_MESSAGE_SIZE" do
       # JSON.generate(["t1","t2"]) = '["t1","t2"]' = 11 bytes > 10
       # JSON.generate(["t1"])      = '["t1"]'       =  6 bytes <= 10

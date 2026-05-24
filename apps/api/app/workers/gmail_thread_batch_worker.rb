@@ -7,7 +7,7 @@ class GmailThreadBatchWorker
 
   POLL_INTERVAL = 30  # seconds
   LOCK_KEY      = "gmail_thread_batch_worker:lock"
-  LOCK_TTL      = 300 # seconds; covers worst-case 6 retries × 32s max backoff
+  LOCK_TTL      = 900 # seconds; covers actual processing time (~530s observed)
 
   def perform
     acquired = REDIS.set(LOCK_KEY, "1", nx: true, ex: LOCK_TTL)
