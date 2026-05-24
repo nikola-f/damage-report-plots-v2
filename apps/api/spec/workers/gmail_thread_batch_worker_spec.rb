@@ -168,6 +168,21 @@ RSpec.describe GmailThreadBatchWorker do
       end
     end
 
+    context "when there are more messages than MAX_MESSAGES_PER_RUN" do
+      before do
+        allow(report_sqs_client).to receive(:receive_messages)
+          .with(message_attribute_names: [UserStore::USER_ID_ATTR], max_messages: 1)
+          .and_return(*Array.new(GmailThreadBatchWorker::MAX_MESSAGES_PER_RUN + 1) { [message] })
+      end
+
+      it "stops after MAX_MESSAGES_PER_RUN messages" do
+        described_class.new.perform
+
+        expect(report_sqs_client).to have_received(:receive_messages)
+          .exactly(GmailThreadBatchWorker::MAX_MESSAGES_PER_RUN).times
+      end
+    end
+
     context "when the fetcher raises ApiError" do
       before { allow(fetcher).to receive(:call).and_raise(GmailClient::ApiError, "Gmail API error: 401") }
 

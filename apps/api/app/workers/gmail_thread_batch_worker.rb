@@ -5,10 +5,11 @@ class GmailThreadBatchWorker
 
   sidekiq_options retry: 0
 
-  POLL_INTERVAL      = 30  # seconds
-  LOCK_KEY           = "gmail_thread_batch_worker:lock"
-  LOCK_TTL           = 900 # seconds; covers actual processing time (~530s observed)
-  PORTALS_CHUNK_SIZE = 10 * 1024 # bytes; keeps send_message_batch well under SQS 1MB batch limit
+  POLL_INTERVAL        = 30  # seconds
+  LOCK_KEY             = "gmail_thread_batch_worker:lock"
+  LOCK_TTL             = 900 # seconds; covers actual processing time (~530s observed)
+  PORTALS_CHUNK_SIZE   = 10 * 1024 # bytes; keeps send_message_batch well under SQS 1MB batch limit
+  MAX_MESSAGES_PER_RUN = 5
 
   def perform
     acquired = REDIS.set(LOCK_KEY, "1", nx: true, ex: LOCK_TTL)
@@ -22,7 +23,10 @@ class GmailThreadBatchWorker
       portal_sqs = SqsClient.new(Settings.sqs_reports_queue_url)
       thread_sqs = SqsClient.new(Settings.sqs_thread_ids_queue_url)
 
+      processed = 0
       loop do
+        break if processed >= MAX_MESSAGES_PER_RUN
+
         messages = thread_sqs.receive_messages(
           message_attribute_names: [UserStore::USER_ID_ATTR],
           max_messages: 1
@@ -55,6 +59,7 @@ class GmailThreadBatchWorker
 
         thread_sqs.delete_messages(message.receipt_handle)
         logger.debug "deleted thread_ids message for user #{user_id}"
+        processed += 1
       end
     ensure
       REDIS.del(LOCK_KEY)
