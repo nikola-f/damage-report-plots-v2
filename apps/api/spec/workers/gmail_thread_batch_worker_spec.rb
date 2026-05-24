@@ -59,11 +59,13 @@ RSpec.describe GmailThreadBatchWorker do
       expect(fetcher).to have_received(:call).with(thread_ids)
     end
 
-    it "sends DamageReportRecord hashes to the portal SQS queue with user_id attribute" do
+    it "sends DamageReportRecord hashes to the portal SQS queue with user_id attribute and 10KB chunk size" do
       described_class.new.perform
 
       expect(portal_sqs_client).to have_received(:send_messages)
-        .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => user_id })
+        .with([portal.to_h],
+              attributes: { UserStore::USER_ID_ATTR => user_id },
+              max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
     end
 
     it "reschedules itself after polling" do
@@ -79,7 +81,9 @@ RSpec.describe GmailThreadBatchWorker do
         described_class.new.perform
 
         expect(portal_sqs_client).to have_received(:send_messages)
-          .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => user_id })
+          .with([portal.to_h],
+                attributes: { UserStore::USER_ID_ATTR => user_id },
+                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
       end
     end
 
@@ -106,9 +110,13 @@ RSpec.describe GmailThreadBatchWorker do
         described_class.new.perform
 
         expect(portal_sqs_client).to have_received(:send_messages)
-          .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => user_id })
+          .with([portal.to_h],
+                attributes: { UserStore::USER_ID_ATTR => user_id },
+                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
         expect(portal_sqs_client).to have_received(:send_messages)
-          .with([portal.to_h], attributes: { UserStore::USER_ID_ATTR => other_user_id })
+          .with([portal.to_h],
+                attributes: { UserStore::USER_ID_ATTR => other_user_id },
+                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
       end
     end
 
