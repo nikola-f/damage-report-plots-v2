@@ -205,6 +205,16 @@ RSpec.describe EmailHtmlDecoder do
         expect(result[0].owned).to be true
       end
     end
+
+    context "when the email has links destroyed (STATUS row at following-sibling tr[11])" do
+      subject(:decoder) { described_class.new(file_fixture("sample_email_links_destroyed_base64_urlsafe.txt").read) }
+
+      it "sets owned: true even when STATUS row is beyond tr[3]" do
+        result = decoder.extract_portals
+
+        expect(result[0].owned).to be true
+      end
+    end
   end
 
   describe "#extract_all" do
