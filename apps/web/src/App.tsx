@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getApplicationStatus, getProfile, logout, sync, type Profile } from "./api.ts";
+import { getApplicationStatus, getProfile, getUserStatus, logout, sync, type Profile } from "./api.ts";
 
 type Status = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
@@ -32,6 +32,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<Status>("idle");
   const [syncMessage, setSyncMessage] = useState("");
   const [queueStatus, setQueueStatus] = useState<QueueLevel | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null | undefined>(undefined);
   const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export default function App() {
   useEffect(() => {
     if (!profile) {
       setQueueStatus(null);
+      setLastSyncedAt(undefined);
       if (queueTimerRef.current) clearInterval(queueTimerRef.current);
       return;
     }
@@ -56,6 +58,10 @@ export default function App() {
         })
         .catch(console.error);
     }
+
+    getUserStatus()
+      .then((s) => setLastSyncedAt(s.last_synced_at))
+      .catch(console.error);
 
     fetchStatus();
     queueTimerRef.current = setInterval(fetchStatus, QUEUE_POLL_INTERVAL_MS);
@@ -78,6 +84,9 @@ export default function App() {
       await sync();
       setSyncStatus("success");
       setSyncMessage("Sync started successfully.");
+      getUserStatus()
+        .then((s) => setLastSyncedAt(s.last_synced_at))
+        .catch(console.error);
     } catch (err) {
       setSyncStatus("error");
       setSyncMessage(err instanceof Error ? err.message : "Sync failed.");
@@ -137,6 +146,14 @@ export default function App() {
             Queue: {LEVEL_LABEL[queueStatus]}
           </span>
         </div>
+      )}
+
+      {lastSyncedAt !== undefined && (
+        <p style={{ ...styles.statusLabel, margin: 0 }}>
+          Last sync: {lastSyncedAt
+            ? new Date(lastSyncedAt * 1000).toLocaleString()
+            : "Never"}
+        </p>
       )}
 
       <button onClick={handleLogout} style={styles.buttonSecondary}>

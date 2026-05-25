@@ -42,3 +42,18 @@ export async function getApplicationStatus(): Promise<ApplicationStatus> {
   if (!res.ok) throw new Error(`Status fetch failed: ${res.status}`);
   return res.json() as Promise<ApplicationStatus>;
 }
+
+export interface UserStatus {
+  last_synced_at: number | null;
+  spreadsheet_exists: boolean;
+  scope_expires_at: {
+    spreadsheets: number | null;
+    sync: number | null;
+  };
+}
+
+export async function getUserStatus(): Promise<UserStatus> {
+  const res = await request("/api/v1/user_status");
+  if (!res.ok) throw new Error(`User status fetch failed: ${res.status}`);
+  return res.json() as Promise<UserStatus>;
+}
