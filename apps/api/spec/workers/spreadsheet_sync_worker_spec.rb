@@ -37,7 +37,7 @@ RSpec.describe SpreadsheetSyncWorker do
 
       expect(sqs_client).to have_received(:receive_messages).with(
         message_attribute_names: [UserStore::USER_ID_ATTR],
-        max_messages: 1
+        max_messages: 10
       ).at_least(:once)
     end
 
@@ -53,7 +53,43 @@ RSpec.describe SpreadsheetSyncWorker do
     it "deletes the SQS message after successful processing" do
       described_class.new.perform
 
-      expect(sqs_client).to have_received(:delete_messages).with(receipt_handle)
+      expect(sqs_client).to have_received(:delete_messages).with([receipt_handle])
+    end
+
+    context "when there are multiple messages for the same user" do
+      let(:receipt_handle2) { "fake-receipt-handle-2" }
+      let(:message2) do
+        user_id_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: user_id)
+        instance_double(
+          Aws::SQS::Types::Message,
+          body: JSON.generate([record.to_h]),
+          message_attributes: { UserStore::USER_ID_ATTR => user_id_attr },
+          receipt_handle: receipt_handle2
+        )
+      end
+
+      before do
+        allow(sqs_client).to receive(:receive_messages).and_return([message, message2], [])
+      end
+
+      it "batches all records into a single process call" do
+        worker = described_class.new
+        allow(worker).to receive(:process)
+
+        worker.perform
+
+        expect(worker).to have_received(:process)
+          .with(user_id:, records: [record, record])
+          .once
+      end
+
+      it "deletes all messages in a single call" do
+        described_class.new.perform
+
+        expect(sqs_client).to have_received(:delete_messages)
+          .with([receipt_handle, receipt_handle2])
+          .once
+      end
     end
 
     it "reschedules itself after polling" do
