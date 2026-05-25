@@ -180,7 +180,7 @@ RSpec.describe EmailHtmlDecoder do
                            ])
     end
 
-    context "when the first portal is owned by the agent" do
+    context "when the first portal is owned by the agent (direct text nodes)" do
       subject(:decoder) { described_class.new(file_fixture("sample_email_owned_base64_urlsafe.txt").read) }
 
       it "sets owned: true for the portal whose owner matches the agent name" do
@@ -193,6 +193,16 @@ RSpec.describe EmailHtmlDecoder do
         result = decoder.extract_portals
 
         expect(result[1].owned).to be false
+      end
+    end
+
+    context "when the first portal is owned by the agent (STATUS text in nested spans)" do
+      subject(:decoder) { described_class.new(file_fixture("sample_email_nested_spans_base64_urlsafe.txt").read) }
+
+      it "sets owned: true even when owner text is inside child span elements" do
+        result = decoder.extract_portals
+
+        expect(result[0].owned).to be true
       end
     end
   end
