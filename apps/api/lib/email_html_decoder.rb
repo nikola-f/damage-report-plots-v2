@@ -24,8 +24,10 @@ class EmailHtmlDecoder
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")&.strip
     Rails.logger.debug { "extract_portals: agent_name=#{agent_name.inspect}" }
     extract_nodes(PORTAL_XPATH) do |node|
-      owner     = node.extract("../following-sibling::tr[2]//div[contains(.,'Owner:')]", inner_text: true)
-                      &.split("Owner: ", 2)&.last&.strip
+      owner     = (1..3).lazy.filter_map { |n|
+                    t = node.extract("../following-sibling::tr[#{n}]", inner_text: true)
+                    t if t&.include?("Owner:")
+                  }.first&.split("Owner: ", 2)&.last&.split(/[\n\r]/)&.first&.strip
       intel_url = node.extract("div[2]/a", attr: "href")
       pll       = intel_url&.match(/[?&]pll=([^&]+)/)&.[](1)
       lat, lng  = pll&.split(",")
