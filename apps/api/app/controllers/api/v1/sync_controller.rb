@@ -15,7 +15,7 @@ module Api
         end
         ensure_spreadsheet_exists
         GmailThreadListWorker.perform_async(current_user_id, params[:after_date])
-        REDIS.set("sync_queued_at:#{current_user_id}", Time.now.utc.iso8601)
+        UserStore.last_synced_at.store(current_user_id, Time.now.to_i.to_s)
         head :accepted
       end
 

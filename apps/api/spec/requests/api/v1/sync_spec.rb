@@ -5,14 +5,15 @@ require "rails_helper"
 RSpec.describe "POST /api/v1/sync", type: :request do
   let(:access_token_store)   { instance_double(UserStore, fetch: "ya29.token", store: nil) }
   let(:spreadsheet_id_store) { instance_double(UserStore, fetch: "spreadsheet-id", store: nil) }
+  let(:last_synced_at_store) { instance_double(UserStore, store: nil) }
   let(:sheets_client)        { instance_double(SpreadsheetsClient, create_spreadsheet: "new-spreadsheet-id", protect_ranges: nil) }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
     allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
+    allow(UserStore).to receive(:last_synced_at).and_return(last_synced_at_store)
     allow(SpreadsheetsClient).to receive(:new).and_return(sheets_client)
     allow(GmailThreadListWorker).to receive(:perform_async)
-    allow(REDIS).to receive(:set).with(start_with("sync_queued_at:"), anything)
   end
 
   context "with active session" do
@@ -32,10 +33,10 @@ RSpec.describe "POST /api/v1/sync", type: :request do
         expect(sheets_client).not_to have_received(:create_spreadsheet)
       end
 
-      it "records sync_queued_at in Redis" do
+      it "records last_synced_at in UserStore" do
         post "/api/v1/sync"
 
-        expect(REDIS).to have_received(:set).with("sync_queued_at:#{test_user_id}", anything)
+        expect(last_synced_at_store).to have_received(:store).with(test_user_id, anything)
       end
     end
 

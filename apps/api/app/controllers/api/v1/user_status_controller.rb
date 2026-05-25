@@ -8,7 +8,7 @@ module Api
       def show
         render json: {
           spreadsheet_exists: spreadsheet_exists?,
-          sync_queued_at:     REDIS.get("sync_queued_at:#{current_user_id}"),
+          last_synced_at:     last_synced_at,
           scope_expires_at:   {
             spreadsheets: REDIS.get("scope_spreadsheets:#{current_user_id}")&.to_i,
             sync:         REDIS.get("scope_sync:#{current_user_id}")&.to_i
@@ -23,6 +23,12 @@ module Api
         true
       rescue KeyError
         false
+      end
+
+      def last_synced_at
+        UserStore.last_synced_at.fetch(current_user_id).to_i
+      rescue KeyError
+        nil
       end
     end
   end

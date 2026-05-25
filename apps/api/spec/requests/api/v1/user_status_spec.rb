@@ -5,11 +5,12 @@ require "rails_helper"
 RSpec.describe "GET /api/v1/user_status", type: :request do
   let(:access_token_store)   { instance_double(UserStore, store: nil) }
   let(:spreadsheet_id_store) { instance_double(UserStore, fetch: "spreadsheet-id") }
+  let(:last_synced_at_store) { instance_double(UserStore, fetch: "1744908000") }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
     allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
-    allow(REDIS).to receive(:get).with(start_with("sync_queued_at:")).and_return("2026-04-12T17:00:00Z")
+    allow(UserStore).to receive(:last_synced_at).and_return(last_synced_at_store)
     allow(REDIS).to receive(:get).with(start_with("scope_spreadsheets:")).and_return(nil)
     allow(REDIS).to receive(:get).with(start_with("scope_sync:")).and_return(nil)
   end
@@ -24,10 +25,10 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
       expect(json_response["spreadsheet_exists"]).to be true
     end
 
-    it "returns sync_queued_at from Redis" do
+    it "returns last_synced_at as integer" do
       get "/api/v1/user_status"
 
-      expect(json_response["sync_queued_at"]).to eq("2026-04-12T17:00:00Z")
+      expect(json_response["last_synced_at"]).to eq(1744908000)
     end
 
     it "returns null scope_expires_at when no scopes have been granted" do
@@ -47,13 +48,13 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
       end
     end
 
-    context "when sync has not been queued yet" do
-      before { allow(REDIS).to receive(:get).with(start_with("sync_queued_at:")).and_return(nil) }
+    context "when sync has never been run" do
+      before { allow(last_synced_at_store).to receive(:fetch).and_raise(KeyError) }
 
-      it "returns sync_queued_at null" do
+      it "returns last_synced_at null" do
         get "/api/v1/user_status"
 
-        expect(json_response["sync_queued_at"]).to be_nil
+        expect(json_response["last_synced_at"]).to be_nil
       end
     end
 
