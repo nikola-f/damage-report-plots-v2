@@ -5,11 +5,11 @@ class SessionsController < ApplicationController
   SPREADSHEETS_SCOPE = "email profile https://www.googleapis.com/auth/spreadsheets.readonly"
   SYNC_SCOPE         = "email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
 
-  # Redis keys to set (with access token TTL) when each scope is granted.
+  # UserStore factories to call (with access token TTL) when each scope is granted.
   # SYNC_SCOPE includes SPREADSHEETS_SCOPE capabilities via include_granted_scopes.
-  SCOPE_REDIS_KEYS = {
-    SPREADSHEETS_SCOPE => %w[scope_spreadsheets],
-    SYNC_SCOPE         => %w[scope_spreadsheets scope_sync]
+  SCOPE_STORES = {
+    SPREADSHEETS_SCOPE => %i[scope_spreadsheets],
+    SYNC_SCOPE         => %i[scope_spreadsheets scope_sync]
   }.freeze
 
   ACCESS_TOKEN_TTL = 3600 # seconds — matches Google OAuth access token lifetime
@@ -31,12 +31,12 @@ class SessionsController < ApplicationController
       user_id = session[:user_id]
 
       return render json: { error: "Account mismatch during scope upgrade" }, status: :unauthorized if auth["uid"] != user_id
-      return render json: { error: "Invalid scope" }, status: :unprocessable_entity unless SCOPE_REDIS_KEYS.key?(scope)
+      return render json: { error: "Invalid scope" }, status: :unprocessable_entity unless SCOPE_STORES.key?(scope)
 
       expires_at = Time.now.to_i + ACCESS_TOKEN_TTL
       UserStore.access_token.store(user_id, auth["credentials"]["token"])
-      SCOPE_REDIS_KEYS[scope].each do |key|
-        REDIS.set("#{key}:#{user_id}", expires_at, ex: ACCESS_TOKEN_TTL)
+      SCOPE_STORES[scope].each do |store_name|
+        UserStore.public_send(store_name).store(user_id, expires_at.to_s)
       end
       redirect_to "/"
     else

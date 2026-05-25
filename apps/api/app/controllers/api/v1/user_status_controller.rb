@@ -10,8 +10,8 @@ module Api
           spreadsheet_exists: spreadsheet_exists?,
           last_synced_at:     last_synced_at,
           scope_expires_at:   {
-            spreadsheets: REDIS.get("scope_spreadsheets:#{current_user_id}")&.to_i,
-            sync:         REDIS.get("scope_sync:#{current_user_id}")&.to_i
+            spreadsheets: scope_expires_at(UserStore.scope_spreadsheets),
+            sync:         scope_expires_at(UserStore.scope_sync)
           }
         }, status: :ok
       end
@@ -27,6 +27,12 @@ module Api
 
       def last_synced_at
         UserStore.last_synced_at.fetch(current_user_id).to_i
+      rescue KeyError
+        nil
+      end
+
+      def scope_expires_at(store)
+        store.fetch(current_user_id).to_i
       rescue KeyError
         nil
       end

@@ -3,16 +3,20 @@
 require "rails_helper"
 
 RSpec.describe "GET /api/v1/user_status", type: :request do
-  let(:access_token_store)   { instance_double(UserStore, store: nil) }
-  let(:spreadsheet_id_store) { instance_double(UserStore, fetch: "spreadsheet-id") }
-  let(:last_synced_at_store) { instance_double(UserStore, fetch: "1744908000") }
+  let(:access_token_store)        { instance_double(UserStore, store: nil) }
+  let(:spreadsheet_id_store)      { instance_double(UserStore, fetch: "spreadsheet-id") }
+  let(:last_synced_at_store)      { instance_double(UserStore, fetch: "1744908000") }
+  let(:scope_spreadsheets_store)  { instance_double(UserStore) }
+  let(:scope_sync_store)          { instance_double(UserStore) }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
     allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
     allow(UserStore).to receive(:last_synced_at).and_return(last_synced_at_store)
-    allow(REDIS).to receive(:get).with(start_with("scope_spreadsheets:")).and_return(nil)
-    allow(REDIS).to receive(:get).with(start_with("scope_sync:")).and_return(nil)
+    allow(UserStore).to receive(:scope_spreadsheets).and_return(scope_spreadsheets_store)
+    allow(UserStore).to receive(:scope_sync).and_return(scope_sync_store)
+    allow(scope_spreadsheets_store).to receive(:fetch).and_raise(KeyError)
+    allow(scope_sync_store).to receive(:fetch).and_raise(KeyError)
   end
 
   context "with active session" do
@@ -62,7 +66,7 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
       let(:expires_at) { 1_744_567_890 }
 
       before do
-        allow(REDIS).to receive(:get).with(start_with("scope_spreadsheets:")).and_return(expires_at.to_s)
+        allow(scope_spreadsheets_store).to receive(:fetch).and_return(expires_at.to_s)
       end
 
       it "returns the expiry epoch for spreadsheets" do
@@ -77,8 +81,8 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
       let(:expires_at) { 1_744_567_890 }
 
       before do
-        allow(REDIS).to receive(:get).with(start_with("scope_spreadsheets:")).and_return(expires_at.to_s)
-        allow(REDIS).to receive(:get).with(start_with("scope_sync:")).and_return(expires_at.to_s)
+        allow(scope_spreadsheets_store).to receive(:fetch).and_return(expires_at.to_s)
+        allow(scope_sync_store).to receive(:fetch).and_return(expires_at.to_s)
       end
 
       it "returns the expiry epoch for both spreadsheets and sync" do
