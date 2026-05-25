@@ -13,6 +13,10 @@ class UserStore
     new(prefix: "spreadsheet_id", redis:)
   end
 
+  def self.last_synced_at(redis: REDIS)
+    new(prefix: "last_synced_at", redis:)
+  end
+
   def initialize(prefix:, ttl: nil, redis: REDIS)
     @prefix = prefix
     @ttl    = ttl

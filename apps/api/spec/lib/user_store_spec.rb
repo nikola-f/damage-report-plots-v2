@@ -59,4 +59,21 @@ RSpec.describe UserStore do
       end
     end
   end
+
+  describe ".last_synced_at" do
+    let(:store) { described_class.last_synced_at(redis:) }
+
+    include_examples "a user store", "last_synced_at"
+
+    describe "#store" do
+      before { allow(redis).to receive(:set) }
+
+      it "stores the epoch time without TTL" do
+        store.store(user_id, "1716624000")
+
+        expect(redis).to have_received(:set)
+          .with("last_synced_at:#{user_id}", "1716624000")
+      end
+    end
+  end
 end
