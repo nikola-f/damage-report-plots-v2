@@ -24,15 +24,15 @@ class EmailHtmlDecoder
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")&.strip
     Rails.logger.debug { "extract_portals: agent_name=#{agent_name.inspect}" }
     extract_nodes(PORTAL_XPATH) do |node|
-      owner     = (1..3).lazy.filter_map { |n|
-                    t = node.extract("../following-sibling::tr[#{n}]/td/table/td[2]/div", inner_text: true)
-                    t if t&.include?("Owner: ")
-                  }.first&.split("Owner: ", 2)&.last&.strip
+      owner_row, owner = (1..3).lazy.filter_map { |n|
+                           t = node.extract("../following-sibling::tr[#{n}]/td/table/td[2]/div", inner_text: true)
+                           [n, t] if t&.include?("Owner: ")
+                         }.first&.then { |n, t| [n, t.split("Owner: ", 2).last&.strip] }
       intel_url = node.extract("div[2]/a", attr: "href")
       pll       = intel_url&.match(/[?&]pll=([^&]+)/)&.[](1)
       lat, lng  = pll&.split(",")
       name      = node.extract("div[1]")
-      Rails.logger.debug { "extract_portals: portal=#{name.inspect} owner=#{owner.inspect} owned=#{agent_name == owner}" }
+      Rails.logger.debug { "extract_portals: portal=#{name.inspect} owner=#{owner.inspect} owner_row=#{owner_row.inspect} owned=#{agent_name == owner}" }
       DamageReportRecord.new(
         name:          name,
         latitude:      lat,
