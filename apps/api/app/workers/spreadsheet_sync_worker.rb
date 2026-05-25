@@ -20,23 +20,28 @@ class SpreadsheetSyncWorker
 
     begin
       sqs = SqsClient.new(Settings.sqs_reports_queue_url)
+      accumulated = Hash.new { |h, k| h[k] = { records: [], handles: [] } }
 
       loop do
         messages = sqs.receive_messages(
           message_attribute_names: [UserStore::USER_ID_ATTR],
-          max_messages: 1
+          max_messages: 10
         )
         break if messages.empty?
 
-        message = messages.first
-        user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
-        records = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
-        logger.debug "received #{records.size} records for user #{user_id}"
+        messages.each do |message|
+          user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
+          records = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
+          accumulated[user_id][:records].concat(records)
+          accumulated[user_id][:handles] << message.receipt_handle
+        end
+      end
 
-        process(user_id:, records:)
-
-        sqs.delete_messages(message.receipt_handle)
-        logger.debug "deleted records message for user #{user_id}"
+      accumulated.each do |user_id, data|
+        logger.debug "received #{data[:records].size} records for user #{user_id}"
+        process(user_id:, records: data[:records])
+        sqs.delete_messages(data[:handles])
+        logger.debug "deleted #{data[:handles].size} messages for user #{user_id}"
       end
     ensure
       REDIS.del(LOCK_KEY)
