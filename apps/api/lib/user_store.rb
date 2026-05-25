@@ -17,6 +17,14 @@ class UserStore
     new(prefix: "last_synced_at", redis:)
   end
 
+  def self.scope_spreadsheets(redis: REDIS)
+    new(prefix: "scope_spreadsheets", ttl: 3600, redis:)
+  end
+
+  def self.scope_sync(redis: REDIS)
+    new(prefix: "scope_sync", ttl: 3600, redis:)
+  end
+
   def initialize(prefix:, ttl: nil, redis: REDIS)
     @prefix = prefix
     @ttl    = ttl

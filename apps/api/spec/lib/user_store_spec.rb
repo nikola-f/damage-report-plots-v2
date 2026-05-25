@@ -76,4 +76,38 @@ RSpec.describe UserStore do
       end
     end
   end
+
+  describe ".scope_spreadsheets" do
+    let(:store) { described_class.scope_spreadsheets(redis:) }
+
+    include_examples "a user store", "scope_spreadsheets"
+
+    describe "#store" do
+      before { allow(redis).to receive(:set) }
+
+      it "stores the expiry epoch with TTL" do
+        store.store(user_id, "1744567890")
+
+        expect(redis).to have_received(:set)
+          .with("scope_spreadsheets:#{user_id}", "1744567890", ex: 3600)
+      end
+    end
+  end
+
+  describe ".scope_sync" do
+    let(:store) { described_class.scope_sync(redis:) }
+
+    include_examples "a user store", "scope_sync"
+
+    describe "#store" do
+      before { allow(redis).to receive(:set) }
+
+      it "stores the expiry epoch with TTL" do
+        store.store(user_id, "1744567890")
+
+        expect(redis).to have_received(:set)
+          .with("scope_sync:#{user_id}", "1744567890", ex: 3600)
+      end
+    end
+  end
 end

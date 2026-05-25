@@ -3,10 +3,14 @@
 require "rails_helper"
 
 RSpec.describe "Sessions", type: :request do
-  let(:access_token_store) { instance_double(UserStore, store: nil) }
+  let(:access_token_store)       { instance_double(UserStore, store: nil) }
+  let(:scope_spreadsheets_store) { instance_double(UserStore, store: nil) }
+  let(:scope_sync_store)         { instance_double(UserStore, store: nil) }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
+    allow(UserStore).to receive(:scope_spreadsheets).and_return(scope_spreadsheets_store)
+    allow(UserStore).to receive(:scope_sync).and_return(scope_sync_store)
   end
 
   describe "GET /auth/google_oauth2/callback" do
@@ -38,7 +42,6 @@ RSpec.describe "Sessions", type: :request do
 
     context "as a scope upgrade (requested_scope present in session)" do
       before do
-        allow(REDIS).to receive(:set).with(start_with("scope_"), anything, ex: SessionsController::ACCESS_TOKEN_TTL)
         login_as
         post "/auth/grant/spreadsheets"
       end
@@ -55,10 +58,10 @@ RSpec.describe "Sessions", type: :request do
         expect(response).to redirect_to("/")
       end
 
-      it "writes the scope expiry epoch to Redis" do
+      it "stores the scope expiry epoch via UserStore" do
         get "/auth/google_oauth2/callback"
 
-        expect(REDIS).to have_received(:set).with("scope_spreadsheets:#{test_user_id}", anything, ex: SessionsController::ACCESS_TOKEN_TTL)
+        expect(scope_spreadsheets_store).to have_received(:store).with(test_user_id, anything)
       end
 
       it "does not overwrite the user session" do
