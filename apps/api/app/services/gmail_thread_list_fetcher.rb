@@ -10,8 +10,6 @@
 #     access_token: token
 #   ).call(q: "subject:damage report after:2024/01/01")
 class GmailThreadListFetcher
-  MAX_THREADS = 5_000
-
   def initialize(access_token:, gmail_client: nil)
     @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)
   end
@@ -31,11 +29,10 @@ class GmailThreadListFetcher
     loop do
       response = @gmail_client.list_threads(q:, page_token:)
       threads.concat(response["threads"] || [])
-      break if threads.size >= MAX_THREADS
       page_token = response["nextPageToken"]
       break unless page_token
     end
 
-    threads.first(MAX_THREADS)
+    threads
   end
 end

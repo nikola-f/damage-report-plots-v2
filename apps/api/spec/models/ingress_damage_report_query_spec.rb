@@ -13,17 +13,17 @@ RSpec.describe IngressDamageReportQuery do
       query = described_class.new(after_date: "2024-01-01")
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
-        "after:2024/01/01 before:2029/01/01 " \
+        "after:2024/01/01 before:2027/01/01 " \
         "#{from_query} " \
         "larger:5K smaller:100K"
       )
     end
 
-    it "handles leap year correctly (2024-02-29 + 5 years = 2029-02-28)" do
+    it "handles leap year correctly (2024-02-29 + 3 years = 2027-02-28)" do
       query = described_class.new(after_date: "2024-02-29")
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
-        "after:2024/02/29 before:2029/02/28 " \
+        "after:2024/02/29 before:2027/02/28 " \
         "#{from_query} " \
         "larger:5K smaller:100K"
       )
@@ -33,7 +33,7 @@ RSpec.describe IngressDamageReportQuery do
       query = described_class.new
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
-        "after:2012/10/15 before:2017/10/15 " \
+        "after:2012/10/15 before:2015/10/15 " \
         "#{from_query} " \
         "larger:5K smaller:100K"
       )
