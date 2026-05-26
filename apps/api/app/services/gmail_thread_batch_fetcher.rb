@@ -37,7 +37,7 @@ class GmailThreadBatchFetcher
       (raw["messages"] || []).map { |m| GmailMessage.new(m) }
     end
   rescue GmailClient::ApiError => e
-    raise unless e.message.match?(/429|Rate Limit Exceeded|Quota exceeded/i)
+    raise unless e.message.match?(/429|503|Rate Limit Exceeded|Quota exceeded|Too many concurrent|unavailable/i)
     raise if attempt >= MAX_RETRIES
     sleep [2**attempt, MAX_BACKOFF].min
     fetch_with_retry(batch, attempt: attempt + 1)

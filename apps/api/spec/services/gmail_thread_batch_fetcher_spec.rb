@@ -260,5 +260,28 @@ RSpec.describe GmailThreadBatchFetcher do
           .to raise_error(GmailClient::ApiError, /Insufficient Permission/)
       end
     end
+
+    context "when 503 Service Unavailable is raised" do
+      let(:raw_thread) { { "id" => "t1", "messages" => [{ "id" => "m1", "internalDate" => "1000", "payload" => {} }] } }
+
+      before do
+        allow(fetcher).to receive(:sleep)
+        responses = [
+          -> { raise GmailClient::ApiError, "Gmail API error: 503 The service is currently unavailable. (batch part 5)" },
+          -> { [raw_thread] }
+        ]
+        allow(gmail_client).to receive(:batch_get_threads) { responses.shift.call }
+      end
+
+      it "retries and returns results" do
+        result = fetcher.call(%w[t1])
+        expect(result).not_to be_empty
+      end
+
+      it "sleeps before retrying" do
+        fetcher.call(%w[t1])
+        expect(fetcher).to have_received(:sleep).with(1)
+      end
+    end
   end
 end
