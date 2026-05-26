@@ -15,7 +15,7 @@ class IngressDamageReportQuery
   LARGER  = "5K"
   SMALLER = "100K"
   DEFAULT_AFTER_DATE = "2012-10-15"
-  MONTHS_RANGE = 120
+  MONTHS_RANGE = 60
 
   def initialize(after_date: nil)
     @after = Date.parse(after_date || DEFAULT_AFTER_DATE)
