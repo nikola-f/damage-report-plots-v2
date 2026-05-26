@@ -104,5 +104,29 @@ RSpec.describe GmailThreadListFetcher do
         expect { fetcher.call }.to raise_error(GmailClient::ApiError, "401 Unauthorized")
       end
     end
+
+    context "when threads exceed MAX_THREADS across pages" do
+      let(:page1_threads) { (1..5000).map { |i| { "id" => "t#{i}" } } }
+      let(:page1_response) do
+        { "threads" => page1_threads, "nextPageToken" => "token_page2" }
+      end
+      let(:page2_response) do
+        { "threads" => [{ "id" => "t5001" }], "resultSizeEstimate" => 5001 }
+      end
+
+      before do
+        allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: nil).and_return(page1_response)
+        allow(gmail_client).to receive(:list_threads).with(q: nil, page_token: "token_page2").and_return(page2_response)
+      end
+
+      it "returns exactly MAX_THREADS thread IDs" do
+        expect(fetcher.call.size).to eq(described_class::MAX_THREADS)
+      end
+
+      it "does not fetch the next page after reaching the limit" do
+        fetcher.call
+        expect(gmail_client).to have_received(:list_threads).once
+      end
+    end
   end
 end
