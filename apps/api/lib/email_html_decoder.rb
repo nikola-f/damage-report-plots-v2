@@ -22,7 +22,6 @@ class EmailHtmlDecoder
   def extract_portals(internal_date: nil)
     truncated_date = internal_date && internal_date.to_i / 86_400_000 * 864
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")&.strip
-    Rails.logger.debug { "extract_portals: agent_name=#{agent_name.inspect}" }
     extract_nodes(PORTAL_XPATH) do |node|
       owner     = node.extract("../following-sibling::tr[contains(.,'Owner:')]", inner_text: true)
                       &.split("Owner: ", 2)&.last&.split(/[\n\r]/)&.first&.strip
@@ -30,7 +29,6 @@ class EmailHtmlDecoder
       pll       = intel_url&.match(/[?&]pll=([^&]+)/)&.[](1)
       lat, lng  = pll&.split(",")
       name      = node.extract("div[1]")
-      Rails.logger.debug { "extract_portals: portal=#{name.inspect} owner=#{owner.inspect} owned=#{agent_name == owner}" }
       DamageReportRecord.new(
         name:          name,
         latitude:      lat,
