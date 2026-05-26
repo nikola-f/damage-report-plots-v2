@@ -31,13 +31,7 @@ class GmailThreadBatchFetcher
   private
 
   def fetch_with_retry(batch, attempt: 0)
-    raw_threads    = @gmail_client.batch_get_threads(batch)
-    thread_count   = raw_threads.compact.size
-    message_counts = raw_threads.compact.map { |t| (t["messages"] || []).size }
-    Rails.logger.debug(
-      "batch_debug: requested=#{batch.size} returned_threads=#{thread_count} " \
-      "total_messages=#{message_counts.sum} per_thread=#{message_counts.inspect}"
-    )
+    raw_threads = @gmail_client.batch_get_threads(batch)
     raw_threads.flat_map do |raw|
       next [] if raw.nil?
       (raw["messages"] || []).map { |m| GmailMessage.new(m) }
