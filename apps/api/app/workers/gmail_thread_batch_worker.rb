@@ -16,6 +16,7 @@ class GmailThreadBatchWorker
 
     unless acquired
       logger.debug "another GmailThreadBatchWorker is running, skipping"
+      self.class.perform_in(POLL_INTERVAL)
       return
     end
 

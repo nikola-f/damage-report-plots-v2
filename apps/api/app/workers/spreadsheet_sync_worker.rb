@@ -15,6 +15,7 @@ class SpreadsheetSyncWorker
 
     unless acquired
       logger.debug "another SpreadsheetSyncWorker is running, skipping"
+      self.class.perform_in(POLL_INTERVAL)
       return
     end
 
