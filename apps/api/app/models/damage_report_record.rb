@@ -9,6 +9,15 @@ DamageReportRecord = Data.define(:name, :latitude, :longitude, :owned, :internal
   SQIDS_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+,-./:;<=>?@[]^_`{|}~"
   SQIDS          = Sqids.new(alphabet: SQIDS_ALPHABET)
 
+  # Deduplicates records by name/latitude/longitude/internal_date.
+  # When duplicates exist, owned:true survives over owned:false.
+  def self.deduplicate(records)
+    records
+      .group_by { |r| [r.name, r.latitude, r.longitude, r.internal_date] }
+      .values
+      .map { |group| group.max_by { |r| r.owned ? 1 : 0 } }
+  end
+
   def portal_id
     hash   = Digest::SHA256.digest("#{latitude},#{longitude}")
     number = hash.unpack1("Q>") & ((1 << 62) - 1) # Sqids max: 2^62 - 1

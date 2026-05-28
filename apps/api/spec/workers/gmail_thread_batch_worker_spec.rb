@@ -99,6 +99,30 @@ RSpec.describe GmailThreadBatchWorker do
       end
     end
 
+    context "when owned:false and owned:true have the same dedup key" do
+      let(:portal_false) { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: false, internal_date: 16999200) }
+      let(:portal_true)  { DamageReportRecord.new(name: "ハチ公", latitude: "35.0", longitude: "139.0", owned: true,  internal_date: 16999200) }
+      let(:decoder_false) { instance_double(EmailHtmlDecoder) }
+      let(:decoder_true)  { instance_double(EmailHtmlDecoder) }
+      let(:msg_false)     { instance_double(GmailMessage, html_decoder: decoder_false, internal_date:) }
+      let(:msg_true)      { instance_double(GmailMessage, html_decoder: decoder_true,  internal_date:) }
+      let(:fetcher)       { instance_double(GmailThreadBatchFetcher, call: [msg_false, msg_true]) }
+
+      before do
+        allow(decoder_false).to receive(:extract_portals).with(internal_date:).and_return([portal_false])
+        allow(decoder_true).to  receive(:extract_portals).with(internal_date:).and_return([portal_true])
+      end
+
+      it "sends only the owned:true record" do
+        described_class.new.perform
+
+        expect(portal_sqs_client).to have_received(:send_messages)
+          .with([portal_true.to_h],
+                attributes: { UserStore::USER_ID_ATTR => user_id },
+                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
+      end
+    end
+
     context "when two messages have different user_ids with the same DamageReportRecord" do
       let(:other_user_id)      { "98765432109876543" }
       let(:other_access_token) { "ya29.other_token" }

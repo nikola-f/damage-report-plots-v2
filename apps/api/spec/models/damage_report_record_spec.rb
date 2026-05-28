@@ -45,4 +45,37 @@ RSpec.describe DamageReportRecord do
       expect(record.owned).to be false
     end
   end
+
+  describe ".deduplicate" do
+    let(:base) { { name: "P", latitude: "35.0", longitude: "139.0", internal_date: "1000" } }
+
+    it "returns a single record when given one" do
+      r = described_class.new(**base, owned: false)
+      expect(described_class.deduplicate([r])).to eq([r])
+    end
+
+    it "deduplicates on name/latitude/longitude/internal_date (ignoring owned)" do
+      r1 = described_class.new(**base, owned: false)
+      r2 = described_class.new(**base, owned: true)
+      expect(described_class.deduplicate([r1, r2]).size).to eq(1)
+    end
+
+    it "keeps owned:true when both owned:false and owned:true are present" do
+      r_false = described_class.new(**base, owned: false)
+      r_true  = described_class.new(**base, owned: true)
+      expect(described_class.deduplicate([r_false, r_true])).to eq([r_true])
+    end
+
+    it "keeps owned:true regardless of order" do
+      r_false = described_class.new(**base, owned: false)
+      r_true  = described_class.new(**base, owned: true)
+      expect(described_class.deduplicate([r_true, r_false])).to eq([r_true])
+    end
+
+    it "keeps one record when all are owned:false" do
+      r1 = described_class.new(**base, owned: false)
+      r2 = described_class.new(**base, owned: false)
+      expect(described_class.deduplicate([r1, r2]).size).to eq(1)
+    end
+  end
 end
