@@ -233,9 +233,9 @@ RSpec.describe GmailThreadBatchWorker do
         expect(report_sqs_client).not_to have_received(:receive_messages)
       end
 
-      it "does not reschedule itself" do
+      it "reschedules itself after POLL_INTERVAL" do
         described_class.new.perform
-        expect(described_class).not_to have_received(:perform_in)
+        expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
       end
     end
 
