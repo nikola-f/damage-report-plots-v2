@@ -49,7 +49,7 @@ class GmailThreadBatchWorker
           end
         end
 
-        unique_portals = portals.uniq
+        unique_portals = DamageReportRecord.deduplicate(portals)
         if unique_portals.any?
           portal_sqs.send_messages(unique_portals.map(&:to_h),
                                    attributes: { UserStore::USER_ID_ATTR => user_id },
