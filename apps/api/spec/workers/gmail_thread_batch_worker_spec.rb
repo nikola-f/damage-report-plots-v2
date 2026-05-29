@@ -14,7 +14,11 @@ RSpec.describe GmailThreadBatchWorker do
   let(:decoder)       { instance_double(EmailHtmlDecoder) }
   let(:internal_date) { "1700000000000" }
   let(:gmail_message) { instance_double(GmailMessage, html_decoder: decoder, internal_date:) }
-  let(:fetcher)       { instance_double(GmailThreadBatchFetcher, call: [gmail_message]) }
+  let(:fetcher) do
+    instance_double(GmailThreadBatchFetcher).tap do |f|
+      allow(f).to receive(:call).and_yield(gmail_message)
+    end
+  end
 
   let(:message) do
     user_id_attr = instance_double(Aws::SQS::Types::MessageAttributeValue, string_value: user_id)
@@ -87,7 +91,11 @@ RSpec.describe GmailThreadBatchWorker do
     end
 
     context "when the same DamageReportRecord appears twice for the same user" do
-      let(:fetcher) { instance_double(GmailThreadBatchFetcher, call: [gmail_message, gmail_message]) }
+      let(:fetcher) do
+        instance_double(GmailThreadBatchFetcher).tap do |f|
+          allow(f).to receive(:call).and_yield(gmail_message).and_yield(gmail_message)
+        end
+      end
 
       it "sends the portal only once" do
         described_class.new.perform
@@ -106,7 +114,11 @@ RSpec.describe GmailThreadBatchWorker do
       let(:decoder_true)  { instance_double(EmailHtmlDecoder) }
       let(:msg_false)     { instance_double(GmailMessage, html_decoder: decoder_false, internal_date:) }
       let(:msg_true)      { instance_double(GmailMessage, html_decoder: decoder_true,  internal_date:) }
-      let(:fetcher)       { instance_double(GmailThreadBatchFetcher, call: [msg_false, msg_true]) }
+      let(:fetcher) do
+        instance_double(GmailThreadBatchFetcher).tap do |f|
+          allow(f).to receive(:call).and_yield(msg_false).and_yield(msg_true)
+        end
+      end
 
       before do
         allow(decoder_false).to receive(:extract_portals).with(internal_date:).and_return([portal_false])

@@ -39,16 +39,15 @@ class GmailThreadBatchWorker
         thread_ids = JSON.parse(message.body)
         logger.debug "received #{thread_ids.size} thread_ids for user #{user_id}"
 
-        access_token   = UserStore.access_token.fetch(user_id)
-        gmail_messages = GmailThreadBatchFetcher.new(access_token:).call(thread_ids)
-        logger.debug "fetched #{gmail_messages.size} gmail messages"
+        access_token = UserStore.access_token.fetch(user_id)
 
         portals = []
-        gmail_messages.each do |gmail_message|
+        GmailThreadBatchFetcher.new(access_token:).call(thread_ids) do |gmail_message|
           gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date)&.each do |portal|
             portals << portal
           end
         end
+        logger.debug "extracted #{portals.size} portals from #{thread_ids.size} threads for user #{user_id}"
 
         unique_portals = DamageReportRecord.deduplicate(portals)
         if unique_portals.any?
