@@ -19,12 +19,18 @@ class GmailThreadBatchFetcher
   end
 
   # @param thread_ids [Array<String>]
-  # @return [Array<GmailMessage>] all messages across all threads, in thread order
-  def call(thread_ids)
-    return [] if thread_ids.empty?
+  # @yield [GmailMessage] each message in streaming mode (limits peak memory to one batch at a time)
+  # @return [Array<GmailMessage>, nil] array when no block given; nil when block given
+  def call(thread_ids, &block)
+    return (block ? nil : []) if thread_ids.empty?
 
-    thread_ids.each_slice(BATCH_SIZE).flat_map do |batch|
-      fetch_with_retry(batch)
+    if block
+      thread_ids.each_slice(BATCH_SIZE) do |batch|
+        fetch_with_retry(batch).each(&block)
+      end
+      nil
+    else
+      thread_ids.each_slice(BATCH_SIZE).flat_map { |batch| fetch_with_retry(batch) }
     end
   end
 
