@@ -56,7 +56,7 @@ class GmailThreadBatchFetcher
     raise unless e.message.match?(/429|503|Rate Limit Exceeded|Quota exceeded|Too many concurrent|unavailable/i)
     raise if attempt >= MAX_RETRIES
     wait = [2**attempt, MAX_BACKOFF].min
-    Rails.logger.warn "GmailThreadBatchFetcher retry attempt=#{attempt + 1}/#{MAX_RETRIES} sleep=#{wait}s"
+    Rails.logger.warn "GmailThreadBatchFetcher retry attempt=#{attempt + 1}/#{MAX_RETRIES} sleep=#{wait}s reason=#{e.message}"
     sleep wait
     fetch_with_retry(batch, attempt: attempt + 1)
   end
