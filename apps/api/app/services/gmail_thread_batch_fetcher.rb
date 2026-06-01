@@ -11,7 +11,7 @@
 #   ).call(["id1", "id2", "id3"])
 class GmailThreadBatchFetcher
   BATCH_SIZE        = 20
-  INTER_BATCH_SLEEP = 3   # seconds; throttles QPM consumption between batch API calls
+  INTER_BATCH_SLEEP = 1   # seconds; throttles QPM consumption between batch API calls
   MAX_BACKOFF       = 32  # seconds; exponential backoff cap for Gmail 429 errors
   MAX_RETRIES       = 6   # 1+2+4+8+16+32 = 63s total wait, covering one quota window
 
