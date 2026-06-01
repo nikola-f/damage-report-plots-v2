@@ -26,6 +26,7 @@ RSpec.describe GmailThreadBatchWorker do
       Aws::SQS::Types::Message,
       body: JSON.generate(thread_ids),
       message_attributes: { UserStore::USER_ID_ATTR => user_id_attr },
+      message_id: "msg-1",
       receipt_handle: "rh-1"
     )
   end
@@ -145,6 +146,7 @@ RSpec.describe GmailThreadBatchWorker do
           Aws::SQS::Types::Message,
           body: JSON.generate(thread_ids),
           message_attributes: { UserStore::USER_ID_ATTR => user_id_attr },
+          message_id: "msg-2",
           receipt_handle: "rh-2"
         )
       end
