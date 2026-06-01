@@ -14,7 +14,7 @@ local imageTag = std.extVar('IMAGE_TAG');
     operatingSystemFamily: 'LINUX',
   },
   cpu: '256',
-  memory: '1024',
+  memory: '512',
   volumes: [
     { name: 'tmp' },
     { name: 'app-tmp' },
