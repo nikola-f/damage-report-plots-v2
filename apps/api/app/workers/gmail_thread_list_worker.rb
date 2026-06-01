@@ -5,7 +5,7 @@ class GmailThreadListWorker
 
   sidekiq_options retry: 3
 
-  THREAD_IDS_CHUNK_SIZE = 10 * 1024
+  THREADS_PER_MESSAGE = 500
 
   # @param user_id    [String] Google account ID
   # @param after_date [String, nil] ISO 8601 date string (e.g. "2024-01-01")
@@ -23,10 +23,10 @@ class GmailThreadListWorker
       return
     end
 
-    SqsClient.new(Settings.sqs_thread_ids_queue_url)
-             .send_messages(thread_ids,
-                            attributes: { UserStore::USER_ID_ATTR => user_id },
-                            max_message_size: THREAD_IDS_CHUNK_SIZE)
+    sqs = SqsClient.new(Settings.sqs_thread_ids_queue_url)
+    thread_ids.each_slice(THREADS_PER_MESSAGE) do |slice|
+      sqs.send_messages(slice, attributes: { UserStore::USER_ID_ATTR => user_id })
+    end
     logger.debug "sent #{thread_ids.size} thread_ids to SQS"
   end
 end
