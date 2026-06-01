@@ -61,6 +61,7 @@ RSpec.describe GmailThreadBatchFetcher do
       end
 
       before do
+        allow(fetcher).to receive(:sleep)
         allow(gmail_client).to receive(:batch_get_threads).with(first_batch).and_return(raw_threads_for(first_batch))
         allow(gmail_client).to receive(:batch_get_threads).with(second_batch).and_return(raw_threads_for(second_batch))
       end
@@ -141,6 +142,7 @@ RSpec.describe GmailThreadBatchFetcher do
         end
 
         before do
+          allow(fetcher).to receive(:sleep)
           allow(gmail_client).to receive(:batch_get_threads).with(first_batch).and_return(raw_threads_for(first_batch))
           allow(gmail_client).to receive(:batch_get_threads).with(second_batch).and_return(raw_threads_for(second_batch))
         end

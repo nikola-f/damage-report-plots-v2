@@ -10,9 +10,10 @@
 #     access_token: token
 #   ).call(["id1", "id2", "id3"])
 class GmailThreadBatchFetcher
-  BATCH_SIZE  = 20
-  MAX_BACKOFF = 32  # seconds; exponential backoff cap for Gmail 429 errors
-  MAX_RETRIES = 6   # 1+2+4+8+16+32 = 63s total wait, covering one quota window
+  BATCH_SIZE        = 20
+  INTER_BATCH_SLEEP = 5   # seconds; throttles QPM consumption between batch API calls
+  MAX_BACKOFF       = 32  # seconds; exponential backoff cap for Gmail 429 errors
+  MAX_RETRIES       = 6   # 1+2+4+8+16+32 = 63s total wait, covering one quota window
 
   def initialize(access_token:, gmail_client: nil)
     @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)
@@ -27,6 +28,7 @@ class GmailThreadBatchFetcher
     total = (thread_ids.size.to_f / BATCH_SIZE).ceil
     if block
       thread_ids.each_slice(BATCH_SIZE).with_index(1) do |batch, i|
+        sleep INTER_BATCH_SLEEP if i > 1
         t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         fetch_with_retry(batch).each(&block)
         ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t) * 1000).round
@@ -35,6 +37,7 @@ class GmailThreadBatchFetcher
       nil
     else
       thread_ids.each_slice(BATCH_SIZE).with_index(1).flat_map do |batch, i|
+        sleep INTER_BATCH_SLEEP if i > 1
         t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         result = fetch_with_retry(batch)
         ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t) * 1000).round
