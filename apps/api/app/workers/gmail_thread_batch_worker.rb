@@ -41,20 +41,27 @@ class GmailThreadBatchWorker
 
         access_token = UserStore.access_token.fetch(user_id)
 
-        portals = []
+        t_start    = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        extract_ms = 0
+        portals    = []
         GmailThreadBatchFetcher.new(access_token:).call(thread_ids) do |gmail_message|
+          t_ex = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date)&.each do |portal|
             portals << portal
           end
+          extract_ms += ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_ex) * 1000).round
         end
-        logger.debug "extracted #{portals.size} portals from #{thread_ids.size} threads for user #{user_id}"
+        fetch_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_start) * 1000).round - extract_ms
+        logger.info "user=#{user_id} threads=#{thread_ids.size} fetch=#{fetch_ms}ms extract=#{extract_ms}ms portals=#{portals.size}"
 
         unique_portals = DamageReportRecord.deduplicate(portals)
         if unique_portals.any?
+          t_sqs = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           portal_sqs.send_messages(unique_portals.map(&:to_h),
                                    attributes: { UserStore::USER_ID_ATTR => user_id },
                                    max_message_size: PORTALS_CHUNK_SIZE)
-          logger.debug "sent #{unique_portals.size} portals to SQS for user #{user_id}"
+          sqs_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_sqs) * 1000).round
+          logger.info "user=#{user_id} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
         end
 
         thread_sqs.delete_messages(message.receipt_handle)
