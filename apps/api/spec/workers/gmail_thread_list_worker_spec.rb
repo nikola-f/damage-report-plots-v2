@@ -31,13 +31,37 @@ RSpec.describe GmailThreadListWorker do
       )
     end
 
-    it "sends thread IDs to SQS with user_id as attribute and 10KB chunk size" do
+    it "sends thread IDs to SQS with user_id as attribute" do
       described_class.new.perform(user_id, "2024-01-01")
 
       expect(sqs_client).to have_received(:send_messages)
-        .with(%w[t1 t2],
-              attributes: { UserStore::USER_ID_ATTR => user_id },
-              max_message_size: GmailThreadListWorker::THREAD_IDS_CHUNK_SIZE)
+        .with(%w[t1 t2], attributes: { UserStore::USER_ID_ATTR => user_id })
+    end
+
+    context "when thread_ids exceed THREADS_PER_MESSAGE" do
+      let(:thread_ids) { (1..(described_class::THREADS_PER_MESSAGE + 1)).map { |i| "t#{i}" } }
+
+      it "calls send_messages once per slice" do
+        described_class.new.perform(user_id, "2024-01-01")
+
+        expect(sqs_client).to have_received(:send_messages).twice
+      end
+
+      it "sends the first slice of THREADS_PER_MESSAGE items" do
+        described_class.new.perform(user_id, "2024-01-01")
+
+        expect(sqs_client).to have_received(:send_messages)
+          .with(thread_ids[0..(described_class::THREADS_PER_MESSAGE - 1)],
+                attributes: { UserStore::USER_ID_ATTR => user_id })
+      end
+
+      it "sends the remainder in a second slice" do
+        described_class.new.perform(user_id, "2024-01-01")
+
+        expect(sqs_client).to have_received(:send_messages)
+          .with(thread_ids[described_class::THREADS_PER_MESSAGE..],
+                attributes: { UserStore::USER_ID_ATTR => user_id })
+      end
     end
 
     context "when there are no thread IDs" do
