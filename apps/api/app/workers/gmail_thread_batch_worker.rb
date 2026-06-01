@@ -37,7 +37,7 @@ class GmailThreadBatchWorker
         message    = messages.first
         user_id    = message.message_attributes[UserStore::USER_ID_ATTR].string_value
         thread_ids = JSON.parse(message.body)
-        logger.debug "received #{thread_ids.size} thread_ids for user #{user_id}"
+        logger.info "sqs_message_id=#{message.message_id} threads=#{thread_ids.size} user=#{user_id}"
 
         access_token = UserStore.access_token.fetch(user_id)
 
