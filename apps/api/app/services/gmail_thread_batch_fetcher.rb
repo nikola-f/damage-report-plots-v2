@@ -25,24 +25,16 @@ class GmailThreadBatchFetcher
   def call(thread_ids, &block)
     return (block ? nil : []) if thread_ids.empty?
 
-    total = (thread_ids.size.to_f / BATCH_SIZE).ceil
     if block
       thread_ids.each_slice(BATCH_SIZE).with_index(1) do |batch, i|
         sleep INTER_BATCH_SLEEP if i > 1
-        t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         fetch_with_retry(batch).each(&block)
-        ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t) * 1000).round
-        Rails.logger.debug "GmailThreadBatchFetcher batch=#{i}/#{total} threads=#{batch.size} fetch=#{ms}ms"
       end
       nil
     else
       thread_ids.each_slice(BATCH_SIZE).with_index(1).flat_map do |batch, i|
         sleep INTER_BATCH_SLEEP if i > 1
-        t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        result = fetch_with_retry(batch)
-        ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t) * 1000).round
-        Rails.logger.debug "GmailThreadBatchFetcher batch=#{i}/#{total} threads=#{batch.size} fetch=#{ms}ms"
-        result
+        fetch_with_retry(batch)
       end
     end
   end
