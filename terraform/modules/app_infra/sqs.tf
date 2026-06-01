@@ -48,7 +48,7 @@ resource "aws_sqs_queue" "thread_ids" {
   name                        = "${local.name_prefix}-thread-ids.fifo"
   fifo_queue                  = true
   content_based_deduplication = true
-  visibility_timeout_seconds  = 180
+  visibility_timeout_seconds  = 60
   sqs_managed_sse_enabled     = true
 
   redrive_policy = jsonencode({
