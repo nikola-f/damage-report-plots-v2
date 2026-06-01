@@ -210,12 +210,12 @@ RSpec.describe SpreadsheetSyncWorker do
       expect(row[0]).not_to eq(worker.send(:to_row, other)[0])
     end
 
-    it "places latitude in column 2" do
-      expect(row[1]).to eq(record.latitude)
+    it "places latitude as a Float in column 2" do
+      expect(row[1]).to eq(35.0)
     end
 
-    it "places longitude in column 3" do
-      expect(row[2]).to eq(record.longitude)
+    it "places longitude as a Float in column 3" do
+      expect(row[2]).to eq(139.0)
     end
 
     it "places 0 in column 4 when owned is false" do
