@@ -68,8 +68,8 @@ class SpreadsheetSyncWorker
   def to_row(record)
     [
       record.portal_id,
-      record.latitude,
-      record.longitude,
+      record.latitude.to_f,
+      record.longitude.to_f,
       record.owned ? 1 : 0,
       "#{record.internal_date},#{record.name}",
       Time.now.strftime("%y%m%d%H%M%S").to_i
