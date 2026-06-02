@@ -55,15 +55,6 @@ resource "aws_iam_role_policy" "ecs_execution" {
           aws_secretsmanager_secret.google_client_secret.arn,
         ]
       },
-      {
-        Effect = "Allow"
-        Action = "ssm:GetParameters"
-        Resource = [
-          aws_ssm_parameter.thread_batch_worker_poll_interval.arn,
-          aws_ssm_parameter.thread_batch_worker_lock_ttl.arn,
-          aws_ssm_parameter.thread_batch_worker_max_messages_per_run.arn,
-        ]
-      },
     ]
   })
 }
