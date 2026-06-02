@@ -153,16 +153,16 @@ output "acm_validation_records" {
 }
 
 output "thread_batch_worker_poll_interval" {
-  description = "THREAD_BATCH_WORKER_POLL_INTERVAL value from SSM"
-  value       = aws_ssm_parameter.thread_batch_worker_poll_interval.value
+  description = "THREAD_BATCH_WORKER_POLL_INTERVAL"
+  value       = tostring(var.thread_batch_worker_poll_interval)
 }
 
 output "thread_batch_worker_lock_ttl" {
-  description = "THREAD_BATCH_WORKER_LOCK_TTL value from SSM"
-  value       = aws_ssm_parameter.thread_batch_worker_lock_ttl.value
+  description = "THREAD_BATCH_WORKER_LOCK_TTL"
+  value       = tostring(var.thread_batch_worker_lock_ttl)
 }
 
 output "thread_batch_worker_max_messages_per_run" {
-  description = "THREAD_BATCH_WORKER_MAX_MESSAGES_PER_RUN value from SSM"
-  value       = aws_ssm_parameter.thread_batch_worker_max_messages_per_run.value
+  description = "THREAD_BATCH_WORKER_MAX_MESSAGES_PER_RUN"
+  value       = tostring(var.thread_batch_worker_max_messages_per_run)
 }
