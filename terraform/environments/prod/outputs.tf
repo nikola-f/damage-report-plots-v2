@@ -125,3 +125,15 @@ output "frontend_cloudfront_distribution_id" {
   sensitive = true
 }
 
+output "thread_batch_worker_poll_interval_ssm_arn" {
+  value = module.app_infra.thread_batch_worker_poll_interval_ssm_arn
+}
+
+output "thread_batch_worker_lock_ttl_ssm_arn" {
+  value = module.app_infra.thread_batch_worker_lock_ttl_ssm_arn
+}
+
+output "thread_batch_worker_max_messages_per_run_ssm_arn" {
+  value = module.app_infra.thread_batch_worker_max_messages_per_run_ssm_arn
+}
+

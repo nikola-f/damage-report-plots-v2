@@ -206,6 +206,15 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       {
         Effect = "Allow"
         Action = [
+          "ssm:PutParameter", "ssm:GetParameter", "ssm:GetParameters",
+          "ssm:DeleteParameter", "ssm:DescribeParameters",
+          "ssm:AddTagsToResource", "ssm:ListTagsForResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "s3:CreateBucket", "s3:DeleteBucket",
           "s3:Get*", "s3:List*",
           "s3:PutBucketAcl",

@@ -2,3 +2,6 @@ redis_url: "redis://localhost:6379/0"
 allowed_origins: "http://localhost:3000"
 sqs_thread_ids_queue_url: ~
 sqs_reports_queue_url: ~
+thread_batch_worker_poll_interval: 30
+thread_batch_worker_lock_ttl: 900
+thread_batch_worker_max_messages_per_run: 5

@@ -61,3 +61,21 @@ variable "frontend_domain_name" {
   type        = string
   sensitive   = true
 }
+
+variable "thread_batch_worker_poll_interval" {
+  description = "Seconds between GmailThreadBatchWorker polling cycles"
+  type        = number
+  default     = 30
+}
+
+variable "thread_batch_worker_lock_ttl" {
+  description = "Redis lock TTL in seconds for GmailThreadBatchWorker"
+  type        = number
+  default     = 900
+}
+
+variable "thread_batch_worker_max_messages_per_run" {
+  description = "Max SQS messages processed per GmailThreadBatchWorker run"
+  type        = number
+  default     = 5
+}

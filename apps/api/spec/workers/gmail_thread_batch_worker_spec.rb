@@ -33,7 +33,7 @@ RSpec.describe GmailThreadBatchWorker do
 
   before do
     allow(REDIS).to receive(:set)
-      .with(GmailThreadBatchWorker::LOCK_KEY, "1", nx: true, ex: GmailThreadBatchWorker::LOCK_TTL)
+      .with(GmailThreadBatchWorker::LOCK_KEY, "1", nx: true, ex: Settings.thread_batch_worker_lock_ttl)
       .and_return("OK")
     allow(REDIS).to receive(:del).with(GmailThreadBatchWorker::LOCK_KEY)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs_client)
@@ -88,7 +88,7 @@ RSpec.describe GmailThreadBatchWorker do
     it "reschedules itself after processing" do
       described_class.new.perform
 
-      expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
+      expect(described_class).to have_received(:perform_in).with(Settings.thread_batch_worker_poll_interval)
     end
 
     context "when the same DamageReportRecord appears twice for the same user" do
@@ -202,22 +202,22 @@ RSpec.describe GmailThreadBatchWorker do
       it "still reschedules itself" do
         expect { described_class.new.perform }.to raise_error(RuntimeError)
 
-        expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
+        expect(described_class).to have_received(:perform_in).with(Settings.thread_batch_worker_poll_interval)
       end
     end
 
-    context "when there are more messages than MAX_MESSAGES_PER_RUN" do
+    context "when there are more messages than worker_max_messages_per_run" do
       before do
         allow(report_sqs_client).to receive(:receive_messages)
           .with(message_attribute_names: [UserStore::USER_ID_ATTR], max_messages: 1)
-          .and_return(*Array.new(GmailThreadBatchWorker::MAX_MESSAGES_PER_RUN + 1) { [message] })
+          .and_return(*Array.new(Settings.thread_batch_worker_max_messages_per_run + 1) { [message] })
       end
 
-      it "stops after MAX_MESSAGES_PER_RUN messages" do
+      it "stops after worker_max_messages_per_run messages" do
         described_class.new.perform
 
         expect(report_sqs_client).to have_received(:receive_messages)
-          .exactly(GmailThreadBatchWorker::MAX_MESSAGES_PER_RUN).times
+          .exactly(Settings.thread_batch_worker_max_messages_per_run).times
       end
     end
 
@@ -238,7 +238,7 @@ RSpec.describe GmailThreadBatchWorker do
     context "when the lock is already held by another worker" do
       before do
         allow(REDIS).to receive(:set)
-          .with(GmailThreadBatchWorker::LOCK_KEY, "1", nx: true, ex: GmailThreadBatchWorker::LOCK_TTL)
+          .with(GmailThreadBatchWorker::LOCK_KEY, "1", nx: true, ex: Settings.thread_batch_worker_lock_ttl)
           .and_return(nil)
       end
 
@@ -247,9 +247,9 @@ RSpec.describe GmailThreadBatchWorker do
         expect(report_sqs_client).not_to have_received(:receive_messages)
       end
 
-      it "reschedules itself after POLL_INTERVAL" do
+      it "reschedules itself after worker_poll_interval" do
         described_class.new.perform
-        expect(described_class).to have_received(:perform_in).with(GmailThreadBatchWorker::POLL_INTERVAL)
+        expect(described_class).to have_received(:perform_in).with(Settings.thread_batch_worker_poll_interval)
       end
     end
 
