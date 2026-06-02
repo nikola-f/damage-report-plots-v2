@@ -49,14 +49,11 @@ local imageTag = std.extVar('IMAGE_TAG');
         { name: 'SQS_REPORTS_QUEUE_URL', value: tfstate('output.sqs_reports_queue_url') },
       ] + (if env == 'dev' then [{ name: 'RAILS_LOG_LEVEL', value: 'debug' }] else []),
       secrets: [
-        {
-          name: 'RAILS_MASTER_KEY',
-          valueFrom: tfstate('output.rails_master_key_secret_arn'),
-        },
-        {
-          name: 'REDIS_URL',
-          valueFrom: tfstate('output.redis_url_secret_arn'),
-        },
+        { name: 'RAILS_MASTER_KEY',            valueFrom: tfstate('output.rails_master_key_secret_arn') },
+        { name: 'REDIS_URL',                   valueFrom: tfstate('output.redis_url_secret_arn') },
+        { name: 'WORKER_POLL_INTERVAL',        valueFrom: tfstate('output.thread_batch_worker_poll_interval_ssm_arn') },
+        { name: 'WORKER_LOCK_TTL',             valueFrom: tfstate('output.thread_batch_worker_lock_ttl_ssm_arn') },
+        { name: 'WORKER_MAX_MESSAGES_PER_RUN', valueFrom: tfstate('output.thread_batch_worker_max_messages_per_run_ssm_arn') },
       ],
       logConfiguration: {
         logDriver: 'awslogs',
