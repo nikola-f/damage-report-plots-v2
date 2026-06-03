@@ -137,3 +137,15 @@ output "thread_batch_worker_max_messages_per_run" {
   value = module.app_infra.thread_batch_worker_max_messages_per_run
 }
 
+output "spreadsheet_sync_worker_poll_interval" {
+  value = module.app_infra.spreadsheet_sync_worker_poll_interval
+}
+
+output "spreadsheet_sync_worker_lock_ttl" {
+  value = module.app_infra.spreadsheet_sync_worker_lock_ttl
+}
+
+output "thread_list_worker_threads_per_message" {
+  value = module.app_infra.thread_list_worker_threads_per_message
+}
+

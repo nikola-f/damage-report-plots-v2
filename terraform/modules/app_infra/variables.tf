@@ -79,3 +79,21 @@ variable "thread_batch_worker_max_messages_per_run" {
   type        = number
   default     = 5
 }
+
+variable "spreadsheet_sync_worker_poll_interval" {
+  description = "Seconds between SpreadsheetSyncWorker polling cycles"
+  type        = number
+  default     = 30
+}
+
+variable "spreadsheet_sync_worker_lock_ttl" {
+  description = "Redis lock TTL in seconds for SpreadsheetSyncWorker"
+  type        = number
+  default     = 300
+}
+
+variable "thread_list_worker_threads_per_message" {
+  description = "Thread IDs per SQS message for GmailThreadListWorker"
+  type        = number
+  default     = 500
+}

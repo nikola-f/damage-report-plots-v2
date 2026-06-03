@@ -166,3 +166,18 @@ output "thread_batch_worker_max_messages_per_run" {
   description = "THREAD_BATCH_WORKER_MAX_MESSAGES_PER_RUN"
   value       = tostring(var.thread_batch_worker_max_messages_per_run)
 }
+
+output "spreadsheet_sync_worker_poll_interval" {
+  description = "SPREADSHEET_SYNC_WORKER_POLL_INTERVAL"
+  value       = tostring(var.spreadsheet_sync_worker_poll_interval)
+}
+
+output "spreadsheet_sync_worker_lock_ttl" {
+  description = "SPREADSHEET_SYNC_WORKER_LOCK_TTL"
+  value       = tostring(var.spreadsheet_sync_worker_lock_ttl)
+}
+
+output "thread_list_worker_threads_per_message" {
+  description = "THREAD_LIST_WORKER_THREADS_PER_MESSAGE"
+  value       = tostring(var.thread_list_worker_threads_per_message)
+}

@@ -62,6 +62,9 @@ resource "aws_iam_role_policy" "ecs_execution" {
           aws_ssm_parameter.thread_batch_worker_poll_interval.arn,
           aws_ssm_parameter.thread_batch_worker_lock_ttl.arn,
           aws_ssm_parameter.thread_batch_worker_max_messages_per_run.arn,
+          aws_ssm_parameter.spreadsheet_sync_worker_poll_interval.arn,
+          aws_ssm_parameter.spreadsheet_sync_worker_lock_ttl.arn,
+          aws_ssm_parameter.thread_list_worker_threads_per_message.arn,
         ]
       },
     ]
