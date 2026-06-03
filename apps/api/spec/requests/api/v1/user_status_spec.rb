@@ -10,6 +10,8 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
   let(:scope_sync_store)          { instance_double(UserStore) }
   let(:threads_found_store)       { instance_double(UserStore, fetch: "1500") }
   let(:threads_processed_store)   { instance_double(UserStore, fetch: "320") }
+  let(:portals_found_store)       { instance_double(UserStore, fetch: "980") }
+  let(:portals_appended_store)    { instance_double(UserStore, fetch: "750") }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
@@ -19,6 +21,8 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
     allow(UserStore).to receive(:scope_sync).and_return(scope_sync_store)
     allow(UserStore).to receive(:threads_found).and_return(threads_found_store)
     allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
+    allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
+    allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
     allow(scope_spreadsheets_store).to receive(:fetch).and_raise(KeyError)
     allow(scope_sync_store).to receive(:fetch).and_raise(KeyError)
   end
@@ -68,6 +72,38 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
         get "/api/v1/user_status"
 
         expect(json_response["threads_processed"]).to be_nil
+      end
+    end
+
+    it "returns portals_found as integer" do
+      get "/api/v1/user_status"
+
+      expect(json_response["portals_found"]).to eq(980)
+    end
+
+    it "returns portals_appended as integer" do
+      get "/api/v1/user_status"
+
+      expect(json_response["portals_appended"]).to eq(750)
+    end
+
+    context "when portals_found has not been stored" do
+      before { allow(portals_found_store).to receive(:fetch).and_raise(KeyError) }
+
+      it "returns portals_found null" do
+        get "/api/v1/user_status"
+
+        expect(json_response["portals_found"]).to be_nil
+      end
+    end
+
+    context "when portals_appended has not been stored" do
+      before { allow(portals_appended_store).to receive(:fetch).and_raise(KeyError) }
+
+      it "returns portals_appended null" do
+        get "/api/v1/user_status"
+
+        expect(json_response["portals_appended"]).to be_nil
       end
     end
 

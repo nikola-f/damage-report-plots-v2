@@ -50,6 +50,7 @@ class GmailThreadBatchWorker
                                    attributes: { UserStore::USER_ID_ATTR => user_id })
           sqs_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_sqs) * 1000).round
           logger.info "user=#{user_id} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
+          UserStore.portals_found.increment(user_id, by: unique_portals.size)
         end
 
         thread_sqs.delete_messages(message.receipt_handle)

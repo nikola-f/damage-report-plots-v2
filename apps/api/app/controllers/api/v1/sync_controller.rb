@@ -18,6 +18,8 @@ module Api
         UserStore.last_synced_at.store(current_user_id, Time.now.to_i.to_s)
         UserStore.threads_found.store(current_user_id, "0")
         UserStore.threads_processed.store(current_user_id, "0")
+        UserStore.portals_found.store(current_user_id, "0")
+        UserStore.portals_appended.store(current_user_id, "0")
         head :accepted
       end
 

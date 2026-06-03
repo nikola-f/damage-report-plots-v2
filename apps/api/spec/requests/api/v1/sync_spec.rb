@@ -6,9 +6,11 @@ RSpec.describe "POST /api/v1/sync", type: :request do
   let(:access_token_store)    { instance_double(UserStore, fetch: "ya29.token", store: nil) }
   let(:spreadsheet_id_store)  { instance_double(UserStore, fetch: "spreadsheet-id", store: nil) }
   let(:last_synced_at_store)  { instance_double(UserStore, store: nil) }
-  let(:threads_found_store)   { instance_double(UserStore, store: nil) }
+  let(:threads_found_store)     { instance_double(UserStore, store: nil) }
   let(:threads_processed_store) { instance_double(UserStore, store: nil) }
-  let(:sheets_client)         { instance_double(SpreadsheetsClient, create_spreadsheet: "new-spreadsheet-id", protect_ranges: nil) }
+  let(:portals_found_store)     { instance_double(UserStore, store: nil) }
+  let(:portals_appended_store)  { instance_double(UserStore, store: nil) }
+  let(:sheets_client)           { instance_double(SpreadsheetsClient, create_spreadsheet: "new-spreadsheet-id", protect_ranges: nil) }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
@@ -16,6 +18,8 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     allow(UserStore).to receive(:last_synced_at).and_return(last_synced_at_store)
     allow(UserStore).to receive(:threads_found).and_return(threads_found_store)
     allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
+    allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
+    allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
     allow(SpreadsheetsClient).to receive(:new).and_return(sheets_client)
     allow(GmailThreadListWorker).to receive(:perform_async)
   end
@@ -53,6 +57,18 @@ RSpec.describe "POST /api/v1/sync", type: :request do
         post "/api/v1/sync"
 
         expect(threads_processed_store).to have_received(:store).with(test_user_id, "0")
+      end
+
+      it "resets portals_found to 0 in UserStore" do
+        post "/api/v1/sync"
+
+        expect(portals_found_store).to have_received(:store).with(test_user_id, "0")
+      end
+
+      it "resets portals_appended to 0 in UserStore" do
+        post "/api/v1/sync"
+
+        expect(portals_appended_store).to have_received(:store).with(test_user_id, "0")
       end
     end
 
