@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getApplicationStatus, getProfile, getUserStatus, logout, sync, type Profile, type UserStatus } from "./api.ts";
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -34,8 +34,6 @@ export default function App() {
   const [syncMessage, setSyncMessage] = useState("");
   const [queueStatus, setQueueStatus] = useState<QueueLevel | null>(null);
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
-  const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const userStatusTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     getProfile()
@@ -47,9 +45,6 @@ export default function App() {
   useEffect(() => {
     if (!profile) {
       setQueueStatus(null);
-      setUserStatus(null);
-      if (queueTimerRef.current) clearInterval(queueTimerRef.current);
-      if (userStatusTimerRef.current) clearInterval(userStatusTimerRef.current);
       return;
     }
 
@@ -62,20 +57,26 @@ export default function App() {
         .catch(console.error);
     }
 
+    fetchQueueStatus();
+    const timerId = setInterval(fetchQueueStatus, QUEUE_POLL_INTERVAL_MS);
+    return () => clearInterval(timerId);
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) {
+      setUserStatus(null);
+      return;
+    }
+
     function fetchUserStatus() {
       getUserStatus()
         .then(setUserStatus)
         .catch(console.error);
     }
 
-    fetchQueueStatus();
     fetchUserStatus();
-    queueTimerRef.current = setInterval(fetchQueueStatus, QUEUE_POLL_INTERVAL_MS);
-    userStatusTimerRef.current = setInterval(fetchUserStatus, USER_STATUS_POLL_INTERVAL_MS);
-    return () => {
-      if (queueTimerRef.current) clearInterval(queueTimerRef.current);
-      if (userStatusTimerRef.current) clearInterval(userStatusTimerRef.current);
-    };
+    const timerId = setInterval(fetchUserStatus, USER_STATUS_POLL_INTERVAL_MS);
+    return () => clearInterval(timerId);
   }, [profile]);
 
   function handleLogin() {
