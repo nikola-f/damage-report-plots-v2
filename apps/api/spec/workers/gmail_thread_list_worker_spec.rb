@@ -38,8 +38,8 @@ RSpec.describe GmailThreadListWorker do
         .with(%w[t1 t2], attributes: { UserStore::USER_ID_ATTR => user_id })
     end
 
-    context "when thread_ids exceed THREADS_PER_MESSAGE" do
-      let(:thread_ids) { (1..(described_class::THREADS_PER_MESSAGE + 1)).map { |i| "t#{i}" } }
+    context "when thread_ids exceed threads_per_message" do
+      let(:thread_ids) { (1..(Settings.thread_list_worker_threads_per_message + 1)).map { |i| "t#{i}" } }
 
       it "calls send_messages once per slice" do
         described_class.new.perform(user_id, "2024-01-01")
@@ -47,11 +47,11 @@ RSpec.describe GmailThreadListWorker do
         expect(sqs_client).to have_received(:send_messages).twice
       end
 
-      it "sends the first slice of THREADS_PER_MESSAGE items" do
+      it "sends the first slice of threads_per_message items" do
         described_class.new.perform(user_id, "2024-01-01")
 
         expect(sqs_client).to have_received(:send_messages)
-          .with(thread_ids[0..(described_class::THREADS_PER_MESSAGE - 1)],
+          .with(thread_ids[0..(Settings.thread_list_worker_threads_per_message - 1)],
                 attributes: { UserStore::USER_ID_ATTR => user_id })
       end
 
@@ -59,7 +59,7 @@ RSpec.describe GmailThreadListWorker do
         described_class.new.perform(user_id, "2024-01-01")
 
         expect(sqs_client).to have_received(:send_messages)
-          .with(thread_ids[described_class::THREADS_PER_MESSAGE..],
+          .with(thread_ids[Settings.thread_list_worker_threads_per_message..],
                 attributes: { UserStore::USER_ID_ATTR => user_id })
       end
     end
