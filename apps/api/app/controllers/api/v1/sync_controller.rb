@@ -16,6 +16,8 @@ module Api
         ensure_spreadsheet_exists
         GmailThreadListWorker.perform_async(current_user_id, params[:after_date])
         UserStore.last_synced_at.store(current_user_id, Time.now.to_i.to_s)
+        UserStore.threads_found.store(current_user_id, "0")
+        UserStore.threads_processed.store(current_user_id, "0")
         head :accepted
       end
 

@@ -31,6 +31,8 @@ RSpec.describe GmailThreadBatchWorker do
     )
   end
 
+  let(:threads_processed_store) { instance_double(UserStore, increment: nil) }
+
   before do
     allow(REDIS).to receive(:set)
       .with(GmailThreadBatchWorker::LOCK_KEY, "1", nx: true, ex: Settings.thread_batch_worker_lock_ttl)
@@ -43,6 +45,7 @@ RSpec.describe GmailThreadBatchWorker do
       .and_return([message], [])
     allow(report_sqs_client).to receive(:delete_messages)
     allow(UserStore).to receive(:access_token).and_return(token_store)
+    allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
     allow(GmailThreadBatchFetcher).to receive(:new).and_return(fetcher)
     allow(decoder).to receive(:extract_portals).with(internal_date:).and_return([portal])
     allow(described_class).to receive(:perform_in)
@@ -82,6 +85,12 @@ RSpec.describe GmailThreadBatchWorker do
       described_class.new.perform
 
       expect(report_sqs_client).to have_received(:delete_messages).with("rh-1")
+    end
+
+    it "increments threads_processed by the number of thread IDs in the message" do
+      described_class.new.perform
+
+      expect(threads_processed_store).to have_received(:increment).with(user_id, by: thread_ids.size)
     end
 
     it "reschedules itself after processing" do
