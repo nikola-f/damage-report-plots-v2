@@ -9,6 +9,8 @@ module Api
         render json: {
           spreadsheet_exists: spreadsheet_exists?,
           last_synced_at:     last_synced_at,
+          threads_found:      threads_found,
+          threads_processed:  threads_processed,
           scope_expires_at:   {
             spreadsheets: scope_expires_at(UserStore.scope_spreadsheets),
             sync:         scope_expires_at(UserStore.scope_sync)
@@ -33,6 +35,18 @@ module Api
 
       def scope_expires_at(store)
         store.fetch(current_user_id).to_i
+      rescue KeyError
+        nil
+      end
+
+      def threads_found
+        UserStore.threads_found.fetch(current_user_id).to_i
+      rescue KeyError
+        nil
+      end
+
+      def threads_processed
+        UserStore.threads_processed.fetch(current_user_id).to_i
       rescue KeyError
         nil
       end

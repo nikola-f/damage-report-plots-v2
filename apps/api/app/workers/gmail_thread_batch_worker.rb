@@ -54,6 +54,7 @@ class GmailThreadBatchWorker
 
         thread_sqs.delete_messages(message.receipt_handle)
         logger.debug "deleted thread_ids message for user #{user_id}"
+        UserStore.threads_processed.increment(user_id, by: thread_ids.size)
         processed += 1
       end
     end

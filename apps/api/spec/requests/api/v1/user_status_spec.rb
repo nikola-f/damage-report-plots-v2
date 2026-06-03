@@ -8,6 +8,8 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
   let(:last_synced_at_store)      { instance_double(UserStore, fetch: "1744908000") }
   let(:scope_spreadsheets_store)  { instance_double(UserStore) }
   let(:scope_sync_store)          { instance_double(UserStore) }
+  let(:threads_found_store)       { instance_double(UserStore, fetch: "1500") }
+  let(:threads_processed_store)   { instance_double(UserStore, fetch: "320") }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
@@ -15,6 +17,8 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
     allow(UserStore).to receive(:last_synced_at).and_return(last_synced_at_store)
     allow(UserStore).to receive(:scope_spreadsheets).and_return(scope_spreadsheets_store)
     allow(UserStore).to receive(:scope_sync).and_return(scope_sync_store)
+    allow(UserStore).to receive(:threads_found).and_return(threads_found_store)
+    allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
     allow(scope_spreadsheets_store).to receive(:fetch).and_raise(KeyError)
     allow(scope_sync_store).to receive(:fetch).and_raise(KeyError)
   end
@@ -33,6 +37,38 @@ RSpec.describe "GET /api/v1/user_status", type: :request do
       get "/api/v1/user_status"
 
       expect(json_response["last_synced_at"]).to eq(1744908000)
+    end
+
+    it "returns threads_found as integer" do
+      get "/api/v1/user_status"
+
+      expect(json_response["threads_found"]).to eq(1500)
+    end
+
+    it "returns threads_processed as integer" do
+      get "/api/v1/user_status"
+
+      expect(json_response["threads_processed"]).to eq(320)
+    end
+
+    context "when threads_found has not been stored" do
+      before { allow(threads_found_store).to receive(:fetch).and_raise(KeyError) }
+
+      it "returns threads_found null" do
+        get "/api/v1/user_status"
+
+        expect(json_response["threads_found"]).to be_nil
+      end
+    end
+
+    context "when threads_processed has not been stored" do
+      before { allow(threads_processed_store).to receive(:fetch).and_raise(KeyError) }
+
+      it "returns threads_processed null" do
+        get "/api/v1/user_status"
+
+        expect(json_response["threads_processed"]).to be_nil
+      end
     end
 
     it "returns null scope_expires_at when no scopes have been granted" do

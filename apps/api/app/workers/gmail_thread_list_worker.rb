@@ -15,6 +15,7 @@ class GmailThreadListWorker
 
     thread_ids = GmailThreadListFetcher.new(access_token:).call(q: query.to_s)
     logger.debug "found #{thread_ids.size} threads"
+    UserStore.threads_found.store(user_id, thread_ids.size.to_s)
 
     if thread_ids.empty?
       logger.debug "no threads found, skipping SQS"

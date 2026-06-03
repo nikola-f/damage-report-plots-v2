@@ -25,6 +25,14 @@ class UserStore
     new(prefix: "scope_sync", ttl: 3600, redis:)
   end
 
+  def self.threads_found(redis: REDIS)
+    new(prefix: "threads_found", redis:)
+  end
+
+  def self.threads_processed(redis: REDIS)
+    new(prefix: "threads_processed", redis:)
+  end
+
   def initialize(prefix:, ttl: nil, redis: REDIS)
     @prefix = prefix
     @ttl    = ttl
@@ -36,6 +44,12 @@ class UserStore
   def store(user_id, value)
     opts = @ttl ? { ex: @ttl } : {}
     @redis.set(redis_key(user_id), value, **opts)
+  end
+
+  # @param user_id [String] Google account ID
+  # @param by      [Integer]
+  def increment(user_id, by: 1)
+    @redis.incrby(redis_key(user_id), by)
   end
 
   # @param user_id [String] Google account ID
