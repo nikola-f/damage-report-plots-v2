@@ -5,8 +5,6 @@ class GmailThreadListWorker
 
   sidekiq_options retry: 3
 
-  THREADS_PER_MESSAGE = 500
-
   # @param user_id    [String] Google account ID
   # @param after_date [String, nil] ISO 8601 date string (e.g. "2024-01-01")
   def perform(user_id, after_date)
@@ -24,7 +22,7 @@ class GmailThreadListWorker
     end
 
     sqs = SqsClient.new(Settings.sqs_thread_ids_queue_url)
-    thread_ids.each_slice(THREADS_PER_MESSAGE) do |slice|
+    thread_ids.each_slice(Settings.thread_list_worker_threads_per_message) do |slice|
       sqs.send_messages(slice, attributes: { UserStore::USER_ID_ATTR => user_id })
     end
     logger.debug "sent #{thread_ids.size} thread_ids to SQS"
