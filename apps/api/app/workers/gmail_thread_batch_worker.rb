@@ -2,21 +2,14 @@
 
 class GmailThreadBatchWorker
   include Sidekiq::Worker
+  include PollingWorker
 
   sidekiq_options retry: 0
 
   LOCK_KEY = "gmail_thread_batch_worker:lock"
 
   def perform
-    acquired = REDIS.set(LOCK_KEY, "1", nx: true, ex: Settings.thread_batch_worker_lock_ttl)
-
-    unless acquired
-      logger.debug "another GmailThreadBatchWorker is running, skipping"
-      self.class.perform_in(Settings.thread_batch_worker_poll_interval)
-      return
-    end
-
-    begin
+    with_lock(key: LOCK_KEY, ttl: Settings.thread_batch_worker_lock_ttl, interval: Settings.thread_batch_worker_poll_interval) do
       portal_sqs = SqsClient.new(Settings.sqs_reports_queue_url)
       thread_sqs = SqsClient.new(Settings.sqs_thread_ids_queue_url)
 
@@ -63,9 +56,6 @@ class GmailThreadBatchWorker
         logger.debug "deleted thread_ids message for user #{user_id}"
         processed += 1
       end
-    ensure
-      REDIS.del(LOCK_KEY)
-      self.class.perform_in(Settings.thread_batch_worker_poll_interval)
     end
   end
 end

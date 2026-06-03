@@ -5,3 +5,5 @@ sqs_reports_queue_url: <%= ENV['SQS_REPORTS_QUEUE_URL'] %>
 thread_batch_worker_poll_interval: <%= ENV.fetch('THREAD_BATCH_WORKER_POLL_INTERVAL', '30').to_i %>
 thread_batch_worker_lock_ttl: <%= ENV.fetch('THREAD_BATCH_WORKER_LOCK_TTL', '900').to_i %>
 thread_batch_worker_max_messages_per_run: <%= ENV.fetch('THREAD_BATCH_WORKER_MAX_MESSAGES_PER_RUN', '5').to_i %>
+spreadsheet_sync_worker_poll_interval: <%= ENV.fetch('SPREADSHEET_SYNC_WORKER_POLL_INTERVAL', '30').to_i %>
+spreadsheet_sync_worker_lock_ttl: <%= ENV.fetch('SPREADSHEET_SYNC_WORKER_LOCK_TTL', '300').to_i %>

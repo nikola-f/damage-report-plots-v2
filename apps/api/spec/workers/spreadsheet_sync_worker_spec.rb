@@ -20,7 +20,7 @@ RSpec.describe SpreadsheetSyncWorker do
 
   before do
     allow(REDIS).to receive(:set)
-      .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: SpreadsheetSyncWorker::LOCK_TTL)
+      .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: Settings.spreadsheet_sync_worker_lock_ttl)
       .and_return("OK")
     allow(REDIS).to receive(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(sqs_client)
@@ -95,7 +95,7 @@ RSpec.describe SpreadsheetSyncWorker do
     it "reschedules itself after polling" do
       described_class.new.perform
 
-      expect(described_class).to have_received(:perform_in).with(SpreadsheetSyncWorker::POLL_INTERVAL)
+      expect(described_class).to have_received(:perform_in).with(Settings.spreadsheet_sync_worker_poll_interval)
     end
 
     context "when an error occurs during processing" do
@@ -104,14 +104,14 @@ RSpec.describe SpreadsheetSyncWorker do
       it "still reschedules itself" do
         expect { described_class.new.perform }.to raise_error(RuntimeError)
 
-        expect(described_class).to have_received(:perform_in).with(SpreadsheetSyncWorker::POLL_INTERVAL)
+        expect(described_class).to have_received(:perform_in).with(Settings.spreadsheet_sync_worker_poll_interval)
       end
     end
 
     context "when the lock is already held by another worker" do
       before do
         allow(REDIS).to receive(:set)
-          .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: SpreadsheetSyncWorker::LOCK_TTL)
+          .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: Settings.spreadsheet_sync_worker_lock_ttl)
           .and_return(nil)
       end
 
@@ -122,7 +122,7 @@ RSpec.describe SpreadsheetSyncWorker do
 
       it "reschedules itself after POLL_INTERVAL" do
         described_class.new.perform
-        expect(described_class).to have_received(:perform_in).with(SpreadsheetSyncWorker::POLL_INTERVAL)
+        expect(described_class).to have_received(:perform_in).with(Settings.spreadsheet_sync_worker_poll_interval)
       end
     end
 
