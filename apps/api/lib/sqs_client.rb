@@ -6,7 +6,6 @@ require "json"
 
 class SqsClient
   MAX_RECEIVE_MESSAGES = 1_000
-  MAX_MESSAGE_SIZE     = 256 * 1024 # SQS per-message size limit in bytes
 
   # @param queue_url [String] SQS FIFO queue URL (must end with .fifo)
   # @param message_group_id [String] FIFO message group ID for ordering
@@ -37,36 +36,21 @@ class SqsClient
     )
   end
 
-  # Sends multiple items to SQS FIFO queue.
-  # Packs items into JSON arrays to minimize the number of SQS messages.
-  # Splits into multiple messages when a chunk would exceed MAX_MESSAGE_SIZE.
-  # SQS API calls are batched in groups of 10.
+  # Sends multiple items to SQS FIFO queue as a single JSON array message.
   #
   # @param items [Array] JSON-serializable items to enqueue (e.g. Array<String>, Array<Hash>)
-  # @param attributes [Hash] optional metadata applied to every message ({ "key" => value, ... })
+  # @param attributes [Hash] optional metadata applied to the message ({ "key" => value, ... })
   #   Values are typed automatically: Numeric => Number, others => String
-  # @return [Array<Aws::SQS::Types::SendMessageBatchResult>]
-  def send_messages(items, attributes: {}, max_message_size: MAX_MESSAGE_SIZE)
-    sqs_attributes  = build_message_attributes(attributes)
-    body_budget     = max_message_size - message_attributes_size(sqs_attributes)
-
-    chunk_by_size(items, body_budget).each_slice(10).map do |batch|
-      entries = batch.each_with_index.map do |chunk, index|
-        body = JSON.generate(chunk)
-        {
-          id: index.to_s,
-          message_body: body,
-          message_group_id: @message_group_id,
-          message_deduplication_id: deduplication_id(body),
-          message_attributes: sqs_attributes
-        }
-      end
-
-      @client.send_message_batch(
-        queue_url: @queue_url,
-        entries: entries
-      )
-    end
+  # @return [Aws::SQS::Types::SendMessageResult]
+  def send_messages(items, attributes: {})
+    body = JSON.generate(items)
+    @client.send_message(
+      queue_url: @queue_url,
+      message_body: body,
+      message_group_id: @message_group_id,
+      message_deduplication_id: deduplication_id(body),
+      message_attributes: build_message_attributes(attributes)
+    )
   end
 
   # Receives messages, yields each to the block, then deletes them all.
@@ -149,29 +133,6 @@ class SqsClient
   end
 
   private
-
-  # Groups items into chunks where each chunk's JSON body fits within max_body_size bytes.
-  def chunk_by_size(items, max_body_size = MAX_MESSAGE_SIZE)
-    chunks  = []
-    current = []
-    items.each do |item|
-      candidate = current + [item]
-      if JSON.generate(candidate).bytesize > max_body_size
-        chunks << current unless current.empty?
-        current = [item]
-      else
-        current = candidate
-      end
-    end
-    chunks << current unless current.empty?
-    chunks
-  end
-
-  # Calculates the total byte size of SQS message attributes.
-  # Per AWS docs, each attribute contributes: key + data_type + value sizes.
-  def message_attributes_size(sqs_attributes)
-    sqs_attributes.sum { |key, val| key.bytesize + val[:data_type].bytesize + val[:string_value].bytesize }
-  end
 
   def deduplication_id(body)
     Digest::SHA256.hexdigest(body)
