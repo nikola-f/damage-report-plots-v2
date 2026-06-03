@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { getApplicationStatus, getProfile, getUserStatus, logout, sync, type Profile, type UserStatus } from "./api.ts";
+import { getProfile, getStatus, logout, sync, type Profile, type Status as AppStatus } from "./api.ts";
 
-type Status = "idle" | "loading" | "success" | "error";
+type SyncStatus = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
 
-const QUEUE_POLL_INTERVAL_MS = 60_000;
-const USER_STATUS_POLL_INTERVAL_MS = 10_000;
+const STATUS_POLL_INTERVAL_MS = 10_000;
 const QUEUE_GREEN_MAX = 10;
 const QUEUE_RED_MIN = 61;
 
@@ -30,10 +29,10 @@ const LEVEL_LABEL: Record<QueueLevel, string> = {
 export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [syncStatus, setSyncStatus] = useState<Status>("idle");
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [syncMessage, setSyncMessage] = useState("");
   const [queueStatus, setQueueStatus] = useState<QueueLevel | null>(null);
-  const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
+  const [status, setStatus] = useState<AppStatus | null>(null);
 
   useEffect(() => {
     getProfile()
@@ -45,37 +44,22 @@ export default function App() {
   useEffect(() => {
     if (!profile) {
       setQueueStatus(null);
+      setStatus(null);
       return;
     }
 
-    function fetchQueueStatus() {
-      getApplicationStatus()
+    function fetchStatus() {
+      getStatus()
         .then((s) => {
-          const total = s.sqs_queues.thread_ids + s.sqs_queues.reports;
+          setStatus(s);
+          const total = s.app.sqs_queues.thread_ids + s.app.sqs_queues.reports;
           setQueueStatus(queueLevel(total));
         })
         .catch(console.error);
     }
 
-    fetchQueueStatus();
-    const timerId = setInterval(fetchQueueStatus, QUEUE_POLL_INTERVAL_MS);
-    return () => clearInterval(timerId);
-  }, [profile]);
-
-  useEffect(() => {
-    if (!profile) {
-      setUserStatus(null);
-      return;
-    }
-
-    function fetchUserStatus() {
-      getUserStatus()
-        .then(setUserStatus)
-        .catch(console.error);
-    }
-
-    fetchUserStatus();
-    const timerId = setInterval(fetchUserStatus, USER_STATUS_POLL_INTERVAL_MS);
+    fetchStatus();
+    const timerId = setInterval(fetchStatus, STATUS_POLL_INTERVAL_MS);
     return () => clearInterval(timerId);
   }, [profile]);
 
@@ -95,8 +79,12 @@ export default function App() {
       await sync();
       setSyncStatus("success");
       setSyncMessage("Sync started successfully.");
-      getUserStatus()
-        .then(setUserStatus)
+      getStatus()
+        .then((s) => {
+          setStatus(s);
+          const total = s.app.sqs_queues.thread_ids + s.app.sqs_queues.reports;
+          setQueueStatus(queueLevel(total));
+        })
         .catch(console.error);
     } catch (err) {
       setSyncStatus("error");
@@ -159,10 +147,10 @@ export default function App() {
         </div>
       )}
 
-      {userStatus !== null && (
+      {status !== null && (
         <p style={{ ...styles.statusLabel, margin: 0 }}>
-          Last sync: {userStatus.last_synced_at
-            ? new Date(userStatus.last_synced_at * 1000).toLocaleString()
+          Last sync: {status.user.last_synced_at
+            ? new Date(status.user.last_synced_at * 1000).toLocaleString()
             : "Never"}
         </p>
       )}

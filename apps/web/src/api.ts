@@ -30,34 +30,36 @@ export async function logout(): Promise<void> {
   await request("/auth/logout", { method: "DELETE" });
 }
 
-export interface ApplicationStatus {
-  sqs_queues: {
-    thread_ids: number;
-    reports: number;
+export interface Status {
+  user: {
+    last_synced_at: number | null;
+    spreadsheet_exists: boolean;
+    threads_found: number | null;
+    threads_processed: number | null;
+    portals_found: number | null;
+    portals_appended: number | null;
+    scope_expires_at: {
+      spreadsheets: number | null;
+      sync: number | null;
+    };
+  };
+  app: {
+    gmail_quota: {
+      used: number;
+      limit: number;
+      remaining: number;
+      window_seconds: number;
+      resets_in_seconds: number;
+    };
+    sqs_queues: {
+      thread_ids: number;
+      reports: number;
+    };
   };
 }
 
-export async function getApplicationStatus(): Promise<ApplicationStatus> {
-  const res = await request("/api/v1/application_status");
+export async function getStatus(): Promise<Status> {
+  const res = await request("/api/v1/status");
   if (!res.ok) throw new Error(`Status fetch failed: ${res.status}`);
-  return res.json() as Promise<ApplicationStatus>;
-}
-
-export interface UserStatus {
-  last_synced_at: number | null;
-  spreadsheet_exists: boolean;
-  threads_found: number | null;
-  threads_processed: number | null;
-  portals_found: number | null;
-  portals_appended: number | null;
-  scope_expires_at: {
-    spreadsheets: number | null;
-    sync: number | null;
-  };
-}
-
-export async function getUserStatus(): Promise<UserStatus> {
-  const res = await request("/api/v1/user_status");
-  if (!res.ok) throw new Error(`User status fetch failed: ${res.status}`);
-  return res.json() as Promise<UserStatus>;
+  return res.json() as Promise<Status>;
 }
