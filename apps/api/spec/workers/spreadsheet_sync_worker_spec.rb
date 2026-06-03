@@ -141,16 +141,18 @@ RSpec.describe SpreadsheetSyncWorker do
   end
 
   describe "#process" do
-    let(:access_token)         { "ya29.test_access_token" }
-    let(:spreadsheet_id)       { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
-    let(:access_token_store)   { instance_double(UserStore, fetch: access_token) }
-    let(:spreadsheet_id_store) { instance_double(UserStore, fetch: spreadsheet_id) }
-    let(:sheets_client)        { instance_double(SpreadsheetsClient, append_rows: nil) }
-    let(:worker)               { described_class.new }
+    let(:access_token)           { "ya29.test_access_token" }
+    let(:spreadsheet_id)         { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
+    let(:access_token_store)     { instance_double(UserStore, fetch: access_token) }
+    let(:spreadsheet_id_store)   { instance_double(UserStore, fetch: spreadsheet_id) }
+    let(:portals_appended_store) { instance_double(UserStore, increment: nil) }
+    let(:sheets_client)          { instance_double(SpreadsheetsClient, append_rows: nil) }
+    let(:worker)                 { described_class.new }
 
     before do
       allow(UserStore).to receive(:access_token).and_return(access_token_store)
       allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
+      allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
       allow(SpreadsheetsClient).to receive(:new).with(access_token).and_return(sheets_client)
       allow(worker).to receive(:to_row).and_return([])
     end
@@ -181,6 +183,12 @@ RSpec.describe SpreadsheetSyncWorker do
       worker.send(:process, user_id:, records: [record])
 
       expect(worker).to have_received(:to_row).with(record)
+    end
+
+    it "increments portals_appended by the number of rows appended" do
+      worker.send(:process, user_id:, records: [record])
+
+      expect(portals_appended_store).to have_received(:increment).with(user_id, by: 1)
     end
   end
 

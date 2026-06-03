@@ -32,6 +32,7 @@ RSpec.describe GmailThreadBatchWorker do
   end
 
   let(:threads_processed_store) { instance_double(UserStore, increment: nil) }
+  let(:portals_found_store)     { instance_double(UserStore, increment: nil) }
 
   before do
     allow(REDIS).to receive(:set)
@@ -46,6 +47,7 @@ RSpec.describe GmailThreadBatchWorker do
     allow(report_sqs_client).to receive(:delete_messages)
     allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
+    allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
     allow(GmailThreadBatchFetcher).to receive(:new).and_return(fetcher)
     allow(decoder).to receive(:extract_portals).with(internal_date:).and_return([portal])
     allow(described_class).to receive(:perform_in)
@@ -91,6 +93,12 @@ RSpec.describe GmailThreadBatchWorker do
       described_class.new.perform
 
       expect(threads_processed_store).to have_received(:increment).with(user_id, by: thread_ids.size)
+    end
+
+    it "increments portals_found by the number of unique portals sent to SQS" do
+      described_class.new.perform
+
+      expect(portals_found_store).to have_received(:increment).with(user_id, by: 1)
     end
 
     it "reschedules itself after processing" do
@@ -191,6 +199,12 @@ RSpec.describe GmailThreadBatchWorker do
         described_class.new.perform
 
         expect(portal_sqs_client).not_to have_received(:send_messages)
+      end
+
+      it "does not increment portals_found" do
+        described_class.new.perform
+
+        expect(portals_found_store).not_to have_received(:increment)
       end
 
       it "still deletes the message" do

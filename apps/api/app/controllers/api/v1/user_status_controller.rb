@@ -11,6 +11,8 @@ module Api
           last_synced_at:     last_synced_at,
           threads_found:      threads_found,
           threads_processed:  threads_processed,
+          portals_found:      portals_found,
+          portals_appended:   portals_appended,
           scope_expires_at:   {
             spreadsheets: scope_expires_at(UserStore.scope_spreadsheets),
             sync:         scope_expires_at(UserStore.scope_sync)
@@ -47,6 +49,18 @@ module Api
 
       def threads_processed
         UserStore.threads_processed.fetch(current_user_id).to_i
+      rescue KeyError
+        nil
+      end
+
+      def portals_found
+        UserStore.portals_found.fetch(current_user_id).to_i
+      rescue KeyError
+        nil
+      end
+
+      def portals_appended
+        UserStore.portals_appended.fetch(current_user_id).to_i
       rescue KeyError
         nil
       end

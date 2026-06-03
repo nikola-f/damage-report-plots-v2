@@ -33,6 +33,14 @@ class UserStore
     new(prefix: "threads_processed", redis:)
   end
 
+  def self.portals_found(redis: REDIS)
+    new(prefix: "portals_found", redis:)
+  end
+
+  def self.portals_appended(redis: REDIS)
+    new(prefix: "portals_appended", redis:)
+  end
+
   def initialize(prefix:, ttl: nil, redis: REDIS)
     @prefix = prefix
     @ttl    = ttl

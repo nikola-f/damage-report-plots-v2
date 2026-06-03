@@ -50,6 +50,7 @@ class SpreadsheetSyncWorker
       sheet_name:     SHEET_NAME,
       rows:           rows
     )
+    UserStore.portals_appended.increment(user_id, by: rows.size)
     logger.debug "appended #{rows.size} rows for user #{user_id}"
   end
 
