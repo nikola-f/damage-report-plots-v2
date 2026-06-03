@@ -77,151 +77,35 @@ RSpec.describe SqsClient do
   end
 
   describe "#send_messages" do
-    context "when all thread_ids fit within MAX_MESSAGE_SIZE" do
-      let(:thread_ids) { %w[t1 t2 t3] }
+    let(:thread_ids) { %w[t1 t2 t3] }
 
-      it "packs all thread_ids into a single SQS message as a JSON array" do
-        body = JSON.generate(thread_ids)
+    it "packs all items into a single SQS message as a JSON array" do
+      body = JSON.generate(thread_ids)
 
-        expect(aws_client).to receive(:send_message_batch).once.with(
-          queue_url: queue_url,
-          entries: [{
-            id: "0",
-            message_body: body,
-            message_group_id: "default",
-            message_deduplication_id: Digest::SHA256.hexdigest(body),
-            message_attributes: {}
-          }]
-        )
+      expect(aws_client).to receive(:send_message).once.with(
+        queue_url: queue_url,
+        message_body: body,
+        message_group_id: "default",
+        message_deduplication_id: Digest::SHA256.hexdigest(body),
+        message_attributes: {}
+      )
 
-        client.send_messages(thread_ids)
-      end
-
-      it "applies attributes to the message" do
-        allow(aws_client).to receive(:send_message_batch)
-
-        client.send_messages(thread_ids, attributes: { "source" => "gmail", "retry_count" => 0 })
-
-        expect(aws_client).to have_received(:send_message_batch).with(
-          hash_including(
-            entries: include(
-              hash_including(message_attributes: {
-                               "source" => { data_type: "String", string_value: "gmail" },
-                               "retry_count" => { data_type: "Number", string_value: "0" }
-                             })
-            )
-          )
-        )
-      end
+      client.send_messages(thread_ids)
     end
 
-    context "when max_message_size: is specified" do
-      # JSON.generate(["t1","t2"]) = '["t1","t2"]' = 11 bytes > 6
-      # JSON.generate(["t1"])      = '["t1"]'       =  6 bytes <= 6
-      let(:thread_ids) { %w[t1 t2 t3] }
+    it "applies attributes to the message" do
+      allow(aws_client).to receive(:send_message)
 
-      it "splits into chunks respecting the given size limit" do
-        allow(aws_client).to receive(:send_message_batch)
+      client.send_messages(thread_ids, attributes: { "source" => "gmail", "retry_count" => 0 })
 
-        client.send_messages(thread_ids, max_message_size: 6)
-
-        expect(aws_client).to have_received(:send_message_batch).once.with(
-          hash_including(entries: have_attributes(size: 3))
+      expect(aws_client).to have_received(:send_message).with(
+        hash_including(
+          message_attributes: {
+            "source" => { data_type: "String", string_value: "gmail" },
+            "retry_count" => { data_type: "Number", string_value: "0" }
+          }
         )
-      end
-
-      it "does not affect the default MAX_MESSAGE_SIZE" do
-        allow(aws_client).to receive(:send_message_batch)
-
-        client.send_messages(thread_ids)
-
-        expect(aws_client).to have_received(:send_message_batch).once.with(
-          hash_including(entries: have_attributes(size: 1))
-        )
-      end
-    end
-
-    context "when thread_ids exceed MAX_MESSAGE_SIZE" do
-      # JSON.generate(["t1","t2"]) = '["t1","t2"]' = 11 bytes > 10
-      # JSON.generate(["t1"])      = '["t1"]'       =  6 bytes <= 10
-      before { stub_const("SqsClient::MAX_MESSAGE_SIZE", 10) }
-
-      let(:thread_ids) { %w[t1 t2 t3] }
-
-      it "splits into multiple SQS messages, each within the size limit" do
-        allow(aws_client).to receive(:send_message_batch)
-
-        client.send_messages(thread_ids)
-
-        expect(aws_client).to have_received(:send_message_batch).once.with(
-          hash_including(entries: have_attributes(size: 3))
-        )
-      end
-
-      it "each message body is a JSON array within the size limit" do
-        allow(aws_client).to receive(:send_message_batch) do |args|
-          args[:entries].each do |entry|
-            expect(entry[:message_body].bytesize).to be <= 10
-            expect(JSON.parse(entry[:message_body])).to be_an(Array)
-          end
-        end
-
-        client.send_messages(thread_ids)
-      end
-    end
-
-    context "when attributes reduce the body budget" do
-      # "source"(6) + "String"(6) + "gmail"(5) = 17 bytes of attributes
-      # body budget = 28 - 17 = 11 bytes
-      # JSON.generate(["t1","t2"])      = 11 bytes <= 11 -> fits
-      # JSON.generate(["t1","t2","t3"]) = 16 bytes  > 11 -> splits
-      before { stub_const("SqsClient::MAX_MESSAGE_SIZE", 28) }
-
-      let(:thread_ids) { %w[t1 t2 t3] }
-
-      it "without attributes packs all thread_ids into one message" do
-        allow(aws_client).to receive(:send_message_batch)
-
-        client.send_messages(thread_ids)
-
-        expect(aws_client).to have_received(:send_message_batch).once.with(
-          hash_including(entries: have_attributes(size: 1))
-        )
-      end
-
-      it "with attributes splits when body budget is exceeded" do
-        allow(aws_client).to receive(:send_message_batch)
-
-        client.send_messages(thread_ids, attributes: { "source" => "gmail" })
-
-        expect(aws_client).to have_received(:send_message_batch).once.with(
-          hash_including(entries: have_attributes(size: 2))
-        )
-      end
-    end
-
-    context "when chunks exceed 10 (SQS batch API limit)" do
-      # Force each thread_id into its own chunk by setting a very small size limit.
-      # JSON.generate(["t1"]) = '["t1"]' = 6 bytes
-      before { stub_const("SqsClient::MAX_MESSAGE_SIZE", 6) }
-
-      let(:thread_ids) { Array.new(25) { |i| format("t%02d", i) } }
-
-      it "batches SQS API calls in groups of 10 chunks" do
-        expect(aws_client).to receive(:send_message_batch).exactly(3).times
-
-        client.send_messages(thread_ids)
-      end
-
-      it "resets entry IDs within each batch" do
-        allow(aws_client).to receive(:send_message_batch)
-
-        client.send_messages(thread_ids)
-
-        expect(aws_client).to have_received(:send_message_batch).with(
-          hash_including(entries: include(hash_including(id: "0"), hash_including(id: "9")))
-        ).at_least(:once)
-      end
+      )
     end
   end
 

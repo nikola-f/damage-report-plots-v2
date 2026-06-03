@@ -70,13 +70,12 @@ RSpec.describe GmailThreadBatchWorker do
       expect(fetcher).to have_received(:call).with(thread_ids)
     end
 
-    it "sends DamageReportRecord hashes to the portal SQS queue with user_id attribute and 10KB chunk size" do
+    it "sends DamageReportRecord hashes to the portal SQS queue with user_id attribute" do
       described_class.new.perform
 
       expect(portal_sqs_client).to have_received(:send_messages)
         .with([portal.to_h],
-              attributes: { UserStore::USER_ID_ATTR => user_id },
-              max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
+              attributes: { UserStore::USER_ID_ATTR => user_id })
     end
 
     it "deletes the thread_ids message after successfully processing it" do
@@ -103,8 +102,7 @@ RSpec.describe GmailThreadBatchWorker do
 
         expect(portal_sqs_client).to have_received(:send_messages)
           .with([portal.to_h],
-                attributes: { UserStore::USER_ID_ATTR => user_id },
-                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
+                attributes: { UserStore::USER_ID_ATTR => user_id })
       end
     end
 
@@ -131,8 +129,7 @@ RSpec.describe GmailThreadBatchWorker do
 
         expect(portal_sqs_client).to have_received(:send_messages)
           .with([portal_true.to_h],
-                attributes: { UserStore::USER_ID_ATTR => user_id },
-                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
+                attributes: { UserStore::USER_ID_ATTR => user_id })
       end
     end
 
@@ -164,12 +161,10 @@ RSpec.describe GmailThreadBatchWorker do
 
         expect(portal_sqs_client).to have_received(:send_messages)
           .with([portal.to_h],
-                attributes: { UserStore::USER_ID_ATTR => user_id },
-                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
+                attributes: { UserStore::USER_ID_ATTR => user_id })
         expect(portal_sqs_client).to have_received(:send_messages)
           .with([portal.to_h],
-                attributes: { UserStore::USER_ID_ATTR => other_user_id },
-                max_message_size: GmailThreadBatchWorker::PORTALS_CHUNK_SIZE)
+                attributes: { UserStore::USER_ID_ATTR => other_user_id })
       end
 
       it "deletes both messages" do
