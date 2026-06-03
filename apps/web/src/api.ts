@@ -46,6 +46,10 @@ export async function getApplicationStatus(): Promise<ApplicationStatus> {
 export interface UserStatus {
   last_synced_at: number | null;
   spreadsheet_exists: boolean;
+  threads_found: number | null;
+  threads_processed: number | null;
+  portals_found: number | null;
+  portals_appended: number | null;
   scope_expires_at: {
     spreadsheets: number | null;
     sync: number | null;

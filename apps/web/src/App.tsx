@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { getApplicationStatus, getProfile, getUserStatus, logout, sync, type Profile } from "./api.ts";
+import { getApplicationStatus, getProfile, getUserStatus, logout, sync, type Profile, type UserStatus } from "./api.ts";
 
 type Status = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
 
 const QUEUE_POLL_INTERVAL_MS = 60_000;
+const USER_STATUS_POLL_INTERVAL_MS = 10_000;
 const QUEUE_GREEN_MAX = 10;
 const QUEUE_RED_MIN = 61;
 
@@ -32,8 +33,9 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<Status>("idle");
   const [syncMessage, setSyncMessage] = useState("");
   const [queueStatus, setQueueStatus] = useState<QueueLevel | null>(null);
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null | undefined>(undefined);
+  const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const userStatusTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     getProfile()
@@ -45,12 +47,13 @@ export default function App() {
   useEffect(() => {
     if (!profile) {
       setQueueStatus(null);
-      setLastSyncedAt(undefined);
+      setUserStatus(null);
       if (queueTimerRef.current) clearInterval(queueTimerRef.current);
+      if (userStatusTimerRef.current) clearInterval(userStatusTimerRef.current);
       return;
     }
 
-    function fetchStatus() {
+    function fetchQueueStatus() {
       getApplicationStatus()
         .then((s) => {
           const total = s.sqs_queues.thread_ids + s.sqs_queues.reports;
@@ -59,13 +62,20 @@ export default function App() {
         .catch(console.error);
     }
 
-    getUserStatus()
-      .then((s) => setLastSyncedAt(s.last_synced_at))
-      .catch(console.error);
+    function fetchUserStatus() {
+      getUserStatus()
+        .then(setUserStatus)
+        .catch(console.error);
+    }
 
-    fetchStatus();
-    queueTimerRef.current = setInterval(fetchStatus, QUEUE_POLL_INTERVAL_MS);
-    return () => { if (queueTimerRef.current) clearInterval(queueTimerRef.current); };
+    fetchQueueStatus();
+    fetchUserStatus();
+    queueTimerRef.current = setInterval(fetchQueueStatus, QUEUE_POLL_INTERVAL_MS);
+    userStatusTimerRef.current = setInterval(fetchUserStatus, USER_STATUS_POLL_INTERVAL_MS);
+    return () => {
+      if (queueTimerRef.current) clearInterval(queueTimerRef.current);
+      if (userStatusTimerRef.current) clearInterval(userStatusTimerRef.current);
+    };
   }, [profile]);
 
   function handleLogin() {
@@ -85,7 +95,7 @@ export default function App() {
       setSyncStatus("success");
       setSyncMessage("Sync started successfully.");
       getUserStatus()
-        .then((s) => setLastSyncedAt(s.last_synced_at))
+        .then(setUserStatus)
         .catch(console.error);
     } catch (err) {
       setSyncStatus("error");
@@ -148,10 +158,10 @@ export default function App() {
         </div>
       )}
 
-      {lastSyncedAt !== undefined && (
+      {userStatus !== null && (
         <p style={{ ...styles.statusLabel, margin: 0 }}>
-          Last sync: {lastSyncedAt
-            ? new Date(lastSyncedAt * 1000).toLocaleString()
+          Last sync: {userStatus.last_synced_at
+            ? new Date(userStatus.last_synced_at * 1000).toLocaleString()
             : "Never"}
         </p>
       )}
