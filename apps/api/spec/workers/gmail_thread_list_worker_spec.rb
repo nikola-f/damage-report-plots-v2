@@ -9,13 +9,14 @@ RSpec.describe GmailThreadListWorker do
   let(:threads_found_store) { instance_double(UserStore, store: nil) }
   let(:sqs_client)          { instance_double(SqsClient, send_messages: nil) }
   let(:thread_ids)          { %w[t1 t2] }
-  let(:fetcher)             { instance_double(GmailThreadListFetcher, call: thread_ids) }
+  let(:fetcher) { instance_double(GmailThreadListFetcher) }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(UserStore).to receive(:threads_found).and_return(threads_found_store)
     allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(sqs_client)
     allow(GmailThreadListFetcher).to receive(:new).and_return(fetcher)
+    allow(fetcher).to receive(:call).and_return(thread_ids)
   end
 
   describe "#perform" do
@@ -73,7 +74,7 @@ RSpec.describe GmailThreadListWorker do
     end
 
     context "when there are no thread IDs" do
-      let(:fetcher) { instance_double(GmailThreadListFetcher, call: []) }
+      before { allow(fetcher).to receive(:call).and_return([]) }
 
       it "stores 0 in threads_found" do
         described_class.new.perform(user_id, "2024-01-01")
@@ -85,6 +86,59 @@ RSpec.describe GmailThreadListWorker do
         described_class.new.perform(user_id, "2024-01-01")
 
         expect(sqs_client).not_to have_received(:send_messages)
+      end
+    end
+
+    context "when no threads found on the first window and default after_date is used" do
+      let(:second_after_date) do
+        (Date.parse(IngressDamageReportQuery::DEFAULT_AFTER_DATE) >>
+          IngressDamageReportQuery::MONTHS_RANGE).iso8601
+      end
+
+      before do
+        allow(fetcher).to receive(:call).and_return([], thread_ids)
+      end
+
+      it "retries with the next window" do
+        described_class.new.perform(user_id, nil)
+
+        expect(fetcher).to have_received(:call).with(
+          q: IngressDamageReportQuery.new(after_date: second_after_date).to_s
+        )
+      end
+
+      it "sends the threads found in the second window to SQS" do
+        described_class.new.perform(user_id, nil)
+
+        expect(sqs_client).to have_received(:send_messages)
+          .with(%w[t1 t2], attributes: { UserStore::USER_ID_ATTR => user_id })
+      end
+
+      it "stores the count from the second window in threads_found" do
+        described_class.new.perform(user_id, nil)
+
+        expect(threads_found_store).to have_received(:store).with(user_id, thread_ids.size.to_s)
+      end
+    end
+
+    context "when all windows up to today are exhausted with default after_date" do
+      before do
+        allow(fetcher).to receive(:call).and_return([])
+        allow(Date).to receive(:today).and_return(
+          Date.parse(IngressDamageReportQuery::DEFAULT_AFTER_DATE)
+        )
+      end
+
+      it "does not call send_messages" do
+        described_class.new.perform(user_id, nil)
+
+        expect(sqs_client).not_to have_received(:send_messages)
+      end
+
+      it "stores 0 in threads_found" do
+        described_class.new.perform(user_id, nil)
+
+        expect(threads_found_store).to have_received(:store).with(user_id, "0")
       end
     end
   end

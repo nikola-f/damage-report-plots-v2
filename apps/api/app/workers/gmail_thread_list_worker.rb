@@ -8,13 +8,27 @@ class GmailThreadListWorker
   # @param user_id    [String] Google account ID
   # @param after_date [String, nil] ISO 8601 date string (e.g. "2024-01-01")
   def perform(user_id, after_date)
-    access_token = UserStore.access_token.fetch(user_id)
+    access_token  = UserStore.access_token.fetch(user_id)
+    fetcher       = GmailThreadListFetcher.new(access_token:)
+    current_after = after_date
+    thread_ids    = []
 
-    query = IngressDamageReportQuery.new(after_date:)
-    logger.debug "query: #{query}"
+    loop do
+      query      = IngressDamageReportQuery.new(after_date: current_after)
+      logger.debug "query: #{query}"
+      thread_ids = fetcher.call(q: query.to_s)
+      logger.debug "found #{thread_ids.size} threads for after_date=#{current_after || IngressDamageReportQuery::DEFAULT_AFTER_DATE}"
 
-    thread_ids = GmailThreadListFetcher.new(access_token:).call(q: query.to_s)
-    logger.debug "found #{thread_ids.size} threads"
+      break if thread_ids.any?
+      break unless after_date.nil?
+
+      next_date = Date.parse(current_after || IngressDamageReportQuery::DEFAULT_AFTER_DATE) >>
+                  IngressDamageReportQuery::MONTHS_RANGE
+      break if next_date > Date.today
+
+      current_after = next_date.iso8601
+    end
+
     UserStore.threads_found.store(user_id, thread_ids.size.to_s)
 
     if thread_ids.empty?
