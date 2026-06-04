@@ -9,6 +9,10 @@ DamageReportRecord = Data.define(:name, :latitude, :longitude, :owned, :internal
   SQIDS_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+,-./:;<=>?@[]^_`{|}~"
   SQIDS          = Sqids.new(alphabet: SQIDS_ALPHABET)
 
+  def self.from_h(hash)
+    new(**hash.transform_keys(&:to_sym))
+  end
+
   # Deduplicates records by name/latitude/longitude/internal_date.
   # When duplicates exist, owned:true survives over owned:false.
   def self.deduplicate(records)
