@@ -149,3 +149,11 @@ output "thread_list_worker_threads_per_message" {
   value = module.app_infra.thread_list_worker_threads_per_message
 }
 
+output "thread_batch_fetcher_batch_size" {
+  value = module.app_infra.thread_batch_fetcher_batch_size
+}
+
+output "thread_batch_fetcher_inter_batch_sleep" {
+  value = module.app_infra.thread_batch_fetcher_inter_batch_sleep
+}
+

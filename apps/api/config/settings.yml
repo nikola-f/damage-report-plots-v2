@@ -8,3 +8,5 @@ thread_batch_worker_lock_ttl: 900
 thread_batch_worker_max_messages_per_run: 5
 spreadsheet_sync_worker_poll_interval: 30
 spreadsheet_sync_worker_lock_ttl: 300
+thread_batch_fetcher_batch_size: 20
+thread_batch_fetcher_inter_batch_sleep: 1

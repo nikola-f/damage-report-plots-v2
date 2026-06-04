@@ -181,3 +181,13 @@ output "thread_list_worker_threads_per_message" {
   description = "THREAD_LIST_WORKER_THREADS_PER_MESSAGE"
   value       = tostring(var.thread_list_worker_threads_per_message)
 }
+
+output "thread_batch_fetcher_batch_size" {
+  description = "THREAD_BATCH_FETCHER_BATCH_SIZE"
+  value       = tostring(var.thread_batch_fetcher_batch_size)
+}
+
+output "thread_batch_fetcher_inter_batch_sleep" {
+  description = "THREAD_BATCH_FETCHER_INTER_BATCH_SLEEP"
+  value       = tostring(var.thread_batch_fetcher_inter_batch_sleep)
+}
