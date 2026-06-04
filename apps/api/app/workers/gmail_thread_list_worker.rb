@@ -10,23 +10,23 @@ class GmailThreadListWorker
   def perform(user_id, after_date)
     access_token  = UserStore.access_token.fetch(user_id)
     fetcher       = GmailThreadListFetcher.new(access_token:)
-    current_after = after_date
+    current_epoch = after_date.nil? ? IngressDamageReportQuery::DEFAULT_AFTER_DATE
+                                    : date_string_to_epoch(after_date)
     thread_ids    = []
 
     loop do
-      query      = IngressDamageReportQuery.new(after_date: current_after)
+      query      = IngressDamageReportQuery.new(after_date: current_epoch)
       logger.debug "query: #{query}"
       thread_ids = fetcher.call(q: query.to_s)
-      logger.debug "found #{thread_ids.size} threads for after_date=#{current_after || IngressDamageReportQuery::DEFAULT_AFTER_DATE}"
+      logger.debug "found #{thread_ids.size} threads for after_date=#{current_epoch}"
 
       break if thread_ids.any?
       break unless after_date.nil?
 
-      next_date = Date.parse(current_after || IngressDamageReportQuery::DEFAULT_AFTER_DATE) >>
-                  IngressDamageReportQuery::MONTHS_RANGE
+      next_date = Time.at(current_epoch).utc.to_date >> IngressDamageReportQuery::MONTHS_RANGE
       break if next_date > Date.today
 
-      current_after = next_date.iso8601
+      current_epoch = Time.utc(next_date.year, next_date.month, next_date.day).to_i
     end
 
     UserStore.threads_found.store(user_id, thread_ids.size.to_s)
@@ -41,5 +41,12 @@ class GmailThreadListWorker
       sqs.send_messages(slice, attributes: { UserStore::USER_ID_ATTR => user_id })
     end
     logger.debug "sent #{thread_ids.size} thread_ids to SQS"
+  end
+
+  private
+
+  def date_string_to_epoch(date_str)
+    d = Date.parse(date_str)
+    Time.utc(d.year, d.month, d.day).to_i
   end
 end

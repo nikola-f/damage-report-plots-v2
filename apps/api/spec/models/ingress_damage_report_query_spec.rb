@@ -13,7 +13,7 @@ RSpec.describe IngressDamageReportQuery do
       query = described_class.new(after_date: "2024-01-01")
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
-        "after:2024/01/01 before:2027/01/01 " \
+        "after:#{Time.utc(2024, 1, 1).to_i} before:#{Time.utc(2027, 1, 1).to_i} " \
         "#{from_query} " \
         "larger:5K smaller:100K"
       )
@@ -23,7 +23,7 @@ RSpec.describe IngressDamageReportQuery do
       query = described_class.new(after_date: "2024-02-29")
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
-        "after:2024/02/29 before:2027/02/28 " \
+        "after:#{Time.utc(2024, 2, 29).to_i} before:#{Time.utc(2027, 2, 28).to_i} " \
         "#{from_query} " \
         "larger:5K smaller:100K"
       )
@@ -33,7 +33,7 @@ RSpec.describe IngressDamageReportQuery do
       query = described_class.new
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
-        "after:2012/10/15 before:2015/10/15 " \
+        "after:#{Time.utc(2012, 10, 15).to_i} before:#{Time.utc(2015, 10, 15).to_i} " \
         "#{from_query} " \
         "larger:5K smaller:100K"
       )

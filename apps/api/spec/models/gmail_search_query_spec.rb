@@ -18,16 +18,16 @@ RSpec.describe GmailSearchQuery do
     end
 
     context "with after_date only" do
-      it "returns after: query formatted as YYYY/MM/DD" do
-        query = described_class.new(after_date: Date.new(2024, 1, 1))
-        expect(query.to_s).to eq("after:2024/01/01")
+      it "returns after: query as Unix epoch" do
+        query = described_class.new(after_date: Time.utc(2024, 1, 1).to_i)
+        expect(query.to_s).to eq("after:#{Time.utc(2024, 1, 1).to_i}")
       end
     end
 
     context "with before_date only" do
-      it "returns before: query formatted as YYYY/MM/DD" do
-        query = described_class.new(before_date: Date.new(2024, 12, 31))
-        expect(query.to_s).to eq("before:2024/12/31")
+      it "returns before: query as Unix epoch" do
+        query = described_class.new(before_date: Time.utc(2024, 12, 31).to_i)
+        expect(query.to_s).to eq("before:#{Time.utc(2024, 12, 31).to_i}")
       end
     end
 
@@ -55,14 +55,14 @@ RSpec.describe GmailSearchQuery do
     context "with all fields specified" do
       it "returns all criteria joined by space in order" do
         query = described_class.new(
-          subject: "damage report",
-          after_date: Date.new(2024, 1, 1),
-          before_date: Date.new(2024, 12, 31),
-          from: ["a@example.com", "b@example.com"],
-          smaller: "10m"
+          subject:     "damage report",
+          after_date:  Time.utc(2024, 1, 1).to_i,
+          before_date: Time.utc(2024, 12, 31).to_i,
+          from:        ["a@example.com", "b@example.com"],
+          smaller:     "10m"
         )
         expect(query.to_s).to eq(
-          "subject:damage report after:2024/01/01 before:2024/12/31 " \
+          "subject:damage report after:#{Time.utc(2024, 1, 1).to_i} before:#{Time.utc(2024, 12, 31).to_i} " \
           "{from:a@example.com from:b@example.com} smaller:10m"
         )
       end
