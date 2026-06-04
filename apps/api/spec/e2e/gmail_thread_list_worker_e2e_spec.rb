@@ -59,7 +59,8 @@ RSpec.describe GmailThreadListWorker, :e2e do
 
   describe "#perform" do
     it "fetches Gmail threads matching the query and enqueues thread IDs to SQS as a JSON array" do
-      described_class.new.perform(user_id, (Date.today - 7).iso8601)
+      d = Date.today - 7
+      described_class.new.perform(user_id, Time.utc(d.year, d.month, d.day).to_i)
 
       messages = sqs.receive_message(
         queue_url: queue_url,
@@ -76,7 +77,8 @@ RSpec.describe GmailThreadListWorker, :e2e do
     end
 
     it "increments Redis quota counters" do
-      described_class.new.perform(user_id, (Date.today - 7).iso8601)
+      d = Date.today - 7
+      described_class.new.perform(user_id, Time.utc(d.year, d.month, d.day).to_i)
 
       expect(REDIS.get("gmail_quota:project").to_i).to be > 0
       expect(REDIS.get("gmail_quota:user:#{token_hash}").to_i).to be > 0
@@ -84,7 +86,7 @@ RSpec.describe GmailThreadListWorker, :e2e do
 
     context "when there are no matching threads" do
       it "does not enqueue any messages to SQS" do
-        described_class.new.perform(user_id, "2000-01-01")
+        described_class.new.perform(user_id, Time.utc(2000, 1, 1).to_i)
 
         messages = sqs.receive_message(
           queue_url: queue_url,
