@@ -6,12 +6,11 @@ class GmailThreadListWorker
   sidekiq_options retry: 3
 
   # @param user_id    [String] Google account ID
-  # @param after_date [String, nil] ISO 8601 date string (e.g. "2024-01-01")
+  # @param after_date [Integer, nil] Unix epoch (e.g. Time.utc(2024, 1, 1).to_i)
   def perform(user_id, after_date)
     access_token  = UserStore.access_token.fetch(user_id)
     fetcher       = GmailThreadListFetcher.new(access_token:)
-    current_epoch = after_date.nil? ? IngressDamageReportQuery::DEFAULT_AFTER_DATE
-                                    : date_string_to_epoch(after_date)
+    current_epoch = after_date || IngressDamageReportQuery::DEFAULT_AFTER_DATE
     thread_ids    = []
 
     loop do
@@ -41,12 +40,5 @@ class GmailThreadListWorker
       sqs.send_messages(slice, attributes: { UserStore::USER_ID_ATTR => user_id })
     end
     logger.debug "sent #{thread_ids.size} thread_ids to SQS"
-  end
-
-  private
-
-  def date_string_to_epoch(date_str)
-    d = Date.parse(date_str)
-    Time.utc(d.year, d.month, d.day).to_i
   end
 end
