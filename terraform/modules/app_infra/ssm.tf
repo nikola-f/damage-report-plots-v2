@@ -48,6 +48,26 @@ resource "aws_ssm_parameter" "spreadsheet_sync_worker_lock_ttl" {
   }
 }
 
+resource "aws_ssm_parameter" "thread_batch_fetcher_batch_size" {
+  name  = "/${local.name_prefix}/thread_batch_fetcher_batch_size"
+  type  = "String"
+  value = tostring(var.thread_batch_fetcher_batch_size)
+
+  tags = {
+    Name = "${local.name_prefix}-thread-batch-fetcher-batch-size"
+  }
+}
+
+resource "aws_ssm_parameter" "thread_batch_fetcher_inter_batch_sleep" {
+  name  = "/${local.name_prefix}/thread_batch_fetcher_inter_batch_sleep"
+  type  = "String"
+  value = tostring(var.thread_batch_fetcher_inter_batch_sleep)
+
+  tags = {
+    Name = "${local.name_prefix}-thread-batch-fetcher-inter-batch-sleep"
+  }
+}
+
 resource "aws_ssm_parameter" "thread_list_worker_threads_per_message" {
   name  = "/${local.name_prefix}/thread_list_worker_threads_per_message"
   type  = "String"
