@@ -18,24 +18,6 @@ class SqsClient
     @client            = client || Aws::SQS::Client.new
   end
 
-  # Sends a single message to SQS FIFO queue.
-  #
-  # @param message [#to_h] Value object with a #to_h method (e.g. ReportTask)
-  # @param attributes [Hash] optional metadata ({ "key" => value, ... })
-  #   Values are typed automatically: Numeric => Number, others => String
-  # @return [Aws::SQS::Types::SendMessageResult]
-  def send_message(message, attributes: {})
-    body = JSON.generate(message.to_h)
-
-    @client.send_message(
-      queue_url: @queue_url,
-      message_body: body,
-      message_group_id: @message_group_id,
-      message_deduplication_id: deduplication_id(body),
-      message_attributes: build_message_attributes(attributes)
-    )
-  end
-
   # Sends multiple items to SQS FIFO queue as a single JSON array message.
   #
   # @param items [Array] JSON-serializable items to enqueue (e.g. Array<String>, Array<Hash>)
