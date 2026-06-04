@@ -10,11 +10,11 @@ class GmailThreadListWorker
   def perform(user_id, after_date)
     access_token  = UserStore.access_token.fetch(user_id)
     fetcher       = GmailThreadListFetcher.new(access_token:)
-    current_epoch = after_date || IngressDamageReportQuery::DEFAULT_AFTER_DATE
+    current_epoch = after_date || DamageReportQuery::DEFAULT_AFTER_DATE
     thread_ids    = []
 
     loop do
-      query      = IngressDamageReportQuery.new(after_date: current_epoch)
+      query      = DamageReportQuery.new(after_date: current_epoch)
       logger.debug "query: #{query}"
       thread_ids = fetcher.call(q: query.to_s)
       logger.debug "found #{thread_ids.size} threads for after_date=#{current_epoch}"
@@ -22,7 +22,7 @@ class GmailThreadListWorker
       break if thread_ids.any?
       break unless after_date.nil?
 
-      next_date = Time.at(current_epoch).utc.to_date >> IngressDamageReportQuery::MONTHS_RANGE
+      next_date = Time.at(current_epoch).utc.to_date >> DamageReportQuery::MONTHS_RANGE
       break if next_date > Date.today
 
       current_epoch = Time.utc(next_date.year, next_date.month, next_date.day).to_i

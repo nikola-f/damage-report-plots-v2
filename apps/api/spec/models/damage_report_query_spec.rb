@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe IngressDamageReportQuery do
+RSpec.describe DamageReportQuery do
   let(:from_query) do
     "{from:ingress-support@google.com from:ingress-support@nianticlabs.com " \
       "from:ingress-support@nianticspatial.com}"

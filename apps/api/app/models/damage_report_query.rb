@@ -1,13 +1,12 @@
 # frozen_string_literal: true
 
-# Builds a GmailSearchQuery for Ingress Damage Report emails.
-# Encapsulates all Ingress-specific search criteria in one place.
+# Builds a Gmail search query string for Ingress Damage Report emails.
 #
 # @example
-#   query = IngressDamageReportQuery.new(after_date: "2024-01-01")
+#   query = DamageReportQuery.new(after_date: Time.utc(2024, 1, 1).to_i)
 #   query.to_s
-#   # => "subject:Ingress Damage Report: Entities attacked by after:2024/01/01 ..."
-class IngressDamageReportQuery
+#   # => "subject:Ingress Damage Report: Entities attacked by after:1704067200 ..."
+class DamageReportQuery
   SUBJECT = "Ingress Damage Report: Entities attacked by"
   FROM    = ["ingress-support@google.com",
              "ingress-support@nianticlabs.com",
@@ -22,14 +21,10 @@ class IngressDamageReportQuery
   end
 
   def to_s
-    GmailSearchQuery.new(
-      subject:     SUBJECT,
-      after_date:  date_to_epoch(@after),
-      before_date: date_to_epoch(@after >> MONTHS_RANGE),
-      from:        FROM,
-      larger:      LARGER,
-      smaller:     SMALLER
-    ).to_s
+    after_epoch  = date_to_epoch(@after)
+    before_epoch = date_to_epoch(@after >> MONTHS_RANGE)
+    from_part    = "{#{FROM.map { |f| "from:#{f}" }.join(" ")}}"
+    "subject:#{SUBJECT} after:#{after_epoch} before:#{before_epoch} #{from_part} larger:#{LARGER} smaller:#{SMALLER}"
   end
 
   private

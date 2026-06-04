@@ -26,11 +26,11 @@ RSpec.describe GmailThreadListWorker do
       expect(token_store).to have_received(:fetch).with(user_id)
     end
 
-    it "calls GmailThreadListFetcher with the Ingress damage report query" do
+    it "calls GmailThreadListFetcher with the damage report query" do
       described_class.new.perform(user_id, Time.utc(2024, 1, 1).to_i)
 
       expect(fetcher).to have_received(:call).with(
-        q: IngressDamageReportQuery.new(after_date: Time.utc(2024, 1, 1).to_i).to_s
+        q: DamageReportQuery.new(after_date: Time.utc(2024, 1, 1).to_i).to_s
       )
     end
 
@@ -91,8 +91,8 @@ RSpec.describe GmailThreadListWorker do
 
     context "when no threads found on the first window and default after_date is used" do
       let(:second_epoch) do
-        next_date = Time.at(IngressDamageReportQuery::DEFAULT_AFTER_DATE).utc.to_date >>
-                    IngressDamageReportQuery::MONTHS_RANGE
+        next_date = Time.at(DamageReportQuery::DEFAULT_AFTER_DATE).utc.to_date >>
+                    DamageReportQuery::MONTHS_RANGE
         Time.utc(next_date.year, next_date.month, next_date.day).to_i
       end
 
@@ -104,7 +104,7 @@ RSpec.describe GmailThreadListWorker do
         described_class.new.perform(user_id, nil)
 
         expect(fetcher).to have_received(:call).with(
-          q: IngressDamageReportQuery.new(after_date: second_epoch).to_s
+          q: DamageReportQuery.new(after_date: second_epoch).to_s
         )
       end
 
@@ -126,7 +126,7 @@ RSpec.describe GmailThreadListWorker do
       before do
         allow(fetcher).to receive(:call).and_return([])
         allow(Date).to receive(:today).and_return(
-          Time.at(IngressDamageReportQuery::DEFAULT_AFTER_DATE).utc.to_date
+          Time.at(DamageReportQuery::DEFAULT_AFTER_DATE).utc.to_date
         )
       end
 
