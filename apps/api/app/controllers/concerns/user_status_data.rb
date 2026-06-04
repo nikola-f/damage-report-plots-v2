@@ -9,9 +9,10 @@ module UserStatusData
       last_synced_at:     last_synced_at_value,
       threads_found:      fetch_count(UserStore.threads_found),
       threads_processed:  fetch_count(UserStore.threads_processed),
-      portals_found:      fetch_count(UserStore.portals_found),
-      portals_appended:   fetch_count(UserStore.portals_appended),
-      scope_expires_at:   {
+      portals_found:              fetch_count(UserStore.portals_found),
+      portals_appended:           fetch_count(UserStore.portals_appended),
+      threads_max_internal_date:  fetch_count(UserStore.threads_max_internal_date),
+      scope_expires_at:           {
         spreadsheets: scope_expires_at_value(UserStore.scope_spreadsheets),
         sync:         scope_expires_at_value(UserStore.scope_sync)
       }

@@ -11,8 +11,9 @@ RSpec.describe "GET /api/v1/status", type: :request do
   let(:scope_sync_store)        { instance_double(UserStore) }
   let(:threads_found_store)     { instance_double(UserStore, fetch: "1500") }
   let(:threads_processed_store) { instance_double(UserStore, fetch: "320") }
-  let(:portals_found_store)     { instance_double(UserStore, fetch: "980") }
-  let(:portals_appended_store)  { instance_double(UserStore, fetch: "750") }
+  let(:portals_found_store)              { instance_double(UserStore, fetch: "980") }
+  let(:portals_appended_store)           { instance_double(UserStore, fetch: "750") }
+  let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch: "1700000000000") }
 
   # --- ApplicationStatusData stubs ---
   let(:report_sqs) { instance_double(SqsClient, queue_depth: { available: 3, in_flight: 1 }) }
@@ -28,6 +29,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
     allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
     allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
     allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
+    allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
     allow(scope_spreadsheets_store).to receive(:fetch).and_raise(KeyError)
     allow(scope_sync_store).to receive(:fetch).and_raise(KeyError)
 
@@ -127,6 +129,22 @@ RSpec.describe "GET /api/v1/status", type: :request do
           get "/api/v1/status"
 
           expect(json_response["user"]["portals_appended"]).to be_nil
+        end
+      end
+
+      it "returns threads_max_internal_date as integer" do
+        get "/api/v1/status"
+
+        expect(json_response["user"]["threads_max_internal_date"]).to eq(1_700_000_000_000)
+      end
+
+      context "when threads_max_internal_date has not been stored" do
+        before { allow(threads_max_internal_date_store).to receive(:fetch).and_raise(KeyError) }
+
+        it "returns threads_max_internal_date null" do
+          get "/api/v1/status"
+
+          expect(json_response["user"]["threads_max_internal_date"]).to be_nil
         end
       end
 

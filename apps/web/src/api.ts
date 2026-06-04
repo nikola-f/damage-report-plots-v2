@@ -38,6 +38,7 @@ export interface Status {
     threads_processed: number | null;
     portals_found: number | null;
     portals_appended: number | null;
+    threads_max_internal_date: number | null;
     scope_expires_at: {
       spreadsheets: number | null;
       sync: number | null;
