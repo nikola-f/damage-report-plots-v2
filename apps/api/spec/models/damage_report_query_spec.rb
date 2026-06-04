@@ -8,6 +8,20 @@ RSpec.describe DamageReportQuery do
       "from:ingress-support@nianticspatial.com}"
   end
 
+  describe ".next_epoch" do
+    it "returns the epoch MONTHS_RANGE months ahead" do
+      allow(Date).to receive(:today).and_return(Date.new(2030, 1, 1))
+      epoch = Time.utc(2024, 1, 1).to_i
+      expect(described_class.next_epoch(epoch)).to eq(Time.utc(2027, 1, 1).to_i)
+    end
+
+    it "returns nil when the next window start exceeds today" do
+      allow(Date).to receive(:today).and_return(Date.new(2026, 1, 1))
+      epoch = Time.utc(2023, 2, 1).to_i
+      expect(described_class.next_epoch(epoch)).to be_nil
+    end
+  end
+
   describe "#to_s" do
     it "builds the query with fixed subject, from, smaller, and date range" do
       query = described_class.new(after_date: Time.utc(2024, 1, 1).to_i)

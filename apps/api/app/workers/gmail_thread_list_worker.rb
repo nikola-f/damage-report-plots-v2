@@ -19,13 +19,12 @@ class GmailThreadListWorker
       thread_ids = fetcher.call(q: query.to_s)
       logger.debug "found #{thread_ids.size} threads for after_date=#{current_epoch}"
 
-      break if thread_ids.any?
-      break unless after_date.nil?
+      break if thread_ids.any? || after_date
 
-      next_date = Time.at(current_epoch).utc.to_date >> DamageReportQuery::MONTHS_RANGE
-      break if next_date > Date.today
+      next_epoch = DamageReportQuery.next_epoch(current_epoch)
+      break if next_epoch.nil?
 
-      current_epoch = Time.utc(next_date.year, next_date.month, next_date.day).to_i
+      current_epoch = next_epoch
     end
 
     UserStore.threads_found.store(user_id, thread_ids.size.to_s)

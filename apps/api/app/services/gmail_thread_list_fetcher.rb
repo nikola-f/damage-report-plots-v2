@@ -8,7 +8,7 @@
 # @example
 #   thread_ids = GmailThreadListFetcher.new(
 #     access_token: token
-#   ).call(q: "subject:damage report after:2024/01/01")
+#   ).call(q: "subject:damage report after:#{Time.utc(2024, 1, 1).to_i}")
 class GmailThreadListFetcher
   def initialize(access_token:, gmail_client: nil)
     @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)

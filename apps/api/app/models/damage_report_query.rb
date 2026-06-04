@@ -16,6 +16,14 @@ class DamageReportQuery
   DEFAULT_AFTER_DATE = Time.utc(2012, 10, 15).to_i
   MONTHS_RANGE = 36
 
+  # Returns the epoch MONTHS_RANGE months after +epoch+, or nil if that date exceeds today.
+  def self.next_epoch(epoch)
+    date = Time.at(epoch).utc.to_date >> MONTHS_RANGE
+    return nil if date > Date.today
+
+    Time.utc(date.year, date.month, date.day).to_i
+  end
+
   def initialize(after_date: nil)
     @after = Time.at(after_date || DEFAULT_AFTER_DATE).utc.to_date
   end
