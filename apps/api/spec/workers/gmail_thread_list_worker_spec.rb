@@ -30,7 +30,7 @@ RSpec.describe GmailThreadListWorker do
       described_class.new.perform(user_id, "2024-01-01")
 
       expect(fetcher).to have_received(:call).with(
-        q: IngressDamageReportQuery.new(after_date: "2024-01-01").to_s
+        q: IngressDamageReportQuery.new(after_date: Time.utc(2024, 1, 1).to_i).to_s
       )
     end
 

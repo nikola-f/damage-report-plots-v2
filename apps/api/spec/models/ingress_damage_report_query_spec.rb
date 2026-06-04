@@ -10,7 +10,7 @@ RSpec.describe IngressDamageReportQuery do
 
   describe "#to_s" do
     it "builds the query with fixed subject, from, smaller, and date range" do
-      query = described_class.new(after_date: "2024-01-01")
+      query = described_class.new(after_date: Time.utc(2024, 1, 1).to_i)
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
         "after:#{Time.utc(2024, 1, 1).to_i} before:#{Time.utc(2027, 1, 1).to_i} " \
@@ -20,7 +20,7 @@ RSpec.describe IngressDamageReportQuery do
     end
 
     it "handles leap year correctly (2024-02-29 + 3 years = 2027-02-28)" do
-      query = described_class.new(after_date: "2024-02-29")
+      query = described_class.new(after_date: Time.utc(2024, 2, 29).to_i)
       expect(query.to_s).to eq(
         "subject:Ingress Damage Report: Entities attacked by " \
         "after:#{Time.utc(2024, 2, 29).to_i} before:#{Time.utc(2027, 2, 28).to_i} " \

@@ -18,8 +18,7 @@ class IngressDamageReportQuery
   MONTHS_RANGE = 36
 
   def initialize(after_date: nil)
-    @after = after_date.is_a?(String) ? Date.parse(after_date)
-                                      : Time.at(after_date || DEFAULT_AFTER_DATE).utc.to_date
+    @after = Time.at(after_date || DEFAULT_AFTER_DATE).utc.to_date
   end
 
   def to_s
