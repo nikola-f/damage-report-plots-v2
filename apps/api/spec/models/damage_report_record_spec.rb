@@ -46,6 +46,13 @@ RSpec.describe DamageReportRecord do
     end
   end
 
+  describe ".from_h" do
+    it "builds a record from a string-keyed hash" do
+      hash = { "name" => "ハチ公", "latitude" => "35.0", "longitude" => "139.0", "owned" => false, "internal_date" => "1000" }
+      expect(described_class.from_h(hash)).to eq(described_class.new(**hash.transform_keys(&:to_sym)))
+    end
+  end
+
   describe ".deduplicate" do
     let(:base) { { name: "P", latitude: "35.0", longitude: "139.0", internal_date: "1000" } }
 

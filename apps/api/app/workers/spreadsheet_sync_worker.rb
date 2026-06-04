@@ -20,15 +20,7 @@ class SpreadsheetSyncWorker
         )
         break if messages.empty?
 
-        batch = Hash.new { |h, k| h[k] = { records: [], handles: [] } }
-        messages.each do |message|
-          user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
-          records = JSON.parse(message.body).map { |h| DamageReportRecord.new(**h.transform_keys(&:to_sym)) }
-          batch[user_id][:records].concat(records)
-          batch[user_id][:handles] << message.receipt_handle
-        end
-
-        batch.each do |user_id, data|
+        build_batch(messages).each do |user_id, data|
           logger.debug "received #{data[:records].size} records for user #{user_id}"
           process(user_id:, records: data[:records])
           sqs.delete_messages(data[:handles])
@@ -39,6 +31,17 @@ class SpreadsheetSyncWorker
   end
 
   private
+
+  def build_batch(messages)
+    Hash.new { |h, k| h[k] = { records: [], handles: [] } }.tap do |batch|
+      messages.each do |message|
+        user_id = message.message_attributes[UserStore::USER_ID_ATTR].string_value
+        records = JSON.parse(message.body).map { |h| DamageReportRecord.from_h(h) }
+        batch[user_id][:records].concat(records)
+        batch[user_id][:handles] << message.receipt_handle
+      end
+    end
+  end
 
   def process(user_id:, records:)
     access_token   = UserStore.access_token.fetch(user_id)
