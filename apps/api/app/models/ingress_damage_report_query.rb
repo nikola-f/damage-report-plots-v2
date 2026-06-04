@@ -14,21 +14,27 @@ class IngressDamageReportQuery
              "ingress-support@nianticspatial.com"].freeze
   LARGER  = "5K"
   SMALLER = "100K"
-  DEFAULT_AFTER_DATE = "2012-10-15"
+  DEFAULT_AFTER_DATE = Time.utc(2012, 10, 15).to_i
   MONTHS_RANGE = 36
 
   def initialize(after_date: nil)
-    @after = Date.parse(after_date || DEFAULT_AFTER_DATE)
+    @after = Time.at(after_date || DEFAULT_AFTER_DATE).utc.to_date
   end
 
   def to_s
     GmailSearchQuery.new(
-      subject: SUBJECT,
-      after_date: @after,
-      before_date: @after >> MONTHS_RANGE,
-      from: FROM,
-      larger: LARGER,
-      smaller: SMALLER
+      subject:     SUBJECT,
+      after_date:  date_to_epoch(@after),
+      before_date: date_to_epoch(@after >> MONTHS_RANGE),
+      from:        FROM,
+      larger:      LARGER,
+      smaller:     SMALLER
     ).to_s
+  end
+
+  private
+
+  def date_to_epoch(date)
+    Time.utc(date.year, date.month, date.day).to_i
   end
 end

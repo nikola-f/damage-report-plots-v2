@@ -6,27 +6,26 @@ class GmailThreadListWorker
   sidekiq_options retry: 3
 
   # @param user_id    [String] Google account ID
-  # @param after_date [String, nil] ISO 8601 date string (e.g. "2024-01-01")
+  # @param after_date [Integer, nil] Unix epoch (e.g. Time.utc(2024, 1, 1).to_i)
   def perform(user_id, after_date)
     access_token  = UserStore.access_token.fetch(user_id)
     fetcher       = GmailThreadListFetcher.new(access_token:)
-    current_after = after_date
+    current_epoch = after_date || IngressDamageReportQuery::DEFAULT_AFTER_DATE
     thread_ids    = []
 
     loop do
-      query      = IngressDamageReportQuery.new(after_date: current_after)
+      query      = IngressDamageReportQuery.new(after_date: current_epoch)
       logger.debug "query: #{query}"
       thread_ids = fetcher.call(q: query.to_s)
-      logger.debug "found #{thread_ids.size} threads for after_date=#{current_after || IngressDamageReportQuery::DEFAULT_AFTER_DATE}"
+      logger.debug "found #{thread_ids.size} threads for after_date=#{current_epoch}"
 
       break if thread_ids.any?
       break unless after_date.nil?
 
-      next_date = Date.parse(current_after || IngressDamageReportQuery::DEFAULT_AFTER_DATE) >>
-                  IngressDamageReportQuery::MONTHS_RANGE
+      next_date = Time.at(current_epoch).utc.to_date >> IngressDamageReportQuery::MONTHS_RANGE
       break if next_date > Date.today
 
-      current_after = next_date.iso8601
+      current_epoch = Time.utc(next_date.year, next_date.month, next_date.day).to_i
     end
 
     UserStore.threads_found.store(user_id, thread_ids.size.to_s)

@@ -25,8 +25,8 @@ GmailSearchQuery = Data.define(:subject, :after_date, :before_date, :from, :larg
   def to_s
     parts = []
     parts << "subject:#{subject}"                        if subject
-    parts << "after:#{after_date.strftime("%Y/%m/%d")}"  if after_date
-    parts << "before:#{before_date.strftime("%Y/%m/%d")}" if before_date
+    parts << "after:#{after_date}"   if after_date
+    parts << "before:#{before_date}" if before_date
     parts << from_query                                   if from.any?
     parts << "larger:#{larger}"                          if larger
     parts << "smaller:#{smaller}"                        if smaller

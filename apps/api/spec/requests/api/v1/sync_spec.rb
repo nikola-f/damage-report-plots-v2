@@ -92,10 +92,11 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     end
 
     context "with after_date parameter" do
-      it "passes after_date to the worker" do
+      it "converts after_date to epoch and passes it to the worker" do
         post "/api/v1/sync", params: { after_date: "2024-01-01" }
 
-        expect(GmailThreadListWorker).to have_received(:perform_async).with(test_user_id, "2024-01-01")
+        expect(GmailThreadListWorker).to have_received(:perform_async)
+          .with(test_user_id, Time.utc(2024, 1, 1).to_i)
       end
     end
 
