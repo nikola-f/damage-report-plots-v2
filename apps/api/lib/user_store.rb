@@ -41,6 +41,10 @@ class UserStore
     new(prefix: "portals_appended", redis:)
   end
 
+  def self.threads_max_internal_date(redis: REDIS)
+    new(prefix: "threads_max_internal_date", redis:)
+  end
+
   def initialize(prefix:, ttl: nil, redis: REDIS)
     @prefix = prefix
     @ttl    = ttl

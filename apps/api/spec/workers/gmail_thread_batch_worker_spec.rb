@@ -31,8 +31,9 @@ RSpec.describe GmailThreadBatchWorker do
     )
   end
 
-  let(:threads_processed_store) { instance_double(UserStore, increment: nil) }
-  let(:portals_found_store)     { instance_double(UserStore, increment: nil) }
+  let(:threads_processed_store)          { instance_double(UserStore, increment: nil) }
+  let(:portals_found_store)              { instance_double(UserStore, increment: nil) }
+  let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch: "0", store: nil) }
 
   before do
     allow(REDIS).to receive(:set)
@@ -48,6 +49,7 @@ RSpec.describe GmailThreadBatchWorker do
     allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
     allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
+    allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
     allow(GmailThreadBatchFetcher).to receive(:new).and_return(fetcher)
     allow(decoder).to receive(:extract_portals).with(internal_date:).and_return([portal])
     allow(described_class).to receive(:perform_in)
@@ -93,6 +95,22 @@ RSpec.describe GmailThreadBatchWorker do
       described_class.new.perform
 
       expect(threads_processed_store).to have_received(:increment).with(user_id, by: thread_ids.size)
+    end
+
+    it "stores the max internal_date before deleting the SQS message" do
+      described_class.new.perform
+
+      expect(threads_max_internal_date_store).to have_received(:store).with(user_id, internal_date)
+    end
+
+    context "when the stored max exceeds the new internal_date" do
+      let(:threads_max_internal_date_store) { instance_double(UserStore, fetch: "9999999999999", store: nil) }
+
+      it "does not update threads_max_internal_date" do
+        described_class.new.perform
+
+        expect(threads_max_internal_date_store).not_to have_received(:store)
+      end
     end
 
     it "increments portals_found by the number of unique portals sent to SQS" do
@@ -193,7 +211,7 @@ RSpec.describe GmailThreadBatchWorker do
     end
 
     context "when html_decoder returns nil" do
-      let(:gmail_message) { instance_double(GmailMessage, html_decoder: nil) }
+      let(:gmail_message) { instance_double(GmailMessage, html_decoder: nil, internal_date:) }
 
       it "does not call send_messages" do
         described_class.new.perform
@@ -250,6 +268,12 @@ RSpec.describe GmailThreadBatchWorker do
         expect { described_class.new.perform }.to raise_error(GmailClient::ApiError)
 
         expect(report_sqs_client).not_to have_received(:delete_messages)
+      end
+
+      it "does not update threads_max_internal_date" do
+        expect { described_class.new.perform }.to raise_error(GmailClient::ApiError)
+
+        expect(threads_max_internal_date_store).not_to have_received(:store)
       end
     end
 
