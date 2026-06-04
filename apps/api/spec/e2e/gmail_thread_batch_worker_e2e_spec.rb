@@ -88,7 +88,8 @@ RSpec.describe GmailThreadBatchWorker, :e2e do
       before do
         # GmailThreadListWorker を経由せず直接シードして quota 消費を抑える。
         # list_threads(10 units) + batch_get × SEED_THREAD_COUNT(40 units each) のみ消費する。
-        query      = IngressDamageReportQuery.new(after_date: (Date.today - 7).iso8601)
+        d          = Date.today - 7
+        query      = IngressDamageReportQuery.new(after_date: Time.utc(d.year, d.month, d.day).to_i)
         thread_ids = GmailClient.new(access_token, redis: REDIS)
                                 .list_threads(q: query.to_s)
                                 .fetch("threads", [])
