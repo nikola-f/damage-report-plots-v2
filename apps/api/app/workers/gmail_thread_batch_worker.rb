@@ -23,46 +23,53 @@ class GmailThreadBatchWorker
         )
         break if messages.empty?
 
-        message    = messages.first
-        user_id    = message.message_attributes[UserStore::USER_ID_ATTR].string_value
-        thread_ids = JSON.parse(message.body)
-        logger.info "sqs_message_id=#{message.message_id} threads=#{thread_ids.size} user=#{user_id}"
-
-        access_token = UserStore.access_token.fetch(user_id)
-
-        t_start    = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        extract_ms = 0
-        portals    = []
-        max_date   = 0
-        GmailThreadBatchFetcher.new(access_token:).call(thread_ids) do |gmail_message|
-          t_ex = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date)&.each do |portal|
-            portals << portal
-          end
-          extract_ms += ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_ex) * 1000).round
-          date = gmail_message.internal_date.to_i
-          max_date = date if date > max_date
-        end
-        fetch_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_start) * 1000).round - extract_ms
-        logger.info "user=#{user_id} threads=#{thread_ids.size} fetch=#{fetch_ms}ms extract=#{extract_ms}ms portals=#{portals.size}"
-
-        unique_portals = DamageReportRecord.deduplicate(portals)
-        if unique_portals.any?
-          t_sqs = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          portal_sqs.send_messages(unique_portals.map(&:to_h),
-                                   attributes: { UserStore::USER_ID_ATTR => user_id })
-          sqs_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_sqs) * 1000).round
-          logger.info "user=#{user_id} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
-          UserStore.portals_found.increment(user_id, by: unique_portals.size)
-        end
-
-        current_max = UserStore.threads_max_internal_date.fetch(user_id).to_i rescue 0
-        UserStore.threads_max_internal_date.store(user_id, max_date.to_s) if max_date > current_max
-        thread_sqs.delete_messages(message.receipt_handle)
-        logger.debug "deleted thread_ids message for user #{user_id}"
-        UserStore.threads_processed.increment(user_id, by: thread_ids.size)
+        process_message(messages.first, thread_sqs:, portal_sqs:)
         processed += 1
       end
     end
+  end
+
+  private
+
+  def process_message(message, thread_sqs:, portal_sqs:)
+    user_id    = message.message_attributes[UserStore::USER_ID_ATTR].string_value
+    thread_ids = JSON.parse(message.body)
+    logger.info "sqs_message_id=#{message.message_id} threads=#{thread_ids.size} user=#{user_id}"
+
+    access_token = UserStore.access_token.fetch(user_id)
+
+    t_start    = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    extract_ms = 0
+    portals    = []
+    max_date   = 0
+    GmailThreadBatchFetcher.new(access_token:).call(thread_ids) do |gmail_message|
+      t_ex = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      portals.concat(gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date) || [])
+      extract_ms += ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_ex) * 1000).round
+      date = gmail_message.internal_date.to_i
+      max_date = date if date > max_date
+    end
+    fetch_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_start) * 1000).round - extract_ms
+    logger.info "user=#{user_id} threads=#{thread_ids.size} fetch=#{fetch_ms}ms extract=#{extract_ms}ms portals=#{portals.size}"
+
+    unique_portals = DamageReportRecord.deduplicate(portals)
+    if unique_portals.any?
+      t_sqs = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      portal_sqs.send_messages(unique_portals.map(&:to_h),
+                               attributes: { UserStore::USER_ID_ATTR => user_id })
+      sqs_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_sqs) * 1000).round
+      logger.info "user=#{user_id} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
+      UserStore.portals_found.increment(user_id, by: unique_portals.size)
+    end
+
+    current_max = begin
+      UserStore.threads_max_internal_date.fetch(user_id).to_i
+    rescue KeyError
+      0
+    end
+    UserStore.threads_max_internal_date.store(user_id, max_date.to_s) if max_date > current_max
+    thread_sqs.delete_messages(message.receipt_handle)
+    logger.debug "deleted thread_ids message for user #{user_id}"
+    UserStore.threads_processed.increment(user_id, by: thread_ids.size)
   end
 end

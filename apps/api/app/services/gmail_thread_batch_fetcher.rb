@@ -26,20 +26,21 @@ class GmailThreadBatchFetcher
     return (block ? nil : []) if thread_ids.empty?
 
     if block
-      thread_ids.each_slice(BATCH_SIZE).with_index(1) do |batch, i|
-        sleep INTER_BATCH_SLEEP if i > 1
-        fetch_with_retry(batch).each(&block)
-      end
+      each_batch(thread_ids) { |messages| messages.each(&block) }
       nil
     else
-      thread_ids.each_slice(BATCH_SIZE).with_index(1).flat_map do |batch, i|
-        sleep INTER_BATCH_SLEEP if i > 1
-        fetch_with_retry(batch)
-      end
+      [].tap { |result| each_batch(thread_ids) { |messages| result.concat(messages) } }
     end
   end
 
   private
+
+  def each_batch(thread_ids)
+    thread_ids.each_slice(BATCH_SIZE).with_index(1) do |batch, i|
+      sleep INTER_BATCH_SLEEP if i > 1
+      yield fetch_with_retry(batch)
+    end
+  end
 
   def fetch_with_retry(batch, attempt: 0)
     raw_threads = @gmail_client.batch_get_threads(batch)
