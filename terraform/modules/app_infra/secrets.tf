@@ -6,6 +6,10 @@ resource "aws_secretsmanager_secret" "rails_master_key" {
 resource "aws_secretsmanager_secret_version" "rails_master_key" {
   secret_id     = aws_secretsmanager_secret.rails_master_key.id
   secret_string = var.rails_master_key_placeholder
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }
 
 resource "aws_secretsmanager_secret" "google_client_id" {
