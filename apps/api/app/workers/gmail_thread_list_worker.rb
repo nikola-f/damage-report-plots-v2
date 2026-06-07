@@ -5,8 +5,6 @@ class GmailThreadListWorker
 
   sidekiq_options retry: 3
 
-  THREAD_ID_LIMIT = 3_000
-
   # @param user_id    [String] Google account ID
   # @param after_date [Integer, nil] Unix epoch (e.g. Time.utc(2024, 1, 1).to_i)
   def perform(user_id, after_date)
@@ -29,7 +27,7 @@ class GmailThreadListWorker
       end
       total_count += window_ids.size
 
-      break if total_count > THREAD_ID_LIMIT
+      break if total_count > Settings.thread_list_worker_thread_id_limit
       break if before_epoch >= Time.now.to_i
 
       current_epoch = before_epoch

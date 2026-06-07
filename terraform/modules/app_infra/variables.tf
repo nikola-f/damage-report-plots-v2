@@ -109,3 +109,9 @@ variable "thread_batch_fetcher_inter_batch_sleep" {
   type        = number
   default     = 0.5
 }
+
+variable "thread_list_worker_thread_id_limit" {
+  description = "Max thread IDs collected before GmailThreadListWorker stops looping"
+  type        = number
+  default     = 6000
+}

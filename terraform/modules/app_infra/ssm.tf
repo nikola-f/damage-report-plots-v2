@@ -77,3 +77,13 @@ resource "aws_ssm_parameter" "thread_list_worker_threads_per_message" {
     Name = "${local.name_prefix}-thread-list-worker-threads-per-message"
   }
 }
+
+resource "aws_ssm_parameter" "thread_list_worker_thread_id_limit" {
+  name  = "/${local.name_prefix}/thread_list_worker_thread_id_limit"
+  type  = "String"
+  value = tostring(var.thread_list_worker_thread_id_limit)
+
+  tags = {
+    Name = "${local.name_prefix}-thread-list-worker-thread-id-limit"
+  }
+}

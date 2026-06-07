@@ -54,6 +54,7 @@ local imageTag = std.extVar('IMAGE_TAG');
         { name: 'SPREADSHEET_SYNC_WORKER_POLL_INTERVAL',    value: tfstate('output.spreadsheet_sync_worker_poll_interval') },
         { name: 'SPREADSHEET_SYNC_WORKER_LOCK_TTL',         value: tfstate('output.spreadsheet_sync_worker_lock_ttl') },
         { name: 'THREAD_LIST_WORKER_THREADS_PER_MESSAGE',    value: tfstate('output.thread_list_worker_threads_per_message') },
+        { name: 'THREAD_LIST_WORKER_THREAD_ID_LIMIT',        value: tfstate('output.thread_list_worker_thread_id_limit') },
         { name: 'THREAD_BATCH_FETCHER_BATCH_SIZE',          value: tfstate('output.thread_batch_fetcher_batch_size') },
         { name: 'THREAD_BATCH_FETCHER_INTER_BATCH_SLEEP',   value: tfstate('output.thread_batch_fetcher_inter_batch_sleep') },
       ] + (if env == 'dev' then [{ name: 'RAILS_LOG_LEVEL', value: 'debug' }] else []),
