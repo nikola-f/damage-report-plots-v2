@@ -7,7 +7,7 @@ end
 Sidekiq.configure_server do |config|
   config.redis = { url: Settings.redis_url }
   config.logger.level = Logger.const_get(ENV.fetch("RAILS_LOG_LEVEL", "info").upcase)
-  config.shutdown_timeout = 110
+  config[:timeout] = 110
 
   config.on(:startup) do
     GmailThreadBatchWorker.perform_async
