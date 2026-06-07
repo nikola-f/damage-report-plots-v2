@@ -86,7 +86,8 @@ RSpec.describe GmailThreadListWorker, :e2e do
 
     context "when there are no matching threads" do
       it "does not enqueue any messages to SQS" do
-        described_class.new.perform(user_id, Time.utc(2000, 1, 1).to_i)
+        future_epoch = Time.now.to_i + (365 * 24 * 3600)
+        described_class.new.perform(user_id, future_epoch)
 
         messages = sqs.receive_message(
           queue_url: queue_url,
