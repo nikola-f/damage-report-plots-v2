@@ -77,7 +77,7 @@ variable "thread_batch_worker_lock_ttl" {
 variable "thread_batch_worker_max_messages_per_run" {
   description = "Max SQS messages processed per GmailThreadBatchWorker run"
   type        = number
-  default     = 5
+  default     = 3
 }
 
 variable "spreadsheet_sync_worker_poll_interval" {
