@@ -161,3 +161,7 @@ output "thread_batch_fetcher_inter_batch_sleep" {
 output "thread_list_worker_thread_id_limit" {
   value = module.app_infra.thread_list_worker_thread_id_limit
 }
+
+output "spreadsheet_sync_worker_max_messages_per_run" {
+  value = module.app_infra.spreadsheet_sync_worker_max_messages_per_run
+}

@@ -11,3 +11,4 @@ spreadsheet_sync_worker_lock_ttl: <%= ENV.fetch('SPREADSHEET_SYNC_WORKER_LOCK_TT
 thread_batch_fetcher_batch_size: <%= ENV.fetch('THREAD_BATCH_FETCHER_BATCH_SIZE', '20').to_i %>
 thread_batch_fetcher_inter_batch_sleep: <%= ENV.fetch('THREAD_BATCH_FETCHER_INTER_BATCH_SLEEP', '0.5').to_f %>
 thread_list_worker_thread_id_limit: <%= ENV.fetch('THREAD_LIST_WORKER_THREAD_ID_LIMIT', '6000').to_i %>
+spreadsheet_sync_worker_max_messages_per_run: <%= ENV.fetch('SPREADSHEET_SYNC_WORKER_MAX_MESSAGES_PER_RUN', '3').to_i %>

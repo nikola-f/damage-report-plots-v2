@@ -37,7 +37,7 @@ RSpec.describe SpreadsheetSyncWorker do
 
       expect(sqs_client).to have_received(:receive_messages).with(
         message_attribute_names: [UserStore::USER_ID_ATTR],
-        max_messages: 10
+        max_messages: Settings.spreadsheet_sync_worker_max_messages_per_run
       ).at_least(:once)
     end
 
@@ -89,6 +89,27 @@ RSpec.describe SpreadsheetSyncWorker do
         expect(sqs_client).to have_received(:delete_messages)
           .with([receipt_handle, receipt_handle2])
           .once
+      end
+    end
+
+    context "when messages exceed max_messages_per_run" do
+      let(:limit) { Settings.spreadsheet_sync_worker_max_messages_per_run }
+
+      before do
+        allow(sqs_client).to receive(:receive_messages).and_return([message] * limit, [message])
+      end
+
+      it "receives at most max_messages_per_run messages per call" do
+        described_class.new.perform
+
+        expect(sqs_client).to have_received(:receive_messages)
+          .with(hash_including(max_messages: limit))
+      end
+
+      it "does not call receive_messages again after reaching the limit" do
+        described_class.new.perform
+
+        expect(sqs_client).to have_received(:receive_messages).once
       end
     end
 
