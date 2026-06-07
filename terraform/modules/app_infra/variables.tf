@@ -107,5 +107,5 @@ variable "thread_batch_fetcher_batch_size" {
 variable "thread_batch_fetcher_inter_batch_sleep" {
   description = "Seconds to sleep between batch API calls in GmailThreadBatchFetcher"
   type        = number
-  default     = 1
+  default     = 0.5
 }

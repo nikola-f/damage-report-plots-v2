@@ -37,6 +37,7 @@ local imageTag = std.extVar('IMAGE_TAG');
       command: ['bundle', 'exec', 'sidekiq'],
       essential: true,
       readonlyRootFilesystem: true,
+      stopTimeout: 120,
       dependsOn: [{ containerName: 'setup', condition: 'SUCCESS' }],
       mountPoints: [
         { sourceVolume: 'tmp', containerPath: '/tmp', readOnly: false },
