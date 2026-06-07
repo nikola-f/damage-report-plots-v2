@@ -5,39 +5,37 @@ class GmailThreadListWorker
 
   sidekiq_options retry: 3
 
+  THREAD_ID_LIMIT = 3_000
+
   # @param user_id    [String] Google account ID
   # @param after_date [Integer, nil] Unix epoch (e.g. Time.utc(2024, 1, 1).to_i)
   def perform(user_id, after_date)
     access_token  = UserStore.access_token.fetch(user_id)
     fetcher       = GmailThreadListFetcher.new(access_token:)
     current_epoch = after_date || DamageReportQuery::DEFAULT_AFTER_DATE
-    thread_ids    = []
+    total_count   = 0
+    sqs           = SqsClient.new(Settings.sqs_thread_ids_queue_url)
 
     loop do
-      query      = DamageReportQuery.new(after_date: current_epoch)
+      before_epoch = current_epoch + DamageReportQuery::DAYS_WINDOW * 24 * 3_600
+      query        = DamageReportQuery.new(after_date: current_epoch, before_date: before_epoch)
+
       logger.debug "query: #{query}"
-      thread_ids = fetcher.call(q: query.to_s)
-      logger.debug "found #{thread_ids.size} threads for after_date=#{current_epoch}"
+      window_ids = fetcher.call(q: query.to_s)
+      logger.debug "found #{window_ids.size} threads in window starting #{current_epoch}"
 
-      break if thread_ids.any? || after_date
+      window_ids.sort.each_slice(Settings.thread_list_worker_threads_per_message) do |slice|
+        sqs.send_messages(slice, attributes: { UserStore::USER_ID_ATTR => user_id })
+      end
+      total_count += window_ids.size
 
-      next_epoch = DamageReportQuery.next_epoch(current_epoch)
-      break if next_epoch.nil?
+      break if total_count > THREAD_ID_LIMIT
+      break if before_epoch >= Time.now.to_i
 
-      current_epoch = next_epoch
+      current_epoch = before_epoch
     end
 
-    UserStore.threads_found.store(user_id, thread_ids.size.to_s)
-
-    if thread_ids.empty?
-      logger.debug "no threads found, skipping SQS"
-      return
-    end
-
-    sqs = SqsClient.new(Settings.sqs_thread_ids_queue_url)
-    thread_ids.each_slice(Settings.thread_list_worker_threads_per_message) do |slice|
-      sqs.send_messages(slice, attributes: { UserStore::USER_ID_ATTR => user_id })
-    end
-    logger.debug "sent #{thread_ids.size} thread_ids to SQS"
+    UserStore.threads_found.store(user_id, total_count.to_s)
+    logger.debug "sent #{total_count} thread_ids to SQS"
   end
 end

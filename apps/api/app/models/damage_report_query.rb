@@ -15,6 +15,7 @@ class DamageReportQuery
   SMALLER = "100K"
   DEFAULT_AFTER_DATE = Time.utc(2012, 10, 15).to_i
   MONTHS_RANGE = 36
+  DAYS_WINDOW  = 30
 
   # Returns the epoch MONTHS_RANGE months after +epoch+, or nil if that date exceeds today.
   def self.next_epoch(epoch)
@@ -24,13 +25,14 @@ class DamageReportQuery
     Time.utc(date.year, date.month, date.day).to_i
   end
 
-  def initialize(after_date: nil)
-    @after = Time.at(after_date || DEFAULT_AFTER_DATE).utc.to_date
+  def initialize(after_date: nil, before_date: nil)
+    @after  = Time.at(after_date || DEFAULT_AFTER_DATE).utc.to_date
+    @before = before_date ? Time.at(before_date).utc.to_date : (@after >> MONTHS_RANGE)
   end
 
   def to_s
     after_epoch  = date_to_epoch(@after)
-    before_epoch = date_to_epoch(@after >> MONTHS_RANGE)
+    before_epoch = date_to_epoch(@before)
     from_part    = "{#{FROM.map { |f| "from:#{f}" }.join(" ")}}"
     "subject:#{SUBJECT} after:#{after_epoch} before:#{before_epoch} #{from_part} larger:#{LARGER} smaller:#{SMALLER}"
   end
