@@ -104,23 +104,25 @@ RSpec.describe GmailThreadListWorker do
       end
     end
 
-    context "when total thread_ids exceed 3000 across windows" do
-      # Allow 3 windows but expect break after 2 (2000 + 2000 > 3000)
-      let(:fixed_now) { Time.at(DamageReportQuery::DEFAULT_AFTER_DATE + 61 * 24 * 3_600) }
-      let(:window_ids) { (1..2000).map { |i| "t#{i}" } }
+    context "when total thread_ids exceed the limit across windows" do
+      # window_ids size = limit/2 + 1 ensures: 1 window under limit, 2 windows over
+      let(:limit)      { Settings.thread_list_worker_thread_id_limit }
+      let(:fixed_now)  { Time.at(DamageReportQuery::DEFAULT_AFTER_DATE + 61 * 24 * 3_600) }
+      let(:window_ids) { (1..(limit / 2 + 1)).map { |i| "t#{i}" } }
 
       before { allow(fetcher).to receive(:call).and_return(window_ids) }
 
-      it "stops fetching after total exceeds 3000" do
+      it "stops fetching after total exceeds the limit" do
         described_class.new.perform(user_id, after_date)
 
         expect(fetcher).to have_received(:call).twice
       end
 
-      it "stores the actual total (may exceed 3000)" do
+      it "stores the actual total (may exceed the limit)" do
         described_class.new.perform(user_id, after_date)
 
-        expect(threads_found_store).to have_received(:store).with(user_id, "4000")
+        expect(threads_found_store).to have_received(:store)
+          .with(user_id, ((limit / 2 + 1) * 2).to_s)
       end
     end
 

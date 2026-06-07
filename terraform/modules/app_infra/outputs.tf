@@ -191,3 +191,8 @@ output "thread_batch_fetcher_inter_batch_sleep" {
   description = "THREAD_BATCH_FETCHER_INTER_BATCH_SLEEP"
   value       = tostring(var.thread_batch_fetcher_inter_batch_sleep)
 }
+
+output "thread_list_worker_thread_id_limit" {
+  description = "THREAD_LIST_WORKER_THREAD_ID_LIMIT"
+  value       = tostring(var.thread_list_worker_thread_id_limit)
+}

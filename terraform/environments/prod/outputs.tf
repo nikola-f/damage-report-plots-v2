@@ -157,3 +157,7 @@ output "thread_batch_fetcher_inter_batch_sleep" {
   value = module.app_infra.thread_batch_fetcher_inter_batch_sleep
 }
 
+
+output "thread_list_worker_thread_id_limit" {
+  value = module.app_infra.thread_list_worker_thread_id_limit
+}
