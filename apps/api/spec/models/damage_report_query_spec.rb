@@ -52,5 +52,13 @@ RSpec.describe DamageReportQuery do
         "larger:5K smaller:100K"
       )
     end
+
+    it "uses before_date when provided instead of MONTHS_RANGE offset" do
+      before_epoch = Time.utc(2024, 1, 31).to_i
+      query = described_class.new(after_date: Time.utc(2024, 1, 1).to_i, before_date: before_epoch)
+      expect(query.to_s).to include(
+        "after:#{Time.utc(2024, 1, 1).to_i} before:#{before_epoch}"
+      )
+    end
   end
 end
