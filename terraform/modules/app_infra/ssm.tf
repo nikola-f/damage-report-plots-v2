@@ -87,3 +87,13 @@ resource "aws_ssm_parameter" "thread_list_worker_thread_id_limit" {
     Name = "${local.name_prefix}-thread-list-worker-thread-id-limit"
   }
 }
+
+resource "aws_ssm_parameter" "spreadsheet_sync_worker_max_messages_per_run" {
+  name  = "/${local.name_prefix}/spreadsheet_sync_worker_max_messages_per_run"
+  type  = "String"
+  value = tostring(var.spreadsheet_sync_worker_max_messages_per_run)
+
+  tags = {
+    Name = "${local.name_prefix}-spreadsheet-sync-worker-max-messages-per-run"
+  }
+}

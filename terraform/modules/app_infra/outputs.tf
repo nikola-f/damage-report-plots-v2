@@ -196,3 +196,8 @@ output "thread_list_worker_thread_id_limit" {
   description = "THREAD_LIST_WORKER_THREAD_ID_LIMIT"
   value       = tostring(var.thread_list_worker_thread_id_limit)
 }
+
+output "spreadsheet_sync_worker_max_messages_per_run" {
+  description = "SPREADSHEET_SYNC_WORKER_MAX_MESSAGES_PER_RUN"
+  value       = tostring(var.spreadsheet_sync_worker_max_messages_per_run)
+}

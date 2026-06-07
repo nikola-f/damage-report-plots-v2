@@ -11,12 +11,17 @@ class SpreadsheetSyncWorker
 
   def perform
     with_lock(key: LOCK_KEY, ttl: Settings.spreadsheet_sync_worker_lock_ttl, interval: Settings.spreadsheet_sync_worker_poll_interval) do
-      sqs = SqsClient.new(Settings.sqs_reports_queue_url)
+      sqs       = SqsClient.new(Settings.sqs_reports_queue_url)
+      limit     = Settings.spreadsheet_sync_worker_max_messages_per_run
+      processed = 0
 
       loop do
+        remaining = limit - processed
+        break if remaining <= 0
+
         messages = sqs.receive_messages(
           message_attribute_names: [UserStore::USER_ID_ATTR],
-          max_messages: 10
+          max_messages: [remaining, 10].min
         )
         break if messages.empty?
 
@@ -26,6 +31,7 @@ class SpreadsheetSyncWorker
           sqs.delete_messages(data[:handles])
           logger.debug "deleted #{data[:handles].size} messages for user #{user_id}"
         end
+        processed += messages.size
       end
     end
   end

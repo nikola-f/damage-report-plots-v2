@@ -115,3 +115,9 @@ variable "thread_list_worker_thread_id_limit" {
   type        = number
   default     = 6000
 }
+
+variable "spreadsheet_sync_worker_max_messages_per_run" {
+  description = "Max SQS messages processed per SpreadsheetSyncWorker run"
+  type        = number
+  default     = 3
+}
