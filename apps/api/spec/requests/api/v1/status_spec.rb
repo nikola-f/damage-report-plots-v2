@@ -135,7 +135,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
       it "returns threads_max_internal_date as integer" do
         get "/api/v1/status"
 
-        expect(json_response["user"]["threads_max_internal_date"]).to eq(1_700_000_000_000)
+        expect(json_response["user"]["threads_max_internal_date"]).to eq(1_700_000_000)
       end
 
       context "when threads_max_internal_date has not been stored" do
