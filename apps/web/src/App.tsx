@@ -148,11 +148,18 @@ export default function App() {
       )}
 
       {status !== null && (
-        <p style={{ ...styles.statusLabel, margin: 0 }}>
-          Last sync: {status.user.last_synced_at
-            ? new Date(status.user.last_synced_at * 1000).toLocaleString()
-            : "Never"}
-        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <p style={{ ...styles.statusLabel, margin: 0 }}>
+            Last sync: {status.user.last_synced_at
+              ? new Date(status.user.last_synced_at * 1000).toLocaleString()
+              : "Never"}
+          </p>
+          <p style={{ ...styles.statusLabel, margin: 0 }}>
+            Last thread: {status.user.threads_max_internal_date
+              ? new Date(status.user.threads_max_internal_date * 1000).toLocaleString()
+              : "—"}
+          </p>
+        </div>
       )}
 
       <button onClick={handleLogout} style={styles.buttonSecondary}>
