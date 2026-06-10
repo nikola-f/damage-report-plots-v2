@@ -28,9 +28,10 @@ resource "aws_subnet" "public" {
   count                   = length(var.public_subnet_cidrs)
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidrs[count.index]
-  ipv6_cidr_block         = cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, count.index)
-  availability_zone       = var.availability_zones[count.index]
-  map_public_ip_on_launch = true
+  ipv6_cidr_block                 = cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, count.index)
+  availability_zone               = var.availability_zones[count.index]
+  map_public_ip_on_launch         = false
+  assign_ipv6_address_on_creation = true
 
   tags = {
     Name = "${local.name_prefix}-public-${var.availability_zones[count.index]}"
