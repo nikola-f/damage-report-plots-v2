@@ -43,6 +43,15 @@ output "ecr_repository_url" {
   value       = aws_ecr_repository.api.repository_url
 }
 
+output "ecr_repository_url_dualstack" {
+  description = "ECR repository URL using dual-stack endpoint (IPv6 compatible)"
+  value = replace(
+    replace(aws_ecr_repository.api.repository_url, ".dkr.ecr.", ".dkr-ecr."),
+    ".amazonaws.com",
+    ".on.aws"
+  )
+}
+
 output "ecr_repository_arn" {
   description = "ECR repository ARN"
   value       = aws_ecr_repository.api.arn

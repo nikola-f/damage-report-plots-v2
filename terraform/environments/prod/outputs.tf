@@ -16,6 +16,12 @@ output "ecr_repository_url" {
   sensitive   = true
 }
 
+output "ecr_repository_url_dualstack" {
+  description = "ECR repository URL (dual-stack, IPv6 compatible)"
+  value       = module.app_infra.ecr_repository_url_dualstack
+  sensitive   = true
+}
+
 output "alb_dns_name" {
   description = "ALB DNS name"
   value       = module.app_infra.alb_dns_name
