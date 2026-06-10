@@ -69,6 +69,7 @@ local imageTag = std.extVar('IMAGE_TAG');
           'awslogs-group': tfstate('output.log_group_worker'),
           'awslogs-region': tfstate('output.aws_region'),
           'awslogs-stream-prefix': 'ecs',
+          'awslogs-endpoint': 'https://logs.' + tfstate('output.aws_region') + '.api.aws',
         },
       },
     },
