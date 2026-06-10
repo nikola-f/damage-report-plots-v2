@@ -22,7 +22,7 @@ local imageTag = std.extVar('IMAGE_TAG');
   containerDefinitions: [
     {
       name: 'setup',
-      image: tfstate('output.ecr_repository_url') + ':' + imageTag,
+      image: tfstate('output.ecr_repository_url_dualstack') + ':' + imageTag,
       user: 'root',
       essential: false,
       command: ['sh', '-c', 'chown -R 1000:1000 /app/tmp /tmp'],
@@ -33,7 +33,7 @@ local imageTag = std.extVar('IMAGE_TAG');
     },
     {
       name: 'web',
-      image: tfstate('output.ecr_repository_url') + ':' + imageTag,
+      image: tfstate('output.ecr_repository_url_dualstack') + ':' + imageTag,
       command: ['bundle', 'exec', 'rails', 'server', '-b', '0.0.0.0', '-p', '3000'],
       essential: true,
       readonlyRootFilesystem: true,
