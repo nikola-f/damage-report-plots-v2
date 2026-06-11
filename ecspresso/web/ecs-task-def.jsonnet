@@ -34,7 +34,9 @@ local imageTag = std.extVar('IMAGE_TAG');
     {
       name: 'web',
       image: tfstate('output.ecr_repository_url_dualstack') + ':' + imageTag,
-      command: ['bundle', 'exec', 'rails', 'server', '-b', '0.0.0.0', '-p', '3000'],
+      // Bind to IPv6 (::) so the ALB can reach the task in the IPv6-only subnet.
+      // 0.0.0.0 only listens on IPv4, which the task no longer has.
+      command: ['bundle', 'exec', 'rails', 'server', '-b', '::', '-p', '3000'],
       essential: true,
       readonlyRootFilesystem: true,
       dependsOn: [
