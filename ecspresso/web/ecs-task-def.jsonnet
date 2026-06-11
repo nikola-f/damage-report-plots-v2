@@ -37,7 +37,10 @@ local imageTag = std.extVar('IMAGE_TAG');
       command: ['bundle', 'exec', 'rails', 'server', '-b', '0.0.0.0', '-p', '3000'],
       essential: true,
       readonlyRootFilesystem: true,
-      dependsOn: [{ containerName: 'setup', condition: 'SUCCESS' }],
+      dependsOn: [
+        { containerName: 'setup', condition: 'SUCCESS' },
+        { containerName: 'log_router', condition: 'START' },
+      ],
       portMappings: [
         { containerPort: 3000, protocol: 'tcp' },
       ],
@@ -70,12 +73,15 @@ local imageTag = std.extVar('IMAGE_TAG');
         },
       ],
       logConfiguration: {
-        logDriver: 'awslogs',
+        logDriver: 'awsfirelens',
         options: {
-          'awslogs-group': tfstate('output.log_group_web'),
-          'awslogs-region': tfstate('output.aws_region'),
-          'awslogs-stream-prefix': 'ecs',
-          'awslogs-endpoint': 'https://logs.' + tfstate('output.aws_region') + '.api.aws',
+          Name: 'cloudwatch_logs',
+          region: tfstate('output.aws_region'),
+          log_group_name: tfstate('output.log_group_web'),
+          log_stream_prefix: 'ecs/',
+          auto_create_group: 'false',
+          // Dual-stack endpoint so logs reach CloudWatch over IPv6 (no Public IPv4)
+          endpoint: 'logs.' + tfstate('output.aws_region') + '.api.aws',
         },
       },
       healthCheck: {
@@ -85,6 +91,17 @@ local imageTag = std.extVar('IMAGE_TAG');
         retries: 3,
         startPeriod: 60,
       },
+    },
+    {
+      name: 'log_router',
+      // Pulled over IPv6 from the ECR Public dual-stack endpoint
+      image: 'ecr-public.aws.com/aws-observability/aws-for-fluent-bit:stable',
+      essential: true,
+      firelensConfiguration: {
+        type: 'fluentbit',
+      },
+      // No logConfiguration: the router's own logs would otherwise need the
+      // IPv4-only awslogs endpoint, which is unreachable without Public IPv4.
     },
   ],
 }

@@ -94,6 +94,18 @@ resource "aws_iam_role_policy" "ecs_task" {
     Version = "2012-10-17"
     Statement = [
       {
+        # FireLens (fluent-bit) writes app logs to CloudWatch using the task role
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = [
+          "${aws_cloudwatch_log_group.web.arn}:*",
+          "${aws_cloudwatch_log_group.worker.arn}:*",
+        ]
+      },
+      {
         Effect = "Allow"
         Action = [
           "sqs:SendMessage",
