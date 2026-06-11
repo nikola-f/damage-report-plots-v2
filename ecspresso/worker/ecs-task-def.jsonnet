@@ -3,6 +3,11 @@ local appName = std.extVar('APP_NAME');
 local env = std.extVar('ENV');
 local imageTag = std.extVar('IMAGE_TAG');
 
+// Rewrite an SQS queue URL to the dual-stack host so the SDK reaches SQS over
+// IPv6. The SDK derives the endpoint from the queue URL host, which overrides
+// AWS_USE_DUALSTACK_ENDPOINT, so the URL itself must point at the IPv6 endpoint.
+local dualstackSqsUrl(url) = std.strReplace(url, '.amazonaws.com/', '.api.aws/');
+
 {
   family: appName + '-' + env + '-worker',
   executionRoleArn: tfstate('output.task_execution_role_arn'),
@@ -52,8 +57,8 @@ local imageTag = std.extVar('IMAGE_TAG');
         // reaches AWS over IPv6 from the IPv6-only task subnet.
         { name: 'AWS_USE_DUALSTACK_ENDPOINT',             value: 'true' },
         { name: 'ALLOWED_ORIGINS',                        value: tfstate('output.allowed_origins') },
-        { name: 'SQS_THREAD_IDS_QUEUE_URL',               value: tfstate('output.sqs_thread_ids_queue_url') },
-        { name: 'SQS_REPORTS_QUEUE_URL',                  value: tfstate('output.sqs_reports_queue_url') },
+        { name: 'SQS_THREAD_IDS_QUEUE_URL',               value: dualstackSqsUrl(tfstate('output.sqs_thread_ids_queue_url')) },
+        { name: 'SQS_REPORTS_QUEUE_URL',                  value: dualstackSqsUrl(tfstate('output.sqs_reports_queue_url')) },
         { name: 'THREAD_BATCH_WORKER_POLL_INTERVAL',        value: tfstate('output.thread_batch_worker_poll_interval') },
         { name: 'THREAD_BATCH_WORKER_LOCK_TTL',             value: tfstate('output.thread_batch_worker_lock_ttl') },
         { name: 'THREAD_BATCH_WORKER_MAX_MESSAGES_PER_RUN', value: tfstate('output.thread_batch_worker_max_messages_per_run') },
