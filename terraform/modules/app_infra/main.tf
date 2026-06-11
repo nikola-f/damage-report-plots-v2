@@ -38,17 +38,6 @@ resource "aws_subnet" "public" {
   }
 }
 
-resource "aws_subnet" "private" {
-  count             = length(var.private_subnet_cidrs)
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_cidrs[count.index]
-  availability_zone = var.availability_zones[count.index]
-
-  tags = {
-    Name = "${local.name_prefix}-private-${var.availability_zones[count.index]}"
-  }
-}
-
 # IPv6-only subnets for ECS tasks and ElastiCache. Without an IPv4 address the
 # Fargate managed agent is forced to use IPv6 for ECR/Secrets/Logs, avoiding the
 # private-IPv4-no-route timeout that occurs in dual-stack subnets.
@@ -101,24 +90,10 @@ resource "aws_route_table" "public" {
   }
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = "${local.name_prefix}-private-rt"
-  }
-}
-
 resource "aws_route_table_association" "public" {
   count          = length(aws_subnet.public)
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
-}
-
-resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
 }
 
 resource "aws_route_table" "app_ipv6" {
