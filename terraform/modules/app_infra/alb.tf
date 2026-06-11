@@ -20,11 +20,12 @@ resource "aws_lb" "main" {
 }
 
 resource "aws_lb_target_group" "web" {
-  name        = "${local.name_prefix}-web"
-  port        = 3000
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
+  name            = "${local.name_prefix}-web"
+  port            = 3000
+  protocol        = "HTTP"
+  vpc_id          = aws_vpc.main.id
+  target_type     = "ip"
+  ip_address_type = "ipv6" # ECS tasks run in IPv6-only subnets
 
   health_check {
     path                = "/up"
@@ -33,6 +34,10 @@ resource "aws_lb_target_group" "web" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 
   tags = {

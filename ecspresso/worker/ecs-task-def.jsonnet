@@ -48,6 +48,9 @@ local imageTag = std.extVar('IMAGE_TAG');
       ],
       environment: [
         { name: 'RAILS_ENV',                              value: 'production' },
+        // Use AWS dual-stack endpoints (e.g. sqs.{region}.api.aws) so the SDK
+        // reaches AWS over IPv6 from the IPv6-only task subnet.
+        { name: 'AWS_USE_DUALSTACK_ENDPOINT',             value: 'true' },
         { name: 'ALLOWED_ORIGINS',                        value: tfstate('output.allowed_origins') },
         { name: 'SQS_THREAD_IDS_QUEUE_URL',               value: tfstate('output.sqs_thread_ids_queue_url') },
         { name: 'SQS_REPORTS_QUEUE_URL',                  value: tfstate('output.sqs_reports_queue_url') },
