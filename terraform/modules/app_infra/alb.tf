@@ -20,7 +20,9 @@ resource "aws_lb" "main" {
 }
 
 resource "aws_lb_target_group" "web" {
-  name            = "${local.name_prefix}-web"
+  # Renamed (-ipv6) because changing ip_address_type forces replacement and a
+  # same-name target group cannot be created while the old one still exists.
+  name            = "${local.name_prefix}-web-ipv6"
   port            = 3000
   protocol        = "HTTP"
   vpc_id          = aws_vpc.main.id
