@@ -28,11 +28,6 @@ output "public_subnet_ids_csv" {
   value       = join(",", aws_subnet.public[*].id)
 }
 
-output "private_subnet_ids_csv" {
-  description = "Private subnet IDs as a comma-separated string (for ecspresso jsonnet std.split)"
-  value       = join(",", aws_subnet.private[*].id)
-}
-
 output "ipv6_subnet_ids_csv" {
   description = "IPv6-only subnet IDs as a comma-separated string (for ECS tasks via ecspresso jsonnet std.split)"
   value       = join(",", aws_subnet.app_ipv6[*].id)

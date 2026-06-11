@@ -67,11 +67,6 @@ output "task_role_arn" {
   sensitive = true
 }
 
-output "private_subnet_ids_csv" {
-  value     = module.app_infra.private_subnet_ids_csv
-  sensitive = true
-}
-
 output "public_subnet_ids_csv" {
   value     = module.app_infra.public_subnet_ids_csv
   sensitive = true
