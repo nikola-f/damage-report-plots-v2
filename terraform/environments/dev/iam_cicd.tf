@@ -56,6 +56,8 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
           "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets", "ec2:ModifySubnetAttribute",
           "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway", "ec2:DescribeInternetGateways",
           "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
+          "ec2:CreateEgressOnlyInternetGateway", "ec2:DeleteEgressOnlyInternetGateway",
+          "ec2:DescribeEgressOnlyInternetGateways",
           "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:AssociateAddress", "ec2:DisassociateAddress",
           "ec2:DescribeAddresses", "ec2:DescribeAddressesAttribute",
           "ec2:CreateNatGateway", "ec2:DeleteNatGateway", "ec2:DescribeNatGateways",
