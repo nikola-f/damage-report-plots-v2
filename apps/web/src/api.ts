@@ -26,6 +26,15 @@ export async function sync(): Promise<void> {
   }
 }
 
+// Re-acquire the sync-scoped authorization so a fresh access token is minted
+// (its TTL counts from now, not from login). Returns the URL to redirect to.
+export async function grantSync(): Promise<string> {
+  const res = await request("/auth/grant/sync", { method: "POST" });
+  if (!res.ok) throw new Error(`Grant sync failed: ${res.status}`);
+  const data = await res.json() as { authorization_url: string };
+  return data.authorization_url;
+}
+
 export async function logout(): Promise<void> {
   await request("/auth/logout", { method: "DELETE" });
 }
