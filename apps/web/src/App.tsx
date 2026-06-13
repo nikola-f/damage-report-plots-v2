@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { getProfile, getStatus, logout, sync, type Profile, type Status as AppStatus } from "./api.ts";
+import { getProfile, getStatus, grantSync, logout, sync, type Profile, type Status as AppStatus } from "./api.ts";
 
 type SyncStatus = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
 
 const STATUS_POLL_INTERVAL_MS = 10_000;
+// Marks that a sync was requested before redirecting through Google to refresh
+// the access token; the flow resumes here once we land back on the SPA.
+const PENDING_SYNC_KEY = "pendingSync";
 const QUEUE_GREEN_MAX = 10;
 const QUEUE_RED_MIN = 61;
 
@@ -63,6 +66,14 @@ export default function App() {
     return () => clearInterval(timerId);
   }, [profile]);
 
+  // Resume a sync that was queued before the token-refresh redirect.
+  useEffect(() => {
+    if (!profile) return;
+    if (sessionStorage.getItem(PENDING_SYNC_KEY) !== "1") return;
+    sessionStorage.removeItem(PENDING_SYNC_KEY);
+    runSync();
+  }, [profile]);
+
   function handleLogin() {
     window.location.href = "/auth/google_oauth2";
   }
@@ -72,7 +83,23 @@ export default function App() {
     setProfile(null);
   }
 
+  // Refresh the access token first (TTL counts from now), then resume the sync
+  // after Google redirects us back. The redirect unloads the page, so the
+  // actual POST /api/v1/sync happens in runSync on return.
   async function handleSync() {
+    setSyncStatus("loading");
+    setSyncMessage("");
+    try {
+      const authorizationUrl = await grantSync();
+      sessionStorage.setItem(PENDING_SYNC_KEY, "1");
+      window.location.href = authorizationUrl;
+    } catch (err) {
+      setSyncStatus("error");
+      setSyncMessage(err instanceof Error ? err.message : "Sync failed.");
+    }
+  }
+
+  async function runSync() {
     setSyncStatus("loading");
     setSyncMessage("");
     try {

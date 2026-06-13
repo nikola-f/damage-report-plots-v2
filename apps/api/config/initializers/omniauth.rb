@@ -12,8 +12,17 @@ Rails.application.config.middleware.use OmniAuth::Builder do
              access_type: 'online',
              include_granted_scopes: true,
              setup: proc { |env|
-               if (scope = env['rack.session']['requested_scope'])
-                 env['omniauth.strategy'].options[:scope] = scope
+               session  = env['rack.session']
+               strategy = env['omniauth.strategy']
+               if (scope = session['requested_scope'])
+                 strategy.options[:scope] = scope
+                 # Re-auth for an already-signed-in user (e.g. refreshing the
+                 # access token at sync time). Pin the account via login_hint and
+                 # drop the forced account chooser so the redirect is seamless;
+                 # Google still falls back to a login screen if interaction is
+                 # genuinely required.
+                 strategy.options[:prompt]     = nil
+                 strategy.options[:login_hint] = session['email'] if session['email']
                end
              }
            }
