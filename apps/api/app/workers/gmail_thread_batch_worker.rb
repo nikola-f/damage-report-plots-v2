@@ -3,6 +3,7 @@
 class GmailThreadBatchWorker
   include Sidekiq::Worker
   include PollingWorker
+  include MemoryInstrumentation
 
   sidekiq_options retry: 0
 
@@ -38,19 +39,26 @@ class GmailThreadBatchWorker
 
     access_token = UserStore.access_token.fetch(user_id)
 
-    t_start    = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    extract_ms = 0
-    portals    = []
-    max_date   = 0
+    t_start      = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    extract_ms   = 0
+    portals      = []
+    max_date     = 0
+    rss_base     = current_rss_mb
+    alloc_base   = GC.stat(:total_allocated_objects)
+    gc_base      = GC.count
+    rss_peak     = rss_base
     GmailThreadBatchFetcher.new(access_token:).call(thread_ids) do |gmail_message|
       t_ex = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       portals.concat(gmail_message.html_decoder&.extract_portals(internal_date: gmail_message.internal_date) || [])
       extract_ms += ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_ex) * 1000).round
       date = gmail_message.internal_date.to_i
       max_date = date if date > max_date
+      rss_peak = [rss_peak, current_rss_mb].compact.max
     end
     fetch_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_start) * 1000).round - extract_ms
     logger.info "user=#{user_id} threads=#{thread_ids.size} fetch=#{fetch_ms}ms extract=#{extract_ms}ms portals=#{portals.size}"
+    alloc_objs = GC.stat(:total_allocated_objects) - alloc_base
+    logger.info "user=#{user_id} threads=#{thread_ids.size} rss_base=#{rss_base}MB rss_peak=#{rss_peak}MB rss_now=#{current_rss_mb}MB alloc_objs=#{alloc_objs} gc_runs=#{GC.count - gc_base} vmhwm=#{peak_rss_mb}MB"
 
     unique_portals = DamageReportRecord.deduplicate(portals)
     if unique_portals.any?
