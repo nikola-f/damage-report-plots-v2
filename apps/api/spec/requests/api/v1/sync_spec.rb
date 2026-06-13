@@ -94,6 +94,30 @@ RSpec.describe "POST /api/v1/sync", type: :request do
       end
     end
 
+    context "when the access token is missing (evicted from Redis)" do
+      before { allow(access_token_store).to receive(:fetch).and_raise(KeyError) }
+
+      it "returns 401 with a reauthorization_required error" do
+        post "/api/v1/sync"
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(json_response["error"]).to eq("reauthorization_required")
+      end
+
+      it "does not enqueue the worker" do
+        post "/api/v1/sync"
+
+        expect(GmailThreadListWorker).not_to have_received(:perform_async)
+      end
+
+      it "does not create a spreadsheet or reset counters" do
+        post "/api/v1/sync"
+
+        expect(sheets_client).not_to have_received(:create_spreadsheet)
+        expect(last_synced_at_store).not_to have_received(:store)
+      end
+    end
+
     context "when threads_max_internal_date exists" do
       before do
         allow(threads_max_internal_date_store).to receive(:fetch)
