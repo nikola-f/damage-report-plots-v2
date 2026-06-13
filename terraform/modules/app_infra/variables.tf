@@ -95,13 +95,13 @@ variable "thread_list_worker_threads_per_message" {
 variable "thread_batch_fetcher_batch_size" {
   description = "Number of thread IDs per Gmail Batch API request in GmailThreadBatchFetcher"
   type        = number
-  default     = 20
+  default     = 10
 }
 
 variable "thread_batch_fetcher_inter_batch_sleep" {
   description = "Seconds to sleep between batch API calls in GmailThreadBatchFetcher"
   type        = number
-  default     = 0.5
+  default     = 0.2
 }
 
 variable "thread_list_worker_thread_id_limit" {
