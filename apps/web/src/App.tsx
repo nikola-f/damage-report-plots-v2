@@ -115,7 +115,14 @@ export default function App() {
         .catch(console.error);
     } catch (err) {
       setSyncStatus("error");
-      setSyncMessage(err instanceof Error ? err.message : "Sync failed.");
+      const message = err instanceof Error ? err.message : "Sync failed.";
+      // The server rejects sync when the Google token has been evicted. We just
+      // returned from a re-auth redirect, so avoid looping: ask the user to retry.
+      setSyncMessage(
+        message === "reauthorization_required"
+          ? "Authorization expired. Please reload the page and sync again."
+          : message,
+      );
     }
   }
 

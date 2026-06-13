@@ -6,6 +6,11 @@ module Api
       include Authenticatable
 
       def create
+        # The Google access token (Redis TTL 3600s) can be evicted between login
+        # and sync. Without it the worker fails with KeyError and dead-jobs, so
+        # reject early and signal the client to re-acquire the sync scope.
+        return render json: { error: "reauthorization_required" }, status: :unauthorized unless access_token_present?
+
         ensure_spreadsheet_exists
         GmailThreadListWorker.perform_async(current_user_id, after_epoch)
         UserStore.last_synced_at.store(current_user_id, Time.now.to_i.to_s)
@@ -23,6 +28,13 @@ module Api
       end
 
       private
+
+      def access_token_present?
+        UserStore.access_token.fetch(current_user_id)
+        true
+      rescue KeyError
+        false
+      end
 
       # Resume from the latest processed thread. threads_max_internal_date is the
       # Gmail internalDate in milliseconds; convert to a Unix epoch in seconds.
