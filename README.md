@@ -1,5 +1,11 @@
 # damage-report-plots-v2
 
+[![Terraform CI](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-terraform.yml/badge.svg)](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-terraform.yml)
+[![API CI](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-api.yml/badge.svg)](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-api.yml)
+[![Web CI](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-web.yml/badge.svg)](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-web.yml)
+[![Ruby](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fnikola-f%2Fdamage-report-plots-v2%2Fdevelop%2Fapps%2Fapi%2F.ruby-version&search=ruby-(.*)&replace=%241&label=Ruby&logo=ruby&logoColor=white&color=CC342D)](apps/api/.ruby-version)
+
+
 ## Architecture
 
 ### System Overview
