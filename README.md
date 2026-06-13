@@ -1,5 +1,10 @@
 # damage-report-plots-v2
 
+[![Terraform CI](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-terraform.yml/badge.svg)](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-terraform.yml)
+[![API CI](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-api.yml/badge.svg)](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-api.yml)
+[![Web CI](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-web.yml/badge.svg)](https://github.com/nikola-f/damage-report-plots-v2/actions/workflows/ci-web.yml)
+
+
 ## Architecture
 
 ### System Overview
