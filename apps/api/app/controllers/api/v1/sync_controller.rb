@@ -6,17 +6,8 @@ module Api
       include Authenticatable
 
       def create
-        epoch = nil
-        if params[:after_date].present?
-          begin
-            date  = Date.iso8601(params[:after_date])
-            epoch = Time.utc(date.year, date.month, date.day).to_i
-          rescue Date::Error, ArgumentError
-            return render json: { error: "Invalid after_date" }, status: :unprocessable_entity
-          end
-        end
         ensure_spreadsheet_exists
-        GmailThreadListWorker.perform_async(current_user_id, epoch)
+        GmailThreadListWorker.perform_async(current_user_id, after_epoch)
         UserStore.last_synced_at.store(current_user_id, Time.now.to_i.to_s)
         UserStore.threads_found.store(current_user_id, "0")
         UserStore.threads_processed.store(current_user_id, "0")
@@ -26,6 +17,15 @@ module Api
       end
 
       private
+
+      # Resume from the latest processed thread. threads_max_internal_date is the
+      # Gmail internalDate in milliseconds; convert to a Unix epoch in seconds.
+      # Returns nil on first sync so the worker falls back to DEFAULT_AFTER_DATE.
+      def after_epoch
+        UserStore.threads_max_internal_date.fetch(current_user_id).to_i / 1000
+      rescue KeyError
+        nil
+      end
 
       def ensure_spreadsheet_exists
         UserStore.spreadsheet_id.fetch(current_user_id)

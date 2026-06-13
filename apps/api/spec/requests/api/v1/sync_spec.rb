@@ -10,6 +10,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
   let(:threads_processed_store) { instance_double(UserStore, store: nil) }
   let(:portals_found_store)     { instance_double(UserStore, store: nil) }
   let(:portals_appended_store)  { instance_double(UserStore, store: nil) }
+  let(:threads_max_internal_date_store) { instance_double(UserStore) }
   let(:sheets_client)           { instance_double(SpreadsheetsClient, create_spreadsheet: "new-spreadsheet-id", protect_ranges: nil) }
 
   before do
@@ -20,6 +21,8 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
     allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
     allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
+    allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
+    allow(threads_max_internal_date_store).to receive(:fetch).and_raise(KeyError)
     allow(SpreadsheetsClient).to receive(:new).and_return(sheets_client)
     allow(GmailThreadListWorker).to receive(:perform_async)
   end
@@ -91,21 +94,17 @@ RSpec.describe "POST /api/v1/sync", type: :request do
       end
     end
 
-    context "with after_date parameter" do
-      it "converts after_date to epoch and passes it to the worker" do
-        post "/api/v1/sync", params: { after_date: "2024-01-01" }
+    context "when threads_max_internal_date exists" do
+      before do
+        allow(threads_max_internal_date_store).to receive(:fetch)
+          .and_return((Time.utc(2024, 1, 1).to_i * 1000).to_s)
+      end
+
+      it "passes the stored internal date (ms) as an epoch in seconds to the worker" do
+        post "/api/v1/sync"
 
         expect(GmailThreadListWorker).to have_received(:perform_async)
           .with(test_user_id, Time.utc(2024, 1, 1).to_i)
-      end
-    end
-
-    context "with invalid after_date parameter" do
-      it "returns 422 without enqueuing" do
-        post "/api/v1/sync", params: { after_date: "not-a-date" }
-
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(GmailThreadListWorker).not_to have_received(:perform_async)
       end
     end
   end
