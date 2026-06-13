@@ -74,6 +74,12 @@ class UserStore
     value
   end
 
+  # @param user_id [String] Google account ID
+  # @return [Integer] number of keys removed (0 if it did not exist)
+  def delete(user_id)
+    @redis.del(redis_key(user_id))
+  end
+
   private
 
   def redis_key(user_id) = "#{@prefix}:#{user_id}"

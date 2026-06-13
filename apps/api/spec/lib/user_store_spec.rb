@@ -110,4 +110,21 @@ RSpec.describe UserStore do
       end
     end
   end
+
+  describe ".threads_max_internal_date" do
+    let(:store) { described_class.threads_max_internal_date(redis:) }
+
+    include_examples "a user store", "threads_max_internal_date"
+
+    describe "#delete" do
+      before { allow(redis).to receive(:del).and_return(1) }
+
+      it "deletes the key from Redis" do
+        store.delete(user_id)
+
+        expect(redis).to have_received(:del)
+          .with("threads_max_internal_date:#{user_id}")
+      end
+    end
+  end
 end

@@ -16,6 +16,12 @@ module Api
         head :accepted
       end
 
+      # Clears the sync resume point so the next sync starts from the beginning.
+      def reset
+        UserStore.threads_max_internal_date.delete(current_user_id)
+        head :no_content
+      end
+
       private
 
       # Resume from the latest processed thread. threads_max_internal_date is the
