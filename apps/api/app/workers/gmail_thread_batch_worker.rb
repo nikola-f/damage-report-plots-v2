@@ -58,7 +58,7 @@ class GmailThreadBatchWorker
     fetch_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_start) * 1000).round - extract_ms
     logger.info "user=#{user_id} threads=#{thread_ids.size} fetch=#{fetch_ms}ms extract=#{extract_ms}ms portals=#{portals.size}"
     alloc_objs = GC.stat(:total_allocated_objects) - alloc_base
-    logger.info "user=#{user_id} threads=#{thread_ids.size} rss_base=#{rss_base}MB rss_peak=#{rss_peak}MB rss_now=#{current_rss_mb}MB alloc_objs=#{alloc_objs} gc_runs=#{GC.count - gc_base} vmhwm=#{peak_rss_mb}MB"
+    logger.debug "user=#{user_id} threads=#{thread_ids.size} rss_base=#{rss_base}MB rss_peak=#{rss_peak}MB rss_now=#{current_rss_mb}MB alloc_objs=#{alloc_objs} gc_runs=#{GC.count - gc_base} vmhwm=#{peak_rss_mb}MB"
 
     unique_portals = DamageReportRecord.deduplicate(portals)
     if unique_portals.any?
