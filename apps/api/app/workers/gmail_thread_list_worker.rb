@@ -25,6 +25,11 @@ class GmailThreadListWorker
       window_ids.sort.each_slice(Settings.thread_list_worker_threads_per_message) do |slice|
         sqs.send_messages(slice, attributes: { UserStore::USER_ID_ATTR => user_id })
       end
+      # Update threads_found per window so it tracks alongside threads_processed.
+      # The batch worker starts consuming SQS as soon as the first slices arrive,
+      # so storing the total only after the whole loop would make threads_found
+      # lag behind threads_processed. The counter is reset to 0 at sync start.
+      UserStore.threads_found.increment(user_id, by: window_ids.size) if window_ids.any?
       total_count += window_ids.size
 
       break if total_count > Settings.thread_list_worker_thread_id_limit
@@ -33,7 +38,6 @@ class GmailThreadListWorker
       current_epoch = before_epoch
     end
 
-    UserStore.threads_found.store(user_id, total_count.to_s)
     logger.debug "sent #{total_count} thread_ids to SQS"
   end
 end
