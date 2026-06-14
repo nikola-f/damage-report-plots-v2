@@ -6,7 +6,7 @@ RSpec.describe GmailThreadListWorker do
   let(:user_id)             { "12345678901234567" }
   let(:access_token)        { "ya29.test_token" }
   let(:token_store)         { instance_double(UserStore, fetch: access_token) }
-  let(:threads_found_store) { instance_double(UserStore, store: nil) }
+  let(:threads_found_store) { instance_double(UserStore, increment: nil) }
   let(:sqs_client)          { instance_double(SqsClient, send_messages: nil) }
   let(:fetcher)             { instance_double(GmailThreadListFetcher) }
 
@@ -39,10 +39,10 @@ RSpec.describe GmailThreadListWorker do
       )
     end
 
-    it "stores the total thread count in threads_found" do
+    it "increments threads_found by the window thread count" do
       described_class.new.perform(user_id, after_date)
 
-      expect(threads_found_store).to have_received(:store).with(user_id, "2")
+      expect(threads_found_store).to have_received(:increment).with(user_id, by: 2)
     end
 
     it "sends thread IDs sorted ascending to SQS with user_id as attribute" do
@@ -88,10 +88,10 @@ RSpec.describe GmailThreadListWorker do
         expect(fetcher).to have_received(:call).twice
       end
 
-      it "stores the accumulated total in threads_found" do
+      it "increments threads_found once per window" do
         described_class.new.perform(user_id, after_date)
 
-        expect(threads_found_store).to have_received(:store).with(user_id, "4")
+        expect(threads_found_store).to have_received(:increment).with(user_id, by: 2).twice
       end
 
       it "sends each window's IDs sorted ascending in separate SQS calls" do
@@ -118,21 +118,21 @@ RSpec.describe GmailThreadListWorker do
         expect(fetcher).to have_received(:call).twice
       end
 
-      it "stores the actual total (may exceed the limit)" do
+      it "increments threads_found per window (total may exceed the limit)" do
         described_class.new.perform(user_id, after_date)
 
-        expect(threads_found_store).to have_received(:store)
-          .with(user_id, ((limit / 2 + 1) * 2).to_s)
+        expect(threads_found_store).to have_received(:increment)
+          .with(user_id, by: limit / 2 + 1).twice
       end
     end
 
     context "when there are no thread IDs in any window" do
       before { allow(fetcher).to receive(:call).and_return([]) }
 
-      it "stores 0 in threads_found" do
+      it "does not increment threads_found" do
         described_class.new.perform(user_id, after_date)
 
-        expect(threads_found_store).to have_received(:store).with(user_id, "0")
+        expect(threads_found_store).not_to have_received(:increment)
       end
 
       it "does not call send_messages" do
