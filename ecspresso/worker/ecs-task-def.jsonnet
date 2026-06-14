@@ -53,6 +53,12 @@ local dualstackSqsUrl(url) = std.strReplace(url, '.amazonaws.com/', '.api.aws/')
       ],
       environment: [
         { name: 'RAILS_ENV',                              value: 'production' },
+        // Cap glibc malloc arenas. Sidekiq runs multiple threads and glibc
+        // spawns a per-thread arena by default, inflating RSS through
+        // fragmentation (freed memory is not returned to the OS). Limiting to 2
+        // arenas lowers the resident high-water mark with negligible throughput
+        // impact for this IO-bound workload.
+        { name: 'MALLOC_ARENA_MAX',                       value: '2' },
         // Use AWS dual-stack endpoints (e.g. sqs.{region}.api.aws) so the SDK
         // reaches AWS over IPv6 from the IPv6-only task subnet.
         { name: 'AWS_USE_DUALSTACK_ENDPOINT',             value: 'true' },
