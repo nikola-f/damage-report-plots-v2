@@ -184,12 +184,17 @@ export default function App() {
       {status !== null && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
           <p style={{ ...styles.statusLabel, margin: 0 }}>
-            Last sync: {status.user.last_synced_at
+            Sync started: {status.user.last_synced_at
               ? new Date(status.user.last_synced_at * 1000).toLocaleString()
               : "Never"}
           </p>
           <p style={{ ...styles.statusLabel, margin: 0 }}>
-            Last thread: {status.user.threads_max_internal_date
+            Sync finished: {status.user.last_processed_at
+              ? new Date(status.user.last_processed_at * 1000).toLocaleString()
+              : "—"}
+          </p>
+          <p style={{ ...styles.statusLabel, margin: 0 }}>
+            Latest report: {status.user.threads_max_internal_date
               ? new Date(status.user.threads_max_internal_date * 1000).toLocaleString()
               : "—"}
           </p>

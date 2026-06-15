@@ -42,6 +42,7 @@ export async function logout(): Promise<void> {
 export interface Status {
   user: {
     last_synced_at: number | null;
+    last_processed_at: number | null;
     spreadsheet_exists: boolean;
     threads_found: number | null;
     threads_processed: number | null;
