@@ -7,6 +7,7 @@ module UserStatusData
     {
       spreadsheet_exists: spreadsheet_exists?,
       last_synced_at:     last_synced_at_value,
+      last_processed_at:  last_processed_at_value,
       threads_found:      fetch_count(UserStore.threads_found),
       threads_processed:  fetch_count(UserStore.threads_processed),
       portals_found:              fetch_count(UserStore.portals_found),
@@ -28,6 +29,12 @@ module UserStatusData
 
   def last_synced_at_value
     UserStore.last_synced_at.fetch(current_user_id).to_i
+  rescue KeyError
+    nil
+  end
+
+  def last_processed_at_value
+    UserStore.last_processed_at.fetch(current_user_id).to_i
   rescue KeyError
     nil
   end
