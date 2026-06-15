@@ -75,7 +75,12 @@ class GmailThreadBatchWorker
     rescue KeyError
       0
     end
-    UserStore.threads_max_internal_date.store(user_id, max_date.to_s) if max_date > current_max
+    if max_date > current_max
+      UserStore.threads_max_internal_date.store(user_id, max_date.to_s)
+      # Record the server time whenever the processed-thread frontier advances.
+      # The final value of a sync run approximates when the workflow finished.
+      UserStore.last_processed_at.store(user_id, Time.now.to_i.to_s)
+    end
     thread_sqs.delete_messages(message.receipt_handle)
     logger.debug "deleted thread_ids message for user #{user_id}"
     UserStore.threads_processed.increment(user_id, by: thread_ids.size)

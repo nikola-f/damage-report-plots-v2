@@ -17,6 +17,13 @@ class UserStore
     new(prefix: "last_synced_at", redis:)
   end
 
+  # Server time (Unix epoch, seconds) of the most recent thread-processing that
+  # advanced threads_max_internal_date. Its final value after a sync run
+  # approximates when the workflow finished.
+  def self.last_processed_at(redis: REDIS)
+    new(prefix: "last_processed_at", redis:)
+  end
+
   def self.scope_spreadsheets(redis: REDIS)
     new(prefix: "scope_spreadsheets", ttl: 3600, redis:)
   end

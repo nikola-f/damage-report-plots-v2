@@ -7,6 +7,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
   let(:access_token_store)      { instance_double(UserStore, store: nil) }
   let(:spreadsheet_id_store)    { instance_double(UserStore, fetch: "spreadsheet-id") }
   let(:last_synced_at_store)    { instance_double(UserStore, fetch: "1744908000") }
+  let(:last_processed_at_store) { instance_double(UserStore, fetch: "1744908600") }
   let(:scope_spreadsheets_store){ instance_double(UserStore) }
   let(:scope_sync_store)        { instance_double(UserStore) }
   let(:threads_found_store)     { instance_double(UserStore, fetch: "1500") }
@@ -23,6 +24,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
     allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
     allow(UserStore).to receive(:last_synced_at).and_return(last_synced_at_store)
+    allow(UserStore).to receive(:last_processed_at).and_return(last_processed_at_store)
     allow(UserStore).to receive(:scope_spreadsheets).and_return(scope_spreadsheets_store)
     allow(UserStore).to receive(:scope_sync).and_return(scope_sync_store)
     allow(UserStore).to receive(:threads_found).and_return(threads_found_store)
@@ -109,6 +111,22 @@ RSpec.describe "GET /api/v1/status", type: :request do
           get "/api/v1/status"
 
           expect(json_response["user"]["last_synced_at"]).to be_nil
+        end
+      end
+
+      it "returns last_processed_at as integer" do
+        get "/api/v1/status"
+
+        expect(json_response["user"]["last_processed_at"]).to eq(1744908600)
+      end
+
+      context "when no threads have been processed yet" do
+        before { allow(last_processed_at_store).to receive(:fetch).and_raise(KeyError) }
+
+        it "returns last_processed_at null" do
+          get "/api/v1/status"
+
+          expect(json_response["user"]["last_processed_at"]).to be_nil
         end
       end
 
