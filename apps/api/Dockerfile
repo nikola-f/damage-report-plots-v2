@@ -19,7 +19,7 @@ COPY . .
 FROM ruby:4.0.5-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 zlib1g curl && \
+    libssl3 zlib1g curl libjemalloc2 && \
     rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r rails && useradd -r -g rails -u 1000 rails
