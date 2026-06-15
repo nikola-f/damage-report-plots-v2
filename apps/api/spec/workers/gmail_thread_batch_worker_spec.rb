@@ -34,7 +34,7 @@ RSpec.describe GmailThreadBatchWorker do
   let(:threads_processed_store)          { instance_double(UserStore, increment: nil) }
   let(:portals_found_store)              { instance_double(UserStore, increment: nil) }
   let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch: "0", store: nil) }
-  let(:last_processed_at_store)          { instance_double(UserStore, store: nil) }
+  let(:last_processed_at_store)          { instance_double(UserStore, fetch: "0", store: nil) }
 
   before do
     allow(REDIS).to receive(:set)
@@ -105,11 +105,22 @@ RSpec.describe GmailThreadBatchWorker do
       expect(threads_max_internal_date_store).to have_received(:store).with(user_id, internal_date)
     end
 
-    it "records the server time when the max internal_date advances" do
+    it "records the current server time in last_processed_at after processing a message" do
       allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
       described_class.new.perform
 
       expect(last_processed_at_store).to have_received(:store).with(user_id, "1700000500")
+    end
+
+    context "when last_processed_at is already at or after the current time" do
+      let(:last_processed_at_store) { instance_double(UserStore, fetch: "9999999999", store: nil) }
+
+      it "does not move last_processed_at backward" do
+        allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
+        described_class.new.perform
+
+        expect(last_processed_at_store).not_to have_received(:store)
+      end
     end
 
     context "when the stored max exceeds the new internal_date" do
@@ -121,10 +132,11 @@ RSpec.describe GmailThreadBatchWorker do
         expect(threads_max_internal_date_store).not_to have_received(:store)
       end
 
-      it "does not record last_processed_at" do
+      it "still records last_processed_at" do
+        allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
         described_class.new.perform
 
-        expect(last_processed_at_store).not_to have_received(:store)
+        expect(last_processed_at_store).to have_received(:store).with(user_id, "1700000500")
       end
     end
 

@@ -17,8 +17,8 @@ class UserStore
     new(prefix: "last_synced_at", redis:)
   end
 
-  # Server time (Unix epoch, seconds) of the most recent thread-processing that
-  # advanced threads_max_internal_date. Its final value after a sync run
+  # Server time (Unix epoch, seconds) of the most recent processed batch
+  # message, advanced only forward. Its final value after a sync run
   # approximates when the workflow finished.
   def self.last_processed_at(redis: REDIS)
     new(prefix: "last_processed_at", redis:)
