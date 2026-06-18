@@ -63,6 +63,7 @@ local dualstackSqsUrl(url) = std.strReplace(url, '.amazonaws.com/', '.api.aws/')
         { name: 'ALLOWED_ORIGINS', value: tfstate('output.allowed_origins') },
         { name: 'SQS_THREAD_IDS_QUEUE_URL', value: dualstackSqsUrl(tfstate('output.sqs_thread_ids_queue_url')) },
         { name: 'SQS_REPORTS_QUEUE_URL', value: dualstackSqsUrl(tfstate('output.sqs_reports_queue_url')) },
+        { name: 'SYNC_MIN_INTERVAL', value: tfstate('output.sync_min_interval') },
       ] + (if env == 'dev' then [{ name: 'RAILS_LOG_LEVEL', value: 'debug' }] else []),
       secrets: [
         {

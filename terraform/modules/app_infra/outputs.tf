@@ -210,3 +210,8 @@ output "spreadsheet_sync_worker_max_messages_per_run" {
   description = "SPREADSHEET_SYNC_WORKER_MAX_MESSAGES_PER_RUN"
   value       = tostring(var.spreadsheet_sync_worker_max_messages_per_run)
 }
+
+output "sync_min_interval" {
+  description = "SYNC_MIN_INTERVAL"
+  value       = tostring(var.sync_min_interval)
+}

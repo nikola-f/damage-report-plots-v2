@@ -6,6 +6,13 @@ module Api
       include Authenticatable
 
       def create
+        # Throttle repeated syncs: reject if the previous run started less than
+        # Settings.sync_min_interval seconds ago. Cheapest guard, so check first.
+        if (wait = retry_after_seconds)
+          response.headers["Retry-After"] = wait.to_s
+          return render json: { error: "rate_limited", retry_after: wait }, status: :too_many_requests
+        end
+
         # The Google access token (Redis TTL 3600s) can be evicted between login
         # and sync. Without it the worker fails with KeyError and dead-jobs, so
         # reject early and signal the client to re-acquire the sync scope.
@@ -28,6 +35,16 @@ module Api
       end
 
       private
+
+      # Seconds the client must wait before syncing again, or nil if a sync is
+      # allowed now (no prior sync recorded, or the interval has elapsed).
+      def retry_after_seconds
+        last_synced_at = UserStore.last_synced_at.fetch(current_user_id).to_i
+        remaining = Settings.sync_min_interval - (Time.now.to_i - last_synced_at)
+        remaining.positive? ? remaining : nil
+      rescue KeyError
+        nil
+      end
 
       def access_token_present?
         UserStore.access_token.fetch(current_user_id)
