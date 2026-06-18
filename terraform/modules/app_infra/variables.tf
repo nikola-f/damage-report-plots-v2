@@ -56,68 +56,59 @@ variable "frontend_domain_name" {
   sensitive   = true
 }
 
+# Per-environment Settings tuning values. No defaults: each environment must set
+# them explicitly in its module block so dev and prod can diverge.
 variable "thread_batch_worker_poll_interval" {
   description = "Seconds between GmailThreadBatchWorker polling cycles"
   type        = number
-  default     = 30
 }
 
 variable "thread_batch_worker_lock_ttl" {
   description = "Redis lock TTL in seconds for GmailThreadBatchWorker"
   type        = number
-  default     = 900
 }
 
 variable "thread_batch_worker_max_messages_per_run" {
   description = "Max SQS messages processed per GmailThreadBatchWorker run"
   type        = number
-  default     = 3
 }
 
 variable "spreadsheet_sync_worker_poll_interval" {
   description = "Seconds between SpreadsheetSyncWorker polling cycles"
   type        = number
-  default     = 30
 }
 
 variable "spreadsheet_sync_worker_lock_ttl" {
   description = "Redis lock TTL in seconds for SpreadsheetSyncWorker"
   type        = number
-  default     = 300
 }
 
 variable "thread_list_worker_threads_per_message" {
   description = "Thread IDs per SQS message for GmailThreadListWorker"
   type        = number
-  default     = 500
 }
 
 variable "thread_batch_fetcher_batch_size" {
   description = "Number of thread IDs per Gmail Batch API request in GmailThreadBatchFetcher"
   type        = number
-  default     = 20
 }
 
 variable "thread_batch_fetcher_inter_batch_sleep" {
   description = "Seconds to sleep between batch API calls in GmailThreadBatchFetcher"
   type        = number
-  default     = 0.2
 }
 
 variable "thread_list_worker_thread_id_limit" {
   description = "Max thread IDs collected before GmailThreadListWorker stops looping"
   type        = number
-  default     = 10000
 }
 
 variable "spreadsheet_sync_worker_max_messages_per_run" {
   description = "Max SQS messages processed per SpreadsheetSyncWorker run"
   type        = number
-  default     = 3
 }
 
 variable "sync_min_interval" {
   description = "Minimum seconds between syncs per user; POST /api/v1/sync returns 429 within this window"
   type        = number
-  default     = 300
 }
