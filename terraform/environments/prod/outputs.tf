@@ -171,3 +171,7 @@ output "thread_list_worker_thread_id_limit" {
 output "spreadsheet_sync_worker_max_messages_per_run" {
   value = module.app_infra.spreadsheet_sync_worker_max_messages_per_run
 }
+
+output "sync_min_interval" {
+  value = module.app_infra.sync_min_interval
+}

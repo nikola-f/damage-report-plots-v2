@@ -115,3 +115,9 @@ variable "spreadsheet_sync_worker_max_messages_per_run" {
   type        = number
   default     = 3
 }
+
+variable "sync_min_interval" {
+  description = "Minimum seconds between syncs per user; POST /api/v1/sync returns 429 within this window"
+  type        = number
+  default     = 300
+}

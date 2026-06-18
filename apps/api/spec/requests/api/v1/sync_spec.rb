@@ -23,6 +23,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
     allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
     allow(threads_max_internal_date_store).to receive(:fetch).and_raise(KeyError)
+    allow(last_synced_at_store).to receive(:fetch).and_raise(KeyError)
     allow(SpreadsheetsClient).to receive(:new).and_return(sheets_client)
     allow(GmailThreadListWorker).to receive(:perform_async)
   end
@@ -115,6 +116,42 @@ RSpec.describe "POST /api/v1/sync", type: :request do
 
         expect(sheets_client).not_to have_received(:create_spreadsheet)
         expect(last_synced_at_store).not_to have_received(:store)
+      end
+    end
+
+    context "when a previous sync started within the minimum interval" do
+      before do
+        allow(last_synced_at_store).to receive(:fetch)
+          .and_return((Time.now.to_i - 5).to_s)
+      end
+
+      it "returns 429 with a rate_limited error and a Retry-After header" do
+        post "/api/v1/sync"
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(json_response["error"]).to eq("rate_limited")
+        expect(response.headers["Retry-After"].to_i).to be > 0
+      end
+
+      it "does not enqueue the worker or reset counters" do
+        post "/api/v1/sync"
+
+        expect(GmailThreadListWorker).not_to have_received(:perform_async)
+        expect(last_synced_at_store).not_to have_received(:store)
+      end
+    end
+
+    context "when the minimum interval has elapsed since the last sync" do
+      before do
+        allow(last_synced_at_store).to receive(:fetch)
+          .and_return((Time.now.to_i - Settings.sync_min_interval - 1).to_s)
+      end
+
+      it "returns 202 and enqueues the job" do
+        post "/api/v1/sync"
+
+        expect(response).to have_http_status(:accepted)
+        expect(GmailThreadListWorker).to have_received(:perform_async).with(test_user_id, nil)
       end
     end
 
