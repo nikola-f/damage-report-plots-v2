@@ -1,0 +1,42 @@
+name: IITC CI
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'apps/iitc/**'
+      - '.github/workflows/ci-iitc.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'apps/iitc/**'
+      - '.github/workflows/ci-iitc.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/iitc
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/iitc/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
