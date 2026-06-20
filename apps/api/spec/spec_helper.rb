@@ -46,6 +46,16 @@ RSpec.configure do |config|
   # triggering implicit auto-inclusion in groups with matching metadata.
   config.shared_context_metadata_behavior = :apply_to_host_groups
 
+  # End-to-end specs (spec/e2e) drive real external services — Gmail/Sheets APIs,
+  # SQS (LocalStack or AWS), and Valkey — so they cannot run in a bare local
+  # checkout. Tag everything under spec/e2e and exclude it by default so a plain
+  # `bundle exec rspec` stays hermetic for local development. Opt in with
+  # `RUN_E2E=true` (CI's dedicated e2e job sets this; see .github/workflows/ci-api.yml).
+  config.define_derived_metadata(file_path: %r{/spec/e2e/}) do |metadata|
+    metadata[:e2e] = true
+  end
+  config.filter_run_excluding(e2e: true) unless ENV["RUN_E2E"] == "true"
+
   # The settings below are suggested to provide a good initial experience
   # with RSpec, but feel free to customize to your heart's content.
   #   # This allows you to limit a spec run to individual examples or groups

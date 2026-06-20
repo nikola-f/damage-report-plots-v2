@@ -37,6 +37,7 @@ fetch() {
 }
 
 exec env \
+  RUN_E2E=true \
   GOOGLE_TEST_REFRESH_TOKEN="$(fetch drp-e2e-refresh-token)" \
   GOOGLE_CLIENT_ID="$(fetch drp-e2e-client-id)" \
   GOOGLE_CLIENT_SECRET="$(fetch drp-e2e-client-secret)" \

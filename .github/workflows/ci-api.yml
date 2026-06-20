@@ -48,7 +48,9 @@ jobs:
       - name: Run RSpec
         env:
           RAILS_ENV: test
-        run: bundle exec rspec --exclude-pattern "spec/e2e/**/*_spec.rb"
+        # e2e specs are excluded by default (RUN_E2E unset); they run in the
+        # dedicated `e2e` job below. See spec/spec_helper.rb.
+        run: bundle exec rspec
 
   brakeman:
     runs-on: ubuntu-latest
@@ -124,6 +126,7 @@ jobs:
       - name: Run e2e specs
         env:
           RAILS_ENV: test
+          RUN_E2E: "true"
           GOOGLE_TEST_REFRESH_TOKEN: ${{ secrets.GOOGLE_TEST_REFRESH_TOKEN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
