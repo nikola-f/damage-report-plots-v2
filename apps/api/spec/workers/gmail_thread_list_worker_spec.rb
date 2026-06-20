@@ -6,7 +6,7 @@ RSpec.describe GmailThreadListWorker do
   let(:user_id)             { "12345678901234567" }
   let(:access_token)        { "ya29.test_token" }
   let(:token_store)         { instance_double(UserStore, fetch: access_token) }
-  let(:threads_found_store) { instance_double(UserStore, increment: nil) }
+  let(:threads_found_store) { instance_double(UserStore::CounterStore, increment: nil) }
   let(:sqs_client)          { instance_double(SqsClient, send_messages: nil) }
   let(:fetcher)             { instance_double(GmailThreadListFetcher) }
 
