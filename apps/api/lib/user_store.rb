@@ -1,56 +1,9 @@
 # frozen_string_literal: true
 
 # Redis store keyed by user_id (Google account ID).
-# Use factory methods to obtain pre-configured instances.
+# Use the generated factory methods (one per STORES key) to obtain instances.
 class UserStore
   USER_ID_ATTR = "user_id" # SQS message attribute name for passing user IDs between workers
-
-  def self.access_token(redis: REDIS)
-    new(prefix: "access_token", ttl: 3600, redis:)
-  end
-
-  def self.spreadsheet_id(redis: REDIS)
-    new(prefix: "spreadsheet_id", redis:)
-  end
-
-  def self.last_synced_at(redis: REDIS)
-    new(prefix: "last_synced_at", redis:)
-  end
-
-  # Server time (Unix epoch, seconds) of the most recent processed batch
-  # message, advanced only forward. Its final value after a sync run
-  # approximates when the workflow finished.
-  def self.last_processed_at(redis: REDIS)
-    new(prefix: "last_processed_at", redis:)
-  end
-
-  def self.scope_spreadsheets(redis: REDIS)
-    new(prefix: "scope_spreadsheets", ttl: 3600, redis:)
-  end
-
-  def self.scope_sync(redis: REDIS)
-    new(prefix: "scope_sync", ttl: 3600, redis:)
-  end
-
-  def self.threads_found(redis: REDIS)
-    new(prefix: "threads_found", redis:)
-  end
-
-  def self.threads_processed(redis: REDIS)
-    new(prefix: "threads_processed", redis:)
-  end
-
-  def self.portals_found(redis: REDIS)
-    new(prefix: "portals_found", redis:)
-  end
-
-  def self.portals_appended(redis: REDIS)
-    new(prefix: "portals_appended", redis:)
-  end
-
-  def self.threads_max_internal_date(redis: REDIS)
-    new(prefix: "threads_max_internal_date", redis:)
-  end
 
   def initialize(prefix:, ttl: nil, redis: REDIS)
     @prefix = prefix
@@ -63,12 +16,6 @@ class UserStore
   def store(user_id, value)
     opts = @ttl ? { ex: @ttl } : {}
     @redis.set(redis_key(user_id), value, **opts)
-  end
-
-  # @param user_id [String] Google account ID
-  # @param by      [Integer]
-  def increment(user_id, by: 1)
-    @redis.incrby(redis_key(user_id), by)
   end
 
   # @param user_id [String] Google account ID
@@ -90,4 +37,39 @@ class UserStore
   private
 
   def redis_key(user_id) = "#{@prefix}:#{user_id}"
+
+  # Value store that additionally supports Redis INCRBY counters. Kept separate
+  # from the base store so value stores (access_token, etc.) raise NoMethodError
+  # if #increment is mistakenly called on them.
+  class CounterStore < UserStore
+    # @param user_id [String] Google account ID
+    # @param by      [Integer]
+    # @return [Integer] the new total after INCRBY
+    def increment(user_id, by: 1)
+      @redis.incrby(redis_key(user_id), by)
+    end
+  end
+
+  # prefix => options. ttl in seconds (nil = no expiry); counter: true selects
+  # CounterStore. Each key generates a same-named factory method below.
+  STORES = {
+    access_token:              { ttl: 3600 }, # Google access token (matches token lifetime)
+    spreadsheet_id:            {},
+    last_synced_at:            {},
+    last_processed_at:         {}, # forward-only; final value approximates when the workflow finished
+    scope_spreadsheets:        { ttl: 3600 }, # scope grant expiry epoch
+    scope_sync:                { ttl: 3600 },
+    threads_found:             { counter: true },
+    threads_processed:         { counter: true },
+    portals_found:             { counter: true },
+    portals_appended:          { counter: true },
+    threads_max_internal_date: {} # max Gmail internalDate (millis), forward-only
+  }.freeze
+
+  STORES.each do |name, opts|
+    klass = opts[:counter] ? CounterStore : self
+    define_singleton_method(name) do |redis: REDIS|
+      klass.new(prefix: name.to_s, ttl: opts[:ttl], redis:)
+    end
+  end
 end

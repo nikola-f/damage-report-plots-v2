@@ -166,7 +166,7 @@ RSpec.describe SpreadsheetSyncWorker do
     let(:spreadsheet_id)         { "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" }
     let(:access_token_store)     { instance_double(UserStore, fetch: access_token) }
     let(:spreadsheet_id_store)   { instance_double(UserStore, fetch: spreadsheet_id) }
-    let(:portals_appended_store) { instance_double(UserStore, increment: nil) }
+    let(:portals_appended_store) { instance_double(UserStore::CounterStore, increment: nil) }
     let(:sheets_client)          { instance_double(SpreadsheetsClient, append_rows: nil) }
     let(:worker)                 { described_class.new }
 

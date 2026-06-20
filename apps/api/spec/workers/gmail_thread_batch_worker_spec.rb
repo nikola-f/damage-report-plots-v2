@@ -33,9 +33,9 @@ RSpec.describe GmailThreadBatchWorker do
 
   # increment returns the new total (Redis INCRBY); default reaches threads_found
   # so the run counts as complete and last_processed_at is recorded.
-  let(:threads_processed_store)          { instance_double(UserStore, increment: thread_ids.size) }
+  let(:threads_processed_store)          { instance_double(UserStore::CounterStore, increment: thread_ids.size) }
   let(:threads_found_store)              { instance_double(UserStore, fetch: thread_ids.size.to_s) }
-  let(:portals_found_store)              { instance_double(UserStore, increment: nil) }
+  let(:portals_found_store)              { instance_double(UserStore::CounterStore, increment: nil) }
   let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch: "0", store: nil) }
   let(:last_processed_at_store)          { instance_double(UserStore, fetch: "0", store: nil) }
 
@@ -117,7 +117,7 @@ RSpec.describe GmailThreadBatchWorker do
     end
 
     context "when more threads were found than have been processed" do
-      let(:threads_processed_store) { instance_double(UserStore, increment: thread_ids.size) }
+      let(:threads_processed_store) { instance_double(UserStore::CounterStore, increment: thread_ids.size) }
       let(:threads_found_store)     { instance_double(UserStore, fetch: (thread_ids.size * 10).to_s) }
 
       it "does not update last_processed_at while the run is still in progress" do
