@@ -77,20 +77,29 @@ class GmailThreadBatchWorker
     end
     UserStore.threads_max_internal_date.store(user_id, max_date.to_s) if max_date > current_max
 
-    # Advance last_processed_at to the current server time after processing each
-    # message, but only ever forward. Its final value over a sync run
-    # approximates when the workflow finished. The monotonic guard prevents a
-    # slow or clock-skewed worker from moving the timestamp backwards.
-    now = Time.now.to_i
-    last_processed = begin
-      UserStore.last_processed_at.fetch(user_id).to_i
+    thread_sqs.delete_messages(message.receipt_handle)
+    logger.debug "deleted thread_ids message for user #{user_id}"
+    processed_total = UserStore.threads_processed.increment(user_id, by: thread_ids.size)
+
+    # Record last_processed_at once, when this sync run's batch stage finishes
+    # (all discovered threads processed). Stamping per message would make the
+    # timestamp climb throughout the drain; because a 429-rejected re-sync happens
+    # while the previous run is still draining, that climb would surface in the
+    # status endpoint as if the rejected sync had advanced "Sync finished". The
+    # forward-only guard tolerates clock skew and repeated completion stamps.
+    found = begin
+      UserStore.threads_found.fetch(user_id).to_i
     rescue KeyError
       0
     end
-    UserStore.last_processed_at.store(user_id, now.to_s) if last_processed < now
-
-    thread_sqs.delete_messages(message.receipt_handle)
-    logger.debug "deleted thread_ids message for user #{user_id}"
-    UserStore.threads_processed.increment(user_id, by: thread_ids.size)
+    if found.positive? && processed_total >= found
+      now = Time.now.to_i
+      last_processed = begin
+        UserStore.last_processed_at.fetch(user_id).to_i
+      rescue KeyError
+        0
+      end
+      UserStore.last_processed_at.store(user_id, now.to_s) if last_processed < now
+    end
   end
 end

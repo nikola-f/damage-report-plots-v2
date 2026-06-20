@@ -31,7 +31,10 @@ RSpec.describe GmailThreadBatchWorker do
     )
   end
 
-  let(:threads_processed_store)          { instance_double(UserStore, increment: nil) }
+  # increment returns the new total (Redis INCRBY); default reaches threads_found
+  # so the run counts as complete and last_processed_at is recorded.
+  let(:threads_processed_store)          { instance_double(UserStore, increment: thread_ids.size) }
+  let(:threads_found_store)              { instance_double(UserStore, fetch: thread_ids.size.to_s) }
   let(:portals_found_store)              { instance_double(UserStore, increment: nil) }
   let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch: "0", store: nil) }
   let(:last_processed_at_store)          { instance_double(UserStore, fetch: "0", store: nil) }
@@ -49,6 +52,7 @@ RSpec.describe GmailThreadBatchWorker do
     allow(report_sqs_client).to receive(:delete_messages)
     allow(UserStore).to receive(:access_token).and_return(token_store)
     allow(UserStore).to receive(:threads_processed).and_return(threads_processed_store)
+    allow(UserStore).to receive(:threads_found).and_return(threads_found_store)
     allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
     allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
     allow(UserStore).to receive(:last_processed_at).and_return(last_processed_at_store)
@@ -105,11 +109,34 @@ RSpec.describe GmailThreadBatchWorker do
       expect(threads_max_internal_date_store).to have_received(:store).with(user_id, internal_date)
     end
 
-    it "records the current server time in last_processed_at after processing a message" do
+    it "records the current server time in last_processed_at when the run's threads are all processed" do
       allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
       described_class.new.perform
 
       expect(last_processed_at_store).to have_received(:store).with(user_id, "1700000500")
+    end
+
+    context "when more threads were found than have been processed" do
+      let(:threads_processed_store) { instance_double(UserStore, increment: thread_ids.size) }
+      let(:threads_found_store)     { instance_double(UserStore, fetch: (thread_ids.size * 10).to_s) }
+
+      it "does not update last_processed_at while the run is still in progress" do
+        allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
+        described_class.new.perform
+
+        expect(last_processed_at_store).not_to have_received(:store)
+      end
+    end
+
+    context "when no threads were found for the run" do
+      let(:threads_found_store) { instance_double(UserStore, fetch: "0") }
+
+      it "does not update last_processed_at" do
+        allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
+        described_class.new.perform
+
+        expect(last_processed_at_store).not_to have_received(:store)
+      end
     end
 
     context "when last_processed_at is already at or after the current time" do
