@@ -45,7 +45,7 @@ bin/dev
 # Run console
 bin/rails console
 
-# Run tests
+# Run tests (e2e specs under spec/e2e are excluded by default — see below)
 bundle exec rspec
 
 # Run specific spec file
@@ -57,6 +57,22 @@ bundle exec rspec spec/path/to/spec_file.rb:line_number
 # Routes
 bin/rails routes
 ```
+
+### End-to-end (e2e) specs
+
+`spec/e2e/**` drive real external services (Gmail/Sheets APIs, SQS via LocalStack
+or AWS, and Valkey), so they do **not** run in a bare local checkout. They are
+**excluded from `bundle exec rspec` by default** and run only when opted in:
+
+- **CI**: the dedicated `e2e` job in `.github/workflows/ci-api.yml` runs on push
+  to `develop`. It provisions LocalStack + Valkey services and secrets and sets
+  `RUN_E2E=true`.
+- **Local (optional)**: start the required services/env (documented in each
+  `spec/e2e/*_spec.rb` header) and run with `RUN_E2E=true bundle exec rspec spec/e2e`.
+
+The exclusion is enforced in `spec/spec_helper.rb`: files under `spec/e2e` are
+tagged `:e2e` and filtered out unless `RUN_E2E=true`. A plain local run stays
+hermetic; CI opts in explicitly.
 
 ## Authentication & Authorization
 
@@ -241,7 +257,9 @@ Each SQS message carries `user_id` as a message attribute (`UserStore::USER_ID_A
 
 ## Test Coverage
 
-Current test suite: **196 examples, 0 failures**
+Unit/request/service/worker specs run by default with `bundle exec rspec`
+(e2e excluded — see "End-to-end (e2e) specs" above). The e2e suite runs
+separately in CI / with `RUN_E2E=true`.
 
 ## Infrastructure Setup Status
 
