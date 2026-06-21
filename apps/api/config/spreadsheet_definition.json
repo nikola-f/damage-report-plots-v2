@@ -61,38 +61,9 @@
     },
     {
       "properties": {
-        "sheetId": 110,
-        "title": "aggregated",
-        "index": 2,
-        "sheetType": "GRID",
-        "gridProperties": {
-          "columnCount": 6,
-          "frozenRowCount": 1
-        }
-      },
-      "data": [
-        {
-          "startRow": 0,
-          "startColumn": 0,
-          "rowData": [
-            {
-              "values": [
-                {
-                  "userEnteredValue": {
-                    "formulaValue": "=QUERY(reports!A:E, \"select max(B), max(C), max(D), count(D), max(E), min(E) where A is not null group by A order by min(E) asc\")"
-                  }
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "properties": {
         "sheetId": 120,
         "title": "plots",
-        "index": 3,
+        "index": 2,
         "sheetType": "GRID",
         "gridProperties": {
           "columnCount": 7,
@@ -108,37 +79,7 @@
               "values": [
                 {
                   "userEnteredValue": {
-                    "formulaValue": "=ARRAYFORMULA(aggregated!A2:A)"
-                  }
-                },
-                {
-                  "userEnteredValue": {
-                    "formulaValue": "=ARRAYFORMULA(aggregated!B2:B)"
-                  }
-                },
-                {
-                  "userEnteredValue": {
-                    "formulaValue": "=ARRAYFORMULA(aggregated!C2:C)"
-                  }
-                },
-                {
-                  "userEnteredValue": {
-                    "formulaValue": "=ARRAYFORMULA(aggregated!D2:D)"
-                  }
-                },
-                {
-                  "userEnteredValue": {
-                    "formulaValue": "=ARRAYFORMULA(IF(ISBLANK(A:A), \"\", VALUE(LEFT(aggregated!E2:E,FIND(\",\", aggregated!E2:E)-1))))"
-                  }
-                },
-                {
-                  "userEnteredValue": {
-                    "formulaValue": "=ARRAYFORMULA(IF(D:D=1, \"\", IF(ISBLANK(A:A),\"\", VALUE(LEFT(aggregated!F2:F,FIND(\",\", aggregated!F2:F)-1)))))"
-                  }
-                },
-                {
-                  "userEnteredValue": {
-                    "formulaValue": "=ARRAYFORMULA(IF(ISBLANK(A:A), \"\", MID(aggregated!E2:E,FIND(\",\", aggregated!E2:E)+1, 255)))"
+                    "formulaValue": "=IFERROR(LET(q, QUERY(reports!A2:E, \"select max(B),max(C),max(D),count(D),max(E),min(E) where A is not null group by A order by min(E) asc\", 0), cnt, INDEX(q,0,4), maxE, INDEX(q,0,5), minE, INDEX(q,0,6), HSTACK(INDEX(q,0,1), INDEX(q,0,2), INDEX(q,0,3), cnt, ARRAYFORMULA(IF(maxE=\"\",\"\",VALUE(REGEXEXTRACT(maxE,\"^[^,]+\")))), ARRAYFORMULA(IF(cnt=1,\"\",IF(minE=\"\",\"\",VALUE(REGEXEXTRACT(minE,\"^[^,]+\"))))), ARRAYFORMULA(IF(maxE=\"\",\"\",REGEXEXTRACT(maxE,\",(.*)$\"))))),)"
                   }
                 }
               ]
@@ -151,7 +92,7 @@
       "properties": {
         "sheetId": 130,
         "title": "stats",
-        "index": 4,
+        "index": 3,
         "sheetType": "GRID",
         "gridProperties": {
           "columnCount": 1,
