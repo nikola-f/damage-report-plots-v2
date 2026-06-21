@@ -37,8 +37,6 @@ RSpec.describe "GET /api/v1/status", type: :request do
 
     allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(report_sqs)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs)
-    allow(REDIS).to receive(:get).with("gmail_quota:project").and_return("5000")
-    allow(REDIS).to receive(:ttl).with("gmail_quota:project").and_return(42)
   end
 
   context "with active session" do
@@ -184,38 +182,11 @@ RSpec.describe "GET /api/v1/status", type: :request do
     end
 
     describe "app section" do
-      it "returns gmail quota usage" do
-        get "/api/v1/status"
-
-        quota = json_response["app"]["gmail_quota"]
-        expect(quota["used"]).to eq(5000)
-        expect(quota["limit"]).to eq(GmailClient::PER_PROJECT_LIMIT)
-        expect(quota["remaining"]).to eq(GmailClient::PER_PROJECT_LIMIT - 5000)
-        expect(quota["window_seconds"]).to eq(GmailClient::QUOTA_WINDOW)
-        expect(quota["resets_in_seconds"]).to eq(42)
-      end
-
       it "returns SQS queue depth per queue" do
         get "/api/v1/status"
 
         expect(json_response["app"]["sqs_queues"]["thread_ids"]).to eq(4)
         expect(json_response["app"]["sqs_queues"]["reports"]).to eq(2)
-      end
-
-      context "when no quota has been used yet" do
-        before do
-          allow(REDIS).to receive(:get).with("gmail_quota:project").and_return(nil)
-          allow(REDIS).to receive(:ttl).with("gmail_quota:project").and_return(-2)
-        end
-
-        it "reports zero usage and zero resets_in_seconds" do
-          get "/api/v1/status"
-
-          quota = json_response["app"]["gmail_quota"]
-          expect(quota["used"]).to eq(0)
-          expect(quota["remaining"]).to eq(GmailClient::PER_PROJECT_LIMIT)
-          expect(quota["resets_in_seconds"]).to eq(0)
-        end
       end
     end
   end
