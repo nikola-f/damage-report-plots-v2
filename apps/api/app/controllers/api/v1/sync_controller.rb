@@ -28,9 +28,12 @@ module Api
         head :accepted
       end
 
-      # Clears the sync resume point so the next sync starts from the beginning.
+      # Clears the sync resume point so the next sync starts from the beginning,
+      # and drops the stored spreadsheet ID so the next sync recreates the
+      # spreadsheet (via ensure_spreadsheet_exists).
       def reset
         UserStore.threads_max_internal_date.delete(current_user_id)
+        UserStore.spreadsheet_id.delete(current_user_id)
         head :no_content
       end
 

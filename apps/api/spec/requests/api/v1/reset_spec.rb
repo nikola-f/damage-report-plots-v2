@@ -5,10 +5,12 @@ require "rails_helper"
 RSpec.describe "DELETE /api/v1/reset", type: :request do
   let(:access_token_store)              { instance_double(UserStore, store: nil) }
   let(:threads_max_internal_date_store) { instance_double(UserStore, delete: 1) }
+  let(:spreadsheet_id_store)            { instance_double(UserStore, delete: 1) }
 
   before do
     allow(UserStore).to receive(:access_token).and_return(access_token_store)
     allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
+    allow(UserStore).to receive(:spreadsheet_id).and_return(spreadsheet_id_store)
   end
 
   context "with active session" do
@@ -25,6 +27,12 @@ RSpec.describe "DELETE /api/v1/reset", type: :request do
 
       expect(threads_max_internal_date_store).to have_received(:delete).with(test_user_id)
     end
+
+    it "deletes the spreadsheet ID for the current user" do
+      delete "/api/v1/reset"
+
+      expect(spreadsheet_id_store).to have_received(:delete).with(test_user_id)
+    end
   end
 
   context "without session" do
@@ -33,6 +41,7 @@ RSpec.describe "DELETE /api/v1/reset", type: :request do
 
       expect(response).to have_http_status(:unauthorized)
       expect(threads_max_internal_date_store).not_to have_received(:delete)
+      expect(spreadsheet_id_store).not_to have_received(:delete)
     end
   end
 end
