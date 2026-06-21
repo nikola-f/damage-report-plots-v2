@@ -80,17 +80,13 @@ RSpec.describe GmailThreadBatchWorker, :e2e do
     allow(described_class).to receive(:perform_in)
   end
 
-  # quota キーは削除しない。TTL (60s) で自然にリセットされることで、
-  # Gmail 側のレートリミッターと Redis カウンターの同期が保たれる。
-
   describe "#perform" do
     context "when thread_ids queue has messages" do
       before do
-        # GmailThreadListWorker を経由せず直接シードして quota 消費を抑える。
-        # list_threads(10 units) + batch_get × SEED_THREAD_COUNT(40 units each) のみ消費する。
+        # GmailThreadListWorker を経由せず直接シードして API 呼び出しを抑える。
         d          = Date.today - 7
         query      = DamageReportQuery.new(after_date: Time.utc(d.year, d.month, d.day).to_i)
-        thread_ids = GmailClient.new(access_token, redis: REDIS)
+        thread_ids = GmailClient.new(access_token)
                                 .list_threads(q: query.to_s)
                                 .fetch("threads", [])
                                 .first(SEED_THREAD_COUNT)

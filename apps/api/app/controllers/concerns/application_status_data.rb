@@ -5,21 +5,7 @@ module ApplicationStatusData
 
   def application_status
     {
-      gmail_quota: gmail_quota_status,
-      sqs_queues:  sqs_queue_status
-    }
-  end
-
-  def gmail_quota_status
-    used      = REDIS.get("gmail_quota:project").to_i
-    ttl       = REDIS.ttl("gmail_quota:project")
-    resets_in = ttl.positive? ? ttl : 0
-    {
-      used:              used,
-      limit:             GmailClient::PER_PROJECT_LIMIT,
-      remaining:         GmailClient::PER_PROJECT_LIMIT - used,
-      window_seconds:    GmailClient::QUOTA_WINDOW,
-      resets_in_seconds: resets_in
+      sqs_queues: sqs_queue_status
     }
   end
 

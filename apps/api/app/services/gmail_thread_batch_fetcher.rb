@@ -14,7 +14,7 @@ class GmailThreadBatchFetcher
   MAX_RETRIES       = 6   # 1+2+4+8+16+32 = 63s total wait, covering one quota window
 
   def initialize(access_token:, gmail_client: nil)
-    @gmail_client = gmail_client || GmailClient.new(access_token, redis: REDIS)
+    @gmail_client = gmail_client || GmailClient.new(access_token)
   end
 
   # @param thread_ids [Array<String>]

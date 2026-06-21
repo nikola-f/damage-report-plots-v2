@@ -2,7 +2,6 @@
 
 require "net/http"
 require "json"
-require "digest"
 
 class GmailClient
   BASE_URL = "https://gmail.googleapis.com/gmail/v1"
@@ -13,18 +12,8 @@ class GmailClient
   # Limits the response payload to only what downstream processing needs.
   THREAD_FIELDS = "messages/id,messages/internalDate,messages/payload/parts/mimeType,messages/payload/parts/body/data"
 
-  PER_PROJECT_LIMIT = 1_200_000  # quota units per minute
-  QUOTA_WINDOW      = 60         # seconds
-
-  QUOTA_UNITS = {
-    list_threads: 10,
-    batch_get_threads_per_id: 40
-  }.freeze
-
-  def initialize(access_token, redis: nil)
+  def initialize(access_token)
     @access_token = access_token
-    @token_hash   = Digest::SHA256.hexdigest(access_token)
-    @redis        = redis
   end
 
   # Calls users.threads.list API and returns the parsed response.
@@ -34,8 +23,6 @@ class GmailClient
   # @param page_token [String, nil] Page token from a previous response to retrieve the next page
   # @return [Hash] Parsed JSON response containing :threads, :nextPageToken, :resultSizeEstimate
   def list_threads(q: nil, page_token: nil)
-    consume_quota(QUOTA_UNITS[:list_threads])
-
     params = {
       q: q,
       pageToken: page_token,
@@ -53,35 +40,13 @@ class GmailClient
   def batch_get_threads(ids)
     return [] if ids.empty?
 
-    consume_quota(QUOTA_UNITS[:batch_get_threads_per_id] * ids.size)
-
     response = batch_post(ids)
     parse_batch_response(response, ids)
   end
 
   class ApiError < StandardError; end
-  class QuotaExceededError < StandardError; end
 
   private
-
-  def consume_quota(units)
-    return unless @redis
-
-    project_key = "gmail_quota:project"
-    user_key    = "gmail_quota:user:#{@token_hash}"
-
-    new_project = @redis.incrby(project_key, units)
-    @redis.expire(project_key, QUOTA_WINDOW) if new_project == units
-
-    new_user = @redis.incrby(user_key, units)
-    @redis.expire(user_key, QUOTA_WINDOW) if new_user == units
-
-    if new_project > PER_PROJECT_LIMIT
-      @redis.decrby(project_key, units)
-      @redis.decrby(user_key, units)
-      raise QuotaExceededError, "Gmail API quota exceeded: #{project_key}"
-    end
-  end
 
   def get(path, params = {})
     base_uri = URI("#{BASE_URL}#{path}")

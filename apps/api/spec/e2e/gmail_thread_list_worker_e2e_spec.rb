@@ -37,7 +37,6 @@ RSpec.describe GmailThreadListWorker, :e2e do
   let(:access_token) { fetch_google_access_token }
   let(:queue_url)    { Settings.sqs_thread_ids_queue_url }
   let(:user_id)      { Digest::SHA256.hexdigest(access_token) }
-  let(:token_hash)   { user_id }
 
   let(:sqs) do
     options = { region: ENV.fetch("AWS_DEFAULT_REGION", "us-east-1") }
@@ -53,9 +52,6 @@ RSpec.describe GmailThreadListWorker, :e2e do
     sqs.purge_queue(queue_url: queue_url)
     UserStore.access_token.store(user_id, access_token)
   end
-
-  # quota キーは削除しない。TTL (60s) で自然にリセットされることで、
-  # Gmail 側のレートリミッターと Redis カウンターの同期が保たれる。
 
   describe "#perform" do
     it "fetches Gmail threads matching the query and enqueues thread IDs to SQS as a JSON array" do
@@ -74,14 +70,6 @@ RSpec.describe GmailThreadListWorker, :e2e do
       expect(thread_ids).to be_an(Array)
       expect(thread_ids.first).to be_present
       expect(messages.first.message_attributes[UserStore::USER_ID_ATTR].string_value).to eq(user_id)
-    end
-
-    it "increments Redis quota counters" do
-      d = Date.today - 7
-      described_class.new.perform(user_id, Time.utc(d.year, d.month, d.day).to_i)
-
-      expect(REDIS.get("gmail_quota:project").to_i).to be > 0
-      expect(REDIS.get("gmail_quota:user:#{token_hash}").to_i).to be > 0
     end
 
     context "when there are no matching threads" do

@@ -161,18 +161,6 @@ RSpec.describe GmailThreadBatchFetcher do
       end
     end
 
-    context "when GmailClient raises QuotaExceededError" do
-      before do
-        allow(gmail_client).to receive(:batch_get_threads)
-          .and_raise(GmailClient::QuotaExceededError, "quota exceeded")
-      end
-
-      it "propagates the error (for Sidekiq retry)" do
-        expect { fetcher.call(%w[t1]) }
-          .to raise_error(GmailClient::QuotaExceededError, "quota exceeded")
-      end
-    end
-
     context "when GmailClient raises ApiError" do
       before do
         allow(gmail_client).to receive(:batch_get_threads)
