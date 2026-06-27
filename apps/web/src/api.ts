@@ -49,7 +49,7 @@ export interface Plot {
   owned: number;
   count: number;
   latest: number;
-  oldest: number | null;
+  oldest?: number; // omitted by the API when count == 1
 }
 
 export async function getPlots(): Promise<Plot[]> {
