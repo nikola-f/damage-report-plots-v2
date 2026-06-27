@@ -55,13 +55,6 @@ export interface Status {
     };
   };
   app: {
-    gmail_quota: {
-      used: number;
-      limit: number;
-      remaining: number;
-      window_seconds: number;
-      resets_in_seconds: number;
-    };
     sqs_queues: {
       thread_ids: number;
       reports: number;
