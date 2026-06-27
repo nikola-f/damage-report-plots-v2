@@ -10,7 +10,12 @@ import { ensureHeatLayer } from "./heat";
 import { parsePlots, toHeatPoints, type Plot, type Weight } from "./plots";
 
 const STORAGE_KEY = "damage-report-plots";
-const HEAT_OPTIONS: HeatMapOptions = { max: 1, radius: 25, blur: 15, minOpacity: 0.1 };
+// leaflet.heat scales intensity by 1 / 2^(maxZoom - currentZoom), so without a
+// maxZoom it fades against the map's max zoom (~21 on Intel) and stays faint even
+// when zoomed in. Capping maxZoom at a typical viewing zoom makes intensity reach
+// full there; the larger radius / minOpacity floor keep isolated low-count points
+// visible once portals spread apart at high zoom.
+const HEAT_OPTIONS: HeatMapOptions = { max: 1, radius: 30, blur: 20, minOpacity: 0.25, maxZoom: 17 };
 
 interface StoredState {
   json: string;
