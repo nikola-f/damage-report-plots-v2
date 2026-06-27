@@ -146,8 +146,12 @@ export default function App() {
     setCopyMessage("");
     try {
       const plots = await getPlots();
+      // One record per line to keep it compact yet diff-friendly.
+      const json = plots.length === 0
+        ? "[]"
+        : `[\n${plots.map((p) => JSON.stringify(p)).join(",\n")}\n]`;
       try {
-        await navigator.clipboard.writeText(JSON.stringify(plots, null, 2));
+        await navigator.clipboard.writeText(json);
         setCopyStatus("success");
         setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
       } catch {

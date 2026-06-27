@@ -26,7 +26,7 @@ RSpec.describe "GET /api/v1/plots", type: :request do
         )
       end
 
-      it "returns the rows as an array of 6-key objects" do
+      it "returns the rows as objects, omitting oldest when blank" do
         get "/api/v1/plots"
 
         expect(response).to have_http_status(:ok)
@@ -35,16 +35,16 @@ RSpec.describe "GET /api/v1/plots", type: :request do
             { "lat" => 35.681, "lng" => 139.767, "owned" => 1, "count" => 3,
               "latest" => 1_700_000_002_000, "oldest" => 1_700_000_000_000 },
             { "lat" => 34.702, "lng" => 135.495, "owned" => 0, "count" => 1,
-              "latest" => 1_700_000_005_000, "oldest" => nil }
+              "latest" => 1_700_000_005_000 }
           ]
         )
       end
 
-      it "reads the plotsExport named range" do
+      it "reads the full plots A:F range" do
         get "/api/v1/plots"
 
         expect(sheets_client).to have_received(:get_values)
-          .with(spreadsheet_id: "spreadsheet-id", range: "plotsExport")
+          .with(spreadsheet_id: "spreadsheet-id", range: "plots!A:F")
       end
     end
 

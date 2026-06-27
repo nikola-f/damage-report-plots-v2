@@ -183,14 +183,6 @@
         "startColumnIndex": 0,
         "endColumnIndex": 1
       }
-    },
-    {
-      "name": "plotsExport",
-      "range": {
-        "sheetId": 120,
-        "startColumnIndex": 0,
-        "endColumnIndex": 6
-      }
     }
   ]
 }
