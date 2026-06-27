@@ -1,21 +1,39 @@
 # Damage Report Plots — IITC plugin
 
-An [IITC](https://iitc.app/) (Ingress Intel Total Conversion) plugin that plots
-this project's Ingress damage-report data on the Intel map.
+An [IITC](https://iitc.app/) (Ingress Intel Total Conversion) plugin that renders
+this project's Ingress damage-report data as a **heatmap** on the Intel map.
 
-> Status: scaffolding. The current build only adds a "Damage Report Plots" link
-> to the IITC toolbox to prove the plugin loads. Map rendering of damage data is
-> built on top of this.
+The plugin takes its data by **paste**: copy the plots JSON from the web app
+("Copy plots JSON") and paste it into the plugin's dialog. Nothing is fetched over
+the network, so no API CORS changes or cross-site authentication are needed.
+
+## Usage
+
+1. In the web app, click **Copy plots JSON** to put the plots array on your clipboard.
+2. On the Intel map, open the **Damage Report Plots** entry in the IITC toolbox.
+3. Paste the JSON into the textarea, pick a weight, and click **Plot**.
+   - **Weight: report count** — hotter where more damage reports accumulated.
+   - **Weight: recency (latest)** — hotter where the most recent reports are.
+   - Switching the weight re-renders instantly (no need to re-paste).
+4. Toggle the **Damage Report Plots** layer from IITC's layer chooser.
+
+The pasted data and weight are saved to `localStorage`, so the heatmap is restored
+automatically after a page reload. Use **Clear** to remove it.
 
 ## Layout
 
 ```
 src/
   metadata.ts   UserScript metablock fields (single source of truth)
-  plugin.ts     plugin body — registered into window.bootPlugins
-  iitc.d.ts     minimal ambient types for the IITC runtime
+  plugin.ts     plugin body (UI + heat layer) — registered into window.bootPlugins
+  plots.ts      pure logic: parse pasted JSON + normalize to heat points
+  heat.ts       lazy loader for the bundled leaflet.heat plugin
+  iitc.d.ts     minimal ambient types for the IITC runtime (incl. Leaflet `L`)
 build.mjs       esbuild bundle + wrapper + metablock → dist/*.user.js + *.meta.js
 ```
+
+The heatmap is drawn with [leaflet.heat](https://github.com/Leaflet/Leaflet.heat),
+bundled into the userscript and run against the Leaflet (`L`) that IITC provides.
 
 ## Build
 
