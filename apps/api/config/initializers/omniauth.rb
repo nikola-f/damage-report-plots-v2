@@ -28,7 +28,23 @@ Rails.application.config.middleware.use OmniAuth::Builder do
            }
 end
 
-# Allow GET for OAuth initiation from SPA (CSRF risk is low; state param handles it at Google's side)
+# Allow GET for the OAuth request phase.
+#
+# The SPA starts the flow with a top-level navigation (window.location ->
+# /auth/google_oauth2). The request phase must end in a full-page redirect to
+# accounts.google.com, which fetch/XHR cannot perform, so a GET navigation is
+# unavoidable here.
+#
+# Allowing GET bypasses omniauth-rails_csrf_protection's request-phase token
+# check, but the dangerous "login CSRF" variant (injecting an attacker's auth
+# code into the victim's session) is still blocked downstream:
+#   - The callback verifies the OAuth `state` parameter, which omniauth-oauth2
+#     does by default (unless provider_ignores_state is enabled). An attacker's
+#     code, obtained under a different session/state, fails this check.
+#     Regression-pinned in spec/initializers/omniauth_security_spec.rb.
+#   - The scope-upgrade request phase reads `requested_scope` from the session,
+#     which only the authenticated, same-origin POST /auth/grant/* can set; a
+#     forced GET without it degrades to a harmless plain re-login.
 OmniAuth.config.allowed_request_methods = %i[get post]
 
 # Handle failures
