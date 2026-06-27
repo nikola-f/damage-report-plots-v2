@@ -18,9 +18,29 @@ permissions:
   contents: read
 
 jobs:
+  # Resolve which services to deploy into a matrix so `all` runs web and worker
+  # as parallel jobs (the ECS rollout wait dominates runtime; running them
+  # sequentially in one job roughly doubled it).
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        run: |
+          if [ "${{ inputs.service }}" = "all" ]; then
+            echo 'matrix={"service":["web","worker"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"service":["${{ inputs.service }}"]}' >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
+    needs: prepare
     runs-on: ubuntu-latest
     environment: dev
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
 
     env:
       APP_NAME: drp
@@ -53,22 +73,15 @@ jobs:
           tar xz -C /usr/local/bin -f /tmp/ecspresso.tar.gz ecspresso
           ecspresso version
 
-      - name: Deploy web
-        if: inputs.service == 'all' || inputs.service == 'web'
-        working-directory: ecspresso/web
+      - name: Deploy ${{ matrix.service }}
+        working-directory: ecspresso/${{ matrix.service }}
         run: |
+          # The worker has no load balancer, so a config-only change leaves the
+          # running task untouched; force a new deployment to roll it.
+          FORCE=""
+          [ "${{ matrix.service }}" = "worker" ] && FORCE="--force-new-deployment"
           if [ -n "${{ inputs.image_tag }}" ]; then
-            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --ext-str IMAGE_TAG=${{ inputs.image_tag }}
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --ext-str IMAGE_TAG=${{ inputs.image_tag }} $FORCE
           else
-            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --skip-task-definition
-          fi
-
-      - name: Deploy worker
-        if: inputs.service == 'all' || inputs.service == 'worker'
-        working-directory: ecspresso/worker
-        run: |
-          if [ -n "${{ inputs.image_tag }}" ]; then
-            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --ext-str IMAGE_TAG=${{ inputs.image_tag }} --force-new-deployment
-          else
-            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --skip-task-definition --force-new-deployment
+            ecspresso deploy --ext-str APP_NAME=$APP_NAME --ext-str ENV=$ENV --skip-task-definition $FORCE
           fi
