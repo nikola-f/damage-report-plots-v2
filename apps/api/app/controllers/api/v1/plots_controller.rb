@@ -26,7 +26,10 @@ module Api
       private
 
       def to_plot(row)
-        return nil if row.compact.empty? # 末尾の空行を除外
+        # 数値の lat/lng を持たない行を除外する。これにより末尾の空行に加え、
+        # plots の QUERY 数式が先頭に生成する集計ラベル行 ("max ", "count " 等)
+        # も落ちるため、クライアントはそのまま座標データとして扱える。
+        return nil unless row[0].is_a?(Numeric) && row[1].is_a?(Numeric)
 
         plot = {
           lat:    row[0],
