@@ -256,6 +256,11 @@ jobs:
           ecspresso version
 
       - name: Deploy ${{ matrix.service }}
+        # ecspresso.yml resolves cluster/service via must_env, so APP_NAME and
+        # ENV must be present as OS env vars (--ext-str only feeds jsonnet).
+        env:
+          APP_NAME: drp
+          ENV: dev
         run: |
           ecspresso deploy \
             --config ecspresso/${{ matrix.service }}/ecspresso.yml \
@@ -301,6 +306,11 @@ jobs:
           ecspresso version
 
       - name: Deploy ${{ matrix.service }}
+        # ecspresso.yml resolves cluster/service via must_env, so APP_NAME and
+        # ENV must be present as OS env vars (--ext-str only feeds jsonnet).
+        env:
+          APP_NAME: drp
+          ENV: prod
         run: |
           ecspresso deploy \
             --config ecspresso/${{ matrix.service }}/ecspresso.yml \
