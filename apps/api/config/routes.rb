@@ -27,6 +27,7 @@ Rails.application.routes.draw do
       post   '/sync',    to: 'sync#create'
       delete '/reset',   to: 'sync#reset'
       get    '/status',  to: 'status#show'
+      get    '/plots',   to: 'plots#show'
     end
   end
 

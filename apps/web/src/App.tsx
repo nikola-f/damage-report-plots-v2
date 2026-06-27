@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getProfile, getStatus, grantSync, logout, sync, type Profile, type Status as AppStatus } from "./api.ts";
+import { getPlots, getProfile, getStatus, grantSpreadsheets, grantSync, logout, sync, type Profile, type Status as AppStatus } from "./api.ts";
 
 type SyncStatus = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
@@ -8,6 +8,9 @@ const STATUS_POLL_INTERVAL_MS = 10_000;
 // Marks that a sync was requested before redirecting through Google to refresh
 // the access token; the flow resumes here once we land back on the SPA.
 const PENDING_SYNC_KEY = "pendingSync";
+// Same idea for a "copy plots JSON" request that hit an expired token and had to
+// re-acquire the spreadsheets scope before reading the sheet.
+const PENDING_COPY_KEY = "pendingCopy";
 const QUEUE_GREEN_MAX = 10;
 const QUEUE_RED_MIN = 61;
 
@@ -36,6 +39,8 @@ export default function App() {
   const [syncMessage, setSyncMessage] = useState("");
   const [queueStatus, setQueueStatus] = useState<QueueLevel | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
+  const [copyStatus, setCopyStatus] = useState<SyncStatus>("idle");
+  const [copyMessage, setCopyMessage] = useState("");
 
   useEffect(() => {
     getProfile()
@@ -72,6 +77,14 @@ export default function App() {
     if (sessionStorage.getItem(PENDING_SYNC_KEY) !== "1") return;
     sessionStorage.removeItem(PENDING_SYNC_KEY);
     runSync();
+  }, [profile]);
+
+  // Resume a plots copy that was queued before the spreadsheets re-auth redirect.
+  useEffect(() => {
+    if (!profile) return;
+    if (sessionStorage.getItem(PENDING_COPY_KEY) !== "1") return;
+    sessionStorage.removeItem(PENDING_COPY_KEY);
+    runCopy();
   }, [profile]);
 
   function handleLogin() {
@@ -126,6 +139,42 @@ export default function App() {
     }
   }
 
+  // Fetch the plots sheet and copy it to the clipboard as JSON. If the access
+  // token has expired, re-acquire the spreadsheets scope and resume on return.
+  async function runCopy() {
+    setCopyStatus("loading");
+    setCopyMessage("");
+    try {
+      const plots = await getPlots();
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(plots, null, 2));
+        setCopyStatus("success");
+        setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
+      } catch {
+        // The Clipboard API needs a user gesture; the post-redirect resume has
+        // none, so prompt the user to click again (the token is now valid).
+        setCopyStatus("error");
+        setCopyMessage('Ready. Click "Copy plots JSON" again to copy.');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Copy failed.";
+      if (message === "reauthorization_required") {
+        try {
+          const authorizationUrl = await grantSpreadsheets();
+          sessionStorage.setItem(PENDING_COPY_KEY, "1");
+          window.location.href = authorizationUrl;
+          return;
+        } catch (grantErr) {
+          setCopyStatus("error");
+          setCopyMessage(grantErr instanceof Error ? grantErr.message : "Authorization failed.");
+          return;
+        }
+      }
+      setCopyStatus("error");
+      setCopyMessage(message);
+    }
+  }
+
   if (authLoading) {
     return <p style={styles.center}>Loading…</p>;
   }
@@ -163,6 +212,20 @@ export default function App() {
       {syncMessage && (
         <p style={syncStatus === "error" ? styles.error : styles.success}>
           {syncMessage}
+        </p>
+      )}
+
+      <button
+        onClick={runCopy}
+        disabled={copyStatus === "loading"}
+        style={styles.buttonSecondary}
+      >
+        {copyStatus === "loading" ? "Copying…" : "Copy plots JSON"}
+      </button>
+
+      {copyMessage && (
+        <p style={copyStatus === "error" ? styles.error : styles.success}>
+          {copyMessage}
         </p>
       )}
 

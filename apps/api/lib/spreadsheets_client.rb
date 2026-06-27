@@ -41,6 +41,20 @@ class SpreadsheetsClient
     get("/spreadsheets/#{spreadsheet_id}")
   end
 
+  # 指定範囲の値を取得する。UNFORMATTED_VALUE で数値を数値のまま返す。
+  #
+  # @param spreadsheet_id       [String] 対象スプレッドシートの ID
+  # @param range                [String] A1 記法 or 名前付き範囲名 (e.g. "plotsExport")
+  # @param value_render_option  [String]
+  # @return [Array<Array>] 値の二次元配列 (空なら [])
+  def get_values(spreadsheet_id:, range:, value_render_option: "UNFORMATTED_VALUE")
+    response = get(
+      "/spreadsheets/#{spreadsheet_id}/values/#{range}",
+      query: { valueRenderOption: value_render_option }
+    )
+    response["values"] || []
+  end
+
   # 既存シートの末尾に行データをバッチ追加する。
   #
   # @param spreadsheet_id [String]       対象スプレッドシートの ID
