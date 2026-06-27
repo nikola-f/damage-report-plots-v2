@@ -20,13 +20,14 @@ RSpec.describe "GET /api/v1/plots", type: :request do
       before do
         allow(sheets_client).to receive(:get_values).and_return(
           [
+            ["max ", "max ", "max ", "count ", nil],
             [35.681, 139.767, 1, 3, 1_700_000_002_000, 1_700_000_000_000],
             [34.702, 135.495, 0, 1, 1_700_000_005_000, ""]
           ]
         )
       end
 
-      it "returns the rows as objects, omitting oldest when blank" do
+      it "returns the rows as objects, dropping the header and omitting oldest when blank" do
         get "/api/v1/plots"
 
         expect(response).to have_http_status(:ok)
