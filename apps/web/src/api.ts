@@ -34,6 +34,33 @@ export async function grantSync(): Promise<string> {
   return data.authorization_url;
 }
 
+// Re-acquire the spreadsheets.readonly authorization (mints a fresh access
+// token). Used before reading the plots sheet. Returns the URL to redirect to.
+export async function grantSpreadsheets(): Promise<string> {
+  const res = await request("/auth/grant/spreadsheets", { method: "POST" });
+  if (!res.ok) throw new Error(`Grant spreadsheets failed: ${res.status}`);
+  const data = await res.json() as { authorization_url: string };
+  return data.authorization_url;
+}
+
+export interface Plot {
+  lat: number;
+  lng: number;
+  owned: number;
+  count: number;
+  latest: number;
+  oldest: number | null;
+}
+
+export async function getPlots(): Promise<Plot[]> {
+  const res = await request("/api/v1/plots");
+  if (!res.ok) {
+    const body = await res.json() as { error?: string };
+    throw new Error(body.error ?? `Plots fetch failed: ${res.status}`);
+  }
+  return res.json() as Promise<Plot[]>;
+}
+
 export async function logout(): Promise<void> {
   await request("/auth/logout", { method: "DELETE" });
 }
