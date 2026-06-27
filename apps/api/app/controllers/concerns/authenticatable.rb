@@ -17,10 +17,6 @@ module Authenticatable
     session[:user_id]
   end
 
-  def current_user_email
-    session[:email]
-  end
-
   def current_user_name
     session[:name]
   end
@@ -28,7 +24,6 @@ module Authenticatable
   def current_user
     {
       id:      session[:user_id],
-      email:   session[:email],
       name:    session[:name],
       picture: session[:picture]
     }
