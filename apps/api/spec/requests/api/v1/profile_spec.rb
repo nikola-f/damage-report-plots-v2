@@ -17,7 +17,7 @@ RSpec.describe "GET /api/v1/profile", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json_response["id"]).to eq(test_user_id)
-      expect(json_response["email"]).to eq(test_user_email)
+      expect(json_response).not_to have_key("email")
       expect(json_response["name"]).to eq(test_user_name)
       expect(json_response["picture"]).to eq(test_user_picture)
     end

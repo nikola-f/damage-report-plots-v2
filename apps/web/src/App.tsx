@@ -149,7 +149,6 @@ export default function App() {
         <img src={profile.picture} alt={profile.name} style={styles.avatar} />
         <div>
           <p style={styles.name}>{profile.name}</p>
-          <p style={styles.email}>{profile.email}</p>
         </div>
       </div>
 
@@ -223,7 +222,6 @@ const styles: Record<string, React.CSSProperties> = {
   profile: { display: "flex", alignItems: "center", gap: "0.75rem" },
   avatar: { width: 48, height: 48, borderRadius: "50%" },
   name: { margin: 0, fontWeight: 600 },
-  email: { margin: 0, color: "#8a8f83", fontSize: "0.875rem" },
   button: {
     padding: "0.625rem 1.25rem",
     background: "#5AB5B2",

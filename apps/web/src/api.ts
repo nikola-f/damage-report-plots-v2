@@ -1,6 +1,5 @@
 export interface Profile {
   id: string;
-  email: string;
   name: string;
   picture: string;
 }
@@ -14,7 +13,7 @@ export async function getProfile(): Promise<Profile | null> {
   const res = await request("/api/v1/profile");
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(`Profile fetch failed: ${res.status}`);
-  const data = await res.json() as { id: string; email: string; name: string; picture: string };
+  const data = await res.json() as { id: string; name: string; picture: string };
   return data;
 }
 
