@@ -218,10 +218,15 @@ jobs:
           --cache-to type=gha,mode=max \
           -t $ECR_REGISTRY/drp-api:$IMAGE_TAG --push ./apps/api
 
+  # web と worker は独立サービス（順序依存なし）なので matrix で並列デプロイする。
   deploy-dev:
     needs: build-push-dev
     runs-on: ubuntu-latest
     environment: dev
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [web, worker]
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
@@ -250,32 +255,23 @@ jobs:
           tar xz -C /usr/local/bin -f /tmp/ecspresso.tar.gz ecspresso
           ecspresso version
 
-      - name: Deploy web
-        env:
-          APP_NAME: drp
-          ENV: dev
+      - name: Deploy ${{ matrix.service }}
         run: |
           ecspresso deploy \
-            --config ecspresso/web/ecspresso.yml \
+            --config ecspresso/${{ matrix.service }}/ecspresso.yml \
             --ext-str APP_NAME=drp \
             --ext-str ENV=dev \
             --ext-str IMAGE_TAG=${{ github.sha }}
 
-      - name: Deploy worker
-        env:
-          APP_NAME: drp
-          ENV: dev
-        run: |
-          ecspresso deploy \
-            --config ecspresso/worker/ecspresso.yml \
-            --ext-str APP_NAME=drp \
-            --ext-str ENV=dev \
-            --ext-str IMAGE_TAG=${{ github.sha }}
-
+  # web と worker は独立サービス（順序依存なし）なので matrix で並列デプロイする。
   deploy-prod:
     needs: build-push-prod
     runs-on: ubuntu-latest
     environment: prod
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [web, worker]
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
@@ -304,24 +300,10 @@ jobs:
           tar xz -C /usr/local/bin -f /tmp/ecspresso.tar.gz ecspresso
           ecspresso version
 
-      - name: Deploy web
-        env:
-          APP_NAME: drp
-          ENV: prod
+      - name: Deploy ${{ matrix.service }}
         run: |
           ecspresso deploy \
-            --config ecspresso/web/ecspresso.yml \
-            --ext-str APP_NAME=drp \
-            --ext-str ENV=prod \
-            --ext-str IMAGE_TAG=${{ github.sha }}
-
-      - name: Deploy worker
-        env:
-          APP_NAME: drp
-          ENV: prod
-        run: |
-          ecspresso deploy \
-            --config ecspresso/worker/ecspresso.yml \
+            --config ecspresso/${{ matrix.service }}/ecspresso.yml \
             --ext-str APP_NAME=drp \
             --ext-str ENV=prod \
             --ext-str IMAGE_TAG=${{ github.sha }}
