@@ -39,8 +39,13 @@ export function parsePlots(text: string): Plot[] {
 }
 
 // Convert plots to [lat, lng, intensity] with intensity normalized to 0..1.
-//   count : intensity = count / maxCount  (more reports → hotter)
-//   latest: intensity = (latest - min) / (max - min)  (more recent → hotter)
+//   count : intensity = log1p(count) / log1p(maxCount)  (more reports → hotter)
+//   latest: intensity = (latest - min) / (max - min)    (more recent → hotter)
+// count is log-scaled to compress its long tail: report counts are typically
+// skewed (a few portals with many reports, most with one or two), so a linear
+// count / maxCount squashes the common low-count portals near 0 and lets a
+// handful of outliers own the warm end. log1p lifts the mid/low range while
+// keeping the floor at 0 (log1p(0) === 0), so the heatmap reads more evenly.
 // Guards against an empty set, a zero range (all equal / single point), and large
 // arrays (min/max via a loop rather than spreading into Math.max).
 export function toHeatPoints(plots: Plot[], weight: Weight): HeatPoint[] {
@@ -54,12 +59,13 @@ export function toHeatPoints(plots: Plot[], weight: Weight): HeatPoint[] {
     if (v > max) max = v;
   }
   const range = max - min;
+  const logMax = Math.log1p(max);
 
   return plots.map((p) => {
     const v = weight === "count" ? p.count : p.latest;
     let intensity: number;
     if (weight === "count") {
-      intensity = max > 0 ? v / max : 1;
+      intensity = logMax > 0 ? Math.log1p(v) / logMax : 1;
     } else {
       intensity = range > 0 ? (v - min) / range : 1;
     }
