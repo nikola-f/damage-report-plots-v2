@@ -98,4 +98,35 @@ RSpec.describe "Origin verification", type: :request do
       expect(response).to have_http_status(:accepted)
     end
   end
+
+  describe ".normalize_origin" do
+    # Browsers serialize the Origin header as scheme://host[:port] — no path,
+    # no trailing slash, no default port. Configured values must be normalized
+    # the same way or legitimate requests get rejected (e.g. ALLOWED_ORIGINS
+    # with a trailing slash silently 403'd every SPA request in dev).
+    it "strips a trailing slash" do
+      expect(ApplicationController.normalize_origin("https://example.com/"))
+        .to eq("https://example.com")
+    end
+
+    it "strips a default port" do
+      expect(ApplicationController.normalize_origin("https://example.com:443"))
+        .to eq("https://example.com")
+    end
+
+    it "keeps a non-default port" do
+      expect(ApplicationController.normalize_origin("http://localhost:3000"))
+        .to eq("http://localhost:3000")
+    end
+
+    it "strips surrounding whitespace" do
+      expect(ApplicationController.normalize_origin(" https://example.com "))
+        .to eq("https://example.com")
+    end
+
+    it "leaves an already-normalized origin unchanged" do
+      expect(ApplicationController.normalize_origin("https://develop.example.com"))
+        .to eq("https://develop.example.com")
+    end
+  end
 end

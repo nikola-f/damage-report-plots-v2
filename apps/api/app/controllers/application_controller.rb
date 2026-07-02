@@ -1,9 +1,18 @@
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::API
+  # Browsers serialize the Origin header as scheme://host[:port] — no path,
+  # no trailing slash, no default port. Normalize configured values the same
+  # way so entries like "https://example.com/" still match.
+  def self.normalize_origin(origin)
+    uri  = URI.parse(origin.strip)
+    port = uri.port == uri.default_port ? "" : ":#{uri.port}"
+    "#{uri.scheme}://#{uri.host}#{port}"
+  end
+
   # CORS allowed origins double as the legitimate browser origins for
   # state-changing requests (the SPA and API share an origin via CloudFront).
-  ALLOWED_ORIGINS = Settings.allowed_origins.split(",").freeze
+  ALLOWED_ORIGINS = Settings.allowed_origins.split(",").map { |o| normalize_origin(o) }.freeze
 
   before_action :verify_origin!
 
