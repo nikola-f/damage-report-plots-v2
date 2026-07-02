@@ -50,11 +50,12 @@ Rails.application.configure do
   config.i18n.fallbacks = true
 
   # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
+  # CloudFront forwards the viewer's Host header to the ALB (AllViewer origin
+  # request policy), so the hosts this app legitimately serves are exactly the
+  # CORS allowed origins' hosts.
+  config.hosts = Settings.allowed_origins.split(",").map { |origin| URI.parse(origin).host }
+
   # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  # ALB health checks address the target by IP, which would otherwise be blocked.
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

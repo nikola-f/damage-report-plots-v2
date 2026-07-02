@@ -20,9 +20,9 @@ RSpec.describe SpreadsheetSyncWorker do
 
   before do
     allow(REDIS).to receive(:set)
-      .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: Settings.spreadsheet_sync_worker_lock_ttl)
+      .with(SpreadsheetSyncWorker::LOCK_KEY, kind_of(String), nx: true, ex: Settings.spreadsheet_sync_worker_lock_ttl)
       .and_return("OK")
-    allow(REDIS).to receive(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
+    allow(REDIS).to receive(:eval)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(sqs_client)
     allow(sqs_client).to receive(:receive_messages).and_return([message], [])
     allow(sqs_client).to receive(:delete_messages)
@@ -132,7 +132,7 @@ RSpec.describe SpreadsheetSyncWorker do
     context "when the lock is already held by another worker" do
       before do
         allow(REDIS).to receive(:set)
-          .with(SpreadsheetSyncWorker::LOCK_KEY, "1", nx: true, ex: Settings.spreadsheet_sync_worker_lock_ttl)
+          .with(SpreadsheetSyncWorker::LOCK_KEY, kind_of(String), nx: true, ex: Settings.spreadsheet_sync_worker_lock_ttl)
           .and_return(nil)
       end
 
@@ -150,13 +150,15 @@ RSpec.describe SpreadsheetSyncWorker do
     context "when the lock is acquired" do
       it "releases the lock in ensure" do
         described_class.new.perform
-        expect(REDIS).to have_received(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
+        expect(REDIS).to have_received(:eval)
+          .with(PollingWorker::RELEASE_LOCK_SCRIPT, keys: [SpreadsheetSyncWorker::LOCK_KEY], argv: [kind_of(String)])
       end
 
       it "releases the lock even when processing raises" do
         allow(sqs_client).to receive(:receive_messages).and_raise(RuntimeError)
         expect { described_class.new.perform }.to raise_error(RuntimeError)
-        expect(REDIS).to have_received(:del).with(SpreadsheetSyncWorker::LOCK_KEY)
+        expect(REDIS).to have_received(:eval)
+          .with(PollingWorker::RELEASE_LOCK_SCRIPT, keys: [SpreadsheetSyncWorker::LOCK_KEY], argv: [kind_of(String)])
       end
     end
   end
