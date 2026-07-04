@@ -13,6 +13,10 @@ const PENDING_SYNC_KEY = "pendingSync";
 const PENDING_COPY_KEY = "pendingCopy";
 const QUEUE_GREEN_MAX = 10;
 const QUEUE_RED_MIN = 61;
+// Minimum remaining token lifetime to run sync without re-authorizing first;
+// workers keep using the token while the pipeline drains, so it must outlive
+// the whole run, not just the POST /api/v1/sync call.
+const SYNC_TOKEN_MARGIN_S = 30 * 60;
 
 function queueLevel(available: number): QueueLevel {
   if (available <= QUEUE_GREEN_MAX) return "green";
@@ -49,6 +53,14 @@ export default function App() {
       .finally(() => setAuthLoading(false));
   }, []);
 
+  async function refreshStatus(): Promise<AppStatus> {
+    const s = await getStatus();
+    setStatus(s);
+    const total = s.app.sqs_queues.thread_ids + s.app.sqs_queues.reports;
+    setQueueStatus(queueLevel(total));
+    return s;
+  }
+
   useEffect(() => {
     if (!profile) {
       setQueueStatus(null);
@@ -56,18 +68,11 @@ export default function App() {
       return;
     }
 
-    function fetchStatus() {
-      getStatus()
-        .then((s) => {
-          setStatus(s);
-          const total = s.app.sqs_queues.thread_ids + s.app.sqs_queues.reports;
-          setQueueStatus(queueLevel(total));
-        })
-        .catch(console.error);
-    }
-
-    fetchStatus();
-    const timerId = setInterval(fetchStatus, STATUS_POLL_INTERVAL_MS);
+    refreshStatus().catch(console.error);
+    const timerId = setInterval(
+      () => refreshStatus().catch(console.error),
+      STATUS_POLL_INTERVAL_MS,
+    );
     return () => clearInterval(timerId);
   }, [profile]);
 
@@ -96,39 +101,69 @@ export default function App() {
     setProfile(null);
   }
 
-  // Refresh the access token first (TTL counts from now), then resume the sync
-  // after Google redirects us back. The redirect unloads the page, so the
-  // actual POST /api/v1/sync happens in runSync on return.
+  // Refresh the access token (TTL counts from now), then resume the sync after
+  // Google redirects us back. The redirect unloads the page, so the actual
+  // POST /api/v1/sync happens in runSync on return.
+  async function redirectToSyncGrant() {
+    const authorizationUrl = await grantSync();
+    sessionStorage.setItem(PENDING_SYNC_KEY, "1");
+    window.location.href = authorizationUrl;
+  }
+
+  // Sync directly when the current token comfortably outlives the pipeline
+  // (enough TTL left, queues near-idle); otherwise re-authorize via Google
+  // first so the workers get a fresh token.
   async function handleSync() {
     setSyncStatus("loading");
     setSyncMessage("");
     try {
-      const authorizationUrl = await grantSync();
-      sessionStorage.setItem(PENDING_SYNC_KEY, "1");
-      window.location.href = authorizationUrl;
+      let direct = false;
+      try {
+        const s = await refreshStatus();
+        const expiresAt = s.user.scope_expires_at.sync;
+        const total = s.app.sqs_queues.thread_ids + s.app.sqs_queues.reports;
+        direct =
+          expiresAt !== null &&
+          expiresAt * 1000 - Date.now() >= SYNC_TOKEN_MARGIN_S * 1000 &&
+          queueLevel(total) === "green";
+      } catch {
+        // Can't tell whether the token is still fresh; take the redirect path.
+      }
+      if (direct) {
+        await runSync({ allowReauthRedirect: true });
+      } else {
+        await redirectToSyncGrant();
+      }
     } catch (err) {
       setSyncStatus("error");
       setSyncMessage(err instanceof Error ? err.message : "Sync failed.");
     }
   }
 
-  async function runSync() {
+  async function runSync({ allowReauthRedirect = false } = {}) {
     setSyncStatus("loading");
     setSyncMessage("");
     try {
       await sync();
       setSyncStatus("success");
       setSyncMessage("Sync started successfully.");
-      getStatus()
-        .then((s) => {
-          setStatus(s);
-          const total = s.app.sqs_queues.thread_ids + s.app.sqs_queues.reports;
-          setQueueStatus(queueLevel(total));
-        })
-        .catch(console.error);
+      refreshStatus().catch(console.error);
     } catch (err) {
-      setSyncStatus("error");
       const message = err instanceof Error ? err.message : "Sync failed.";
+      if (message === "reauthorization_required" && allowReauthRedirect) {
+        // The token was evicted between the status check and the call; fall
+        // back to the grant redirect once (the resume path clears the flag,
+        // so this can't loop).
+        try {
+          await redirectToSyncGrant();
+          return;
+        } catch (grantErr) {
+          setSyncStatus("error");
+          setSyncMessage(grantErr instanceof Error ? grantErr.message : "Authorization failed.");
+          return;
+        }
+      }
+      setSyncStatus("error");
       // The server rejects sync when the Google token has been evicted. We just
       // returned from a re-auth redirect, so avoid looping: ask the user to retry.
       setSyncMessage(
