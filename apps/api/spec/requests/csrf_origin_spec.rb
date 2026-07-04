@@ -9,8 +9,8 @@ RSpec.describe "Origin verification", type: :request do
   let(:allowed_origin) { Settings.allowed_origins.split(",").first }
   let(:evil_origin)    { "https://evil.example" }
 
-  let(:access_token_store)   { instance_double(UserStore, fetch: "ya29.token", store: nil) }
-  let(:spreadsheet_id_store) { instance_double(UserStore, fetch: "spreadsheet-id") }
+  let(:access_token_store)   { instance_double(UserStore, fetch: "ya29.token", fetch_or_nil: "ya29.token", store: nil) }
+  let(:spreadsheet_id_store) { instance_double(UserStore, fetch_or_nil: "spreadsheet-id") }
   let(:counter_store)        { instance_double(UserStore, store: nil) }
   let(:last_synced_at_store) { instance_double(UserStore, store: nil) }
 
@@ -25,8 +25,8 @@ RSpec.describe "Origin verification", type: :request do
       portals_appended:          counter_store,
       threads_max_internal_date: instance_double(UserStore)
     )
-    allow(UserStore.threads_max_internal_date).to receive(:fetch).and_raise(KeyError)
-    allow(last_synced_at_store).to receive(:fetch).and_raise(KeyError)
+    allow(UserStore.threads_max_internal_date).to receive(:fetch_or_nil).and_return(nil)
+    allow(last_synced_at_store).to receive(:fetch_or_nil).and_return(nil)
     allow(GmailThreadListWorker).to receive(:perform_async)
   end
 

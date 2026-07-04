@@ -158,19 +158,11 @@ UserStore.spreadsheet_id.fetch(user_id)        # raises KeyError if not found
 - **Encrypted credentials**: Uses Rails encrypted credentials (apps/api/config/credentials.yml.enc with master.key)
 - **Main branch**: `develop` (use this for pull requests)
 
-### Required Credentials (Encrypted)
-Edit credentials with: `EDITOR=nano bin/rails credentials:edit`
-
-Required structure:
-```yaml
-google:
-  client_id: your_google_client_id
-  client_secret: your_google_client_secret
-```
-
 ### Required Environment Variables
 ```bash
 ALLOWED_ORIGINS=http://localhost:3000,https://yourfrontend.com
+GOOGLE_CLIENT_ID=your_google_client_id         # read by config/initializers/omniauth.rb
+GOOGLE_CLIENT_SECRET=your_google_client_secret # (in ECS both are injected from Secrets Manager)
 ```
 
 ### Dependencies

@@ -37,6 +37,20 @@ class GmailThreadBatchWorker
     thread_ids = JSON.parse(message.body)
     logger.info "sqs_message_id=#{message.message_id} threads=#{thread_ids.size} user=#{user_id}"
 
+    portals, max_date = extract_portals(user_id, thread_ids)
+    enqueue_portals(user_id, portals, portal_sqs)
+    advance_resume_point(user_id, max_date)
+
+    thread_sqs.delete_messages(message.receipt_handle)
+    logger.debug "deleted thread_ids message for user #{user_id}"
+
+    processed_total = UserStore.threads_processed.increment(user_id, by: thread_ids.size)
+    record_completion(user_id, processed_total)
+  end
+
+  # Fetches the threads and extracts damage-report portals, logging timing and
+  # memory instrumentation. Returns the portals and the max internalDate seen.
+  def extract_portals(user_id, thread_ids)
     access_token = UserStore.access_token.fetch(user_id)
 
     t_start      = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -60,46 +74,40 @@ class GmailThreadBatchWorker
     alloc_objs = GC.stat(:total_allocated_objects) - alloc_base
     logger.debug "user=#{user_id} threads=#{thread_ids.size} rss_base=#{rss_base}MB rss_peak=#{rss_peak}MB rss_now=#{current_rss_mb}MB alloc_objs=#{alloc_objs} gc_runs=#{GC.count - gc_base} vmhwm=#{peak_rss_mb}MB"
 
+    [portals, max_date]
+  end
+
+  def enqueue_portals(user_id, portals, portal_sqs)
     unique_portals = DamageReportRecord.deduplicate(portals)
-    if unique_portals.any?
-      t_sqs = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      portal_sqs.send_messages(unique_portals.map(&:to_h),
-                               attributes: { UserStore::USER_ID_ATTR => user_id })
-      sqs_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_sqs) * 1000).round
-      logger.info "user=#{user_id} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
-      UserStore.portals_found.increment(user_id, by: unique_portals.size)
-    end
+    return if unique_portals.empty?
 
-    current_max = begin
-      UserStore.threads_max_internal_date.fetch(user_id).to_i
-    rescue KeyError
-      0
-    end
+    t_sqs = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    portal_sqs.send_messages(unique_portals.map(&:to_h),
+                             attributes: { UserStore::USER_ID_ATTR => user_id })
+    sqs_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_sqs) * 1000).round
+    logger.info "user=#{user_id} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
+    UserStore.portals_found.increment(user_id, by: unique_portals.size)
+  end
+
+  # The resume point is forward-only so out-of-order messages cannot move it
+  # backwards.
+  def advance_resume_point(user_id, max_date)
+    current_max = UserStore.threads_max_internal_date.fetch_or_nil(user_id).to_i
     UserStore.threads_max_internal_date.store(user_id, max_date.to_s) if max_date > current_max
+  end
 
-    thread_sqs.delete_messages(message.receipt_handle)
-    logger.debug "deleted thread_ids message for user #{user_id}"
-    processed_total = UserStore.threads_processed.increment(user_id, by: thread_ids.size)
+  # Record last_processed_at once, when this sync run's batch stage finishes
+  # (all discovered threads processed). Stamping per message would make the
+  # timestamp climb throughout the drain; because a 429-rejected re-sync happens
+  # while the previous run is still draining, that climb would surface in the
+  # status endpoint as if the rejected sync had advanced "Sync finished". The
+  # forward-only guard tolerates clock skew and repeated completion stamps.
+  def record_completion(user_id, processed_total)
+    found = UserStore.threads_found.fetch_or_nil(user_id).to_i
+    return unless found.positive? && processed_total >= found
 
-    # Record last_processed_at once, when this sync run's batch stage finishes
-    # (all discovered threads processed). Stamping per message would make the
-    # timestamp climb throughout the drain; because a 429-rejected re-sync happens
-    # while the previous run is still draining, that climb would surface in the
-    # status endpoint as if the rejected sync had advanced "Sync finished". The
-    # forward-only guard tolerates clock skew and repeated completion stamps.
-    found = begin
-      UserStore.threads_found.fetch(user_id).to_i
-    rescue KeyError
-      0
-    end
-    if found.positive? && processed_total >= found
-      now = Time.now.to_i
-      last_processed = begin
-        UserStore.last_processed_at.fetch(user_id).to_i
-      rescue KeyError
-        0
-      end
-      UserStore.last_processed_at.store(user_id, now.to_s) if last_processed < now
-    end
+    now = Time.now.to_i
+    last_processed = UserStore.last_processed_at.fetch_or_nil(user_id).to_i
+    UserStore.last_processed_at.store(user_id, now.to_s) if last_processed < now
   end
 end

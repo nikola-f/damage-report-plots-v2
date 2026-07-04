@@ -16,11 +16,17 @@ class EmailHtmlDecoder
 
   PORTAL_XPATH = "//tbody/tr/td[div/a[contains(@href,'ingress.com/intel')]]"
 
+  MILLIS_PER_DAY = 86_400_000
+  # 1 day = 86,400 s = 864 × 100 s. internalDate (ms) is truncated to the UTC
+  # day and stored in 100-second units; same-day reports of the same portal
+  # then collapse in DamageReportRecord.deduplicate.
+  DAY_IN_HUNDRED_SECONDS = 864
+
   # Extracts all attacked portals from an Ingress damage report email.
-  # @param internal_date [String, nil] internalDate from the Gmail message
+  # @param internal_date [String, nil] internalDate from the Gmail message (ms)
   # @return [Array<DamageReportRecord>]
   def extract_portals(internal_date: nil)
-    truncated_date = internal_date && internal_date.to_i / 86_400_000 * 864
+    truncated_date = internal_date && internal_date.to_i / MILLIS_PER_DAY * DAY_IN_HUNDRED_SECONDS
     agent_name = extract("//span[contains(text(),'Agent Name:')]/following-sibling::span[1]")&.strip
     extract_nodes(PORTAL_XPATH) do |node|
       owner     = node.extract("../following-sibling::tr[contains(.,'Owner:')]", inner_text: true)

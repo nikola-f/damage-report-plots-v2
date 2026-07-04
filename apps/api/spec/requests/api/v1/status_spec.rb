@@ -5,16 +5,16 @@ require "rails_helper"
 RSpec.describe "GET /api/v1/status", type: :request do
   # --- UserStatusData stubs ---
   let(:access_token_store)      { instance_double(UserStore, store: nil) }
-  let(:spreadsheet_id_store)    { instance_double(UserStore, fetch: "spreadsheet-id") }
-  let(:last_synced_at_store)    { instance_double(UserStore, fetch: "1744908000") }
-  let(:last_processed_at_store) { instance_double(UserStore, fetch: "1744908600") }
+  let(:spreadsheet_id_store)    { instance_double(UserStore, fetch_or_nil: "spreadsheet-id") }
+  let(:last_synced_at_store)    { instance_double(UserStore, fetch_or_nil: "1744908000") }
+  let(:last_processed_at_store) { instance_double(UserStore, fetch_or_nil: "1744908600") }
   let(:scope_spreadsheets_store){ instance_double(UserStore) }
   let(:scope_sync_store)        { instance_double(UserStore) }
-  let(:threads_found_store)     { instance_double(UserStore, fetch: "1500") }
-  let(:threads_processed_store) { instance_double(UserStore, fetch: "320") }
-  let(:portals_found_store)              { instance_double(UserStore, fetch: "980") }
-  let(:portals_appended_store)           { instance_double(UserStore, fetch: "750") }
-  let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch: "1700000000000") }
+  let(:threads_found_store)     { instance_double(UserStore, fetch_or_nil: "1500") }
+  let(:threads_processed_store) { instance_double(UserStore, fetch_or_nil: "320") }
+  let(:portals_found_store)              { instance_double(UserStore, fetch_or_nil: "980") }
+  let(:portals_appended_store)           { instance_double(UserStore, fetch_or_nil: "750") }
+  let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch_or_nil: "1700000000000") }
 
   # --- ApplicationStatusData stubs ---
   let(:report_sqs) { instance_double(SqsClient, queue_depth: { available: 3, in_flight: 1 }) }
@@ -32,8 +32,8 @@ RSpec.describe "GET /api/v1/status", type: :request do
     allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
     allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
     allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
-    allow(scope_spreadsheets_store).to receive(:fetch).and_raise(KeyError)
-    allow(scope_sync_store).to receive(:fetch).and_raise(KeyError)
+    allow(scope_spreadsheets_store).to receive(:fetch_or_nil).and_return(nil)
+    allow(scope_sync_store).to receive(:fetch_or_nil).and_return(nil)
 
     allow(SqsClient).to receive(:new).with(Settings.sqs_thread_ids_queue_url).and_return(report_sqs)
     allow(SqsClient).to receive(:new).with(Settings.sqs_reports_queue_url).and_return(portal_sqs)
@@ -93,7 +93,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
       end
 
       context "when no spreadsheet exists" do
-        before { allow(spreadsheet_id_store).to receive(:fetch).and_raise(KeyError) }
+        before { allow(spreadsheet_id_store).to receive(:fetch_or_nil).and_return(nil) }
 
         it "returns spreadsheet_exists false" do
           get "/api/v1/status"
@@ -103,7 +103,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
       end
 
       context "when sync has never been run" do
-        before { allow(last_synced_at_store).to receive(:fetch).and_raise(KeyError) }
+        before { allow(last_synced_at_store).to receive(:fetch_or_nil).and_return(nil) }
 
         it "returns last_synced_at null" do
           get "/api/v1/status"
@@ -119,7 +119,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
       end
 
       context "when no threads have been processed yet" do
-        before { allow(last_processed_at_store).to receive(:fetch).and_raise(KeyError) }
+        before { allow(last_processed_at_store).to receive(:fetch_or_nil).and_return(nil) }
 
         it "returns last_processed_at null" do
           get "/api/v1/status"
@@ -129,7 +129,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
       end
 
       context "when threads_found has not been stored" do
-        before { allow(threads_found_store).to receive(:fetch).and_raise(KeyError) }
+        before { allow(threads_found_store).to receive(:fetch_or_nil).and_return(nil) }
 
         it "returns threads_found null" do
           get "/api/v1/status"
@@ -139,7 +139,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
       end
 
       context "when portals_appended has not been stored" do
-        before { allow(portals_appended_store).to receive(:fetch).and_raise(KeyError) }
+        before { allow(portals_appended_store).to receive(:fetch_or_nil).and_return(nil) }
 
         it "returns portals_appended null" do
           get "/api/v1/status"
@@ -155,7 +155,7 @@ RSpec.describe "GET /api/v1/status", type: :request do
       end
 
       context "when threads_max_internal_date has not been stored" do
-        before { allow(threads_max_internal_date_store).to receive(:fetch).and_raise(KeyError) }
+        before { allow(threads_max_internal_date_store).to receive(:fetch_or_nil).and_return(nil) }
 
         it "returns threads_max_internal_date null" do
           get "/api/v1/status"
@@ -168,8 +168,8 @@ RSpec.describe "GET /api/v1/status", type: :request do
         let(:expires_at) { 1_744_567_890 }
 
         before do
-          allow(scope_spreadsheets_store).to receive(:fetch).and_return(expires_at.to_s)
-          allow(scope_sync_store).to receive(:fetch).and_return(expires_at.to_s)
+          allow(scope_spreadsheets_store).to receive(:fetch_or_nil).and_return(expires_at.to_s)
+          allow(scope_sync_store).to receive(:fetch_or_nil).and_return(expires_at.to_s)
         end
 
         it "returns the expiry epoch for both spreadsheets and sync" do
