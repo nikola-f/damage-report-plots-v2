@@ -319,6 +319,9 @@ resource "aws_iam_role_policy" "cloudfront_frontend" {
           "cloudfront:CreateResponseHeadersPolicy", "cloudfront:DeleteResponseHeadersPolicy",
           "cloudfront:GetResponseHeadersPolicy", "cloudfront:GetResponseHeadersPolicyConfig",
           "cloudfront:UpdateResponseHeadersPolicy", "cloudfront:ListResponseHeadersPolicies",
+          "cloudfront:CreateFunction", "cloudfront:DeleteFunction",
+          "cloudfront:DescribeFunction", "cloudfront:GetFunction",
+          "cloudfront:PublishFunction", "cloudfront:UpdateFunction", "cloudfront:ListFunctions",
         ]
         Resource = "*"
       }

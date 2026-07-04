@@ -78,6 +78,15 @@ resource "aws_cloudfront_response_headers_policy" "frontend_security" {
   }
 }
 
+# SPA routing scoped to the S3 behavior (see functions/spa_rewrite.js).
+resource "aws_cloudfront_function" "spa_rewrite" {
+  name    = "${local.name_prefix}-spa-rewrite"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrite extensionless paths to /index.html for SPA routing"
+  publish = true
+  code    = file("${path.module}/functions/spa_rewrite.js")
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -117,6 +126,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     # CachingOptimized
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security.id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_rewrite.arn
+    }
   }
 
   # /api/* → ALB
@@ -147,20 +161,9 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
   }
 
-  # SPA routing: serve index.html for 403/404 from S3
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
-
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
+  # SPA routing is handled by the spa_rewrite viewer-request function on the
+  # S3 behavior. No distribution-wide custom_error_response: it would also
+  # rewrite /api/* and /auth/* error responses into HTML 200s.
 
   restrictions {
     geo_restriction {
