@@ -152,11 +152,38 @@ RSpec.describe SpreadsheetsClient do
     end
   end
 
+  describe "#get_values" do
+    # A range whose characters are invalid raw in a URI (space) pins the
+    # requirement that path segments are URL-encoded before interpolation:
+    # without encoding, URI() raises URI::InvalidURIError.
+    let(:range)      { "'my plots'!A:F" }
+    let(:values_url) do
+      "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet_id}/values/%27my%20plots%27%21A%3AF"
+    end
+
+    before do
+      stub_request(:get, values_url)
+        .with(query: { "valueRenderOption" => "UNFORMATTED_VALUE" })
+        .to_return(
+          status:  200,
+          body:    { "values" => [[35.0, 139.0]] }.to_json,
+          headers: { "Content-Type" => "application/json" }
+        )
+    end
+
+    it "URL-encodes the range path segment" do
+      result = client.get_values(spreadsheet_id:, range:)
+
+      expect(result).to eq([[35.0, 139.0]])
+    end
+  end
+
   describe "#append_rows" do
     let(:sheet_name) { "reports" }
     let(:rows)       { [%w[ハチ公 35.659054 139.700583 false 1700000000000]] }
+    # "!" is percent-encoded: path segments are URL-encoded before interpolation.
     let(:append_url) do
-      "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet_id}/values/#{sheet_name}!A1:append"
+      "https://sheets.googleapis.com/v4/spreadsheets/#{spreadsheet_id}/values/#{sheet_name}%21A1:append"
     end
 
     context "when the API returns 200" do

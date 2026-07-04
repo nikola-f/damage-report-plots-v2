@@ -2,6 +2,7 @@
 
 require "net/http"
 require "json"
+require "erb"
 
 # Shared HTTP layer for Google REST APIs: Bearer auth, TLS, JSON, and error
 # mapping. Subclasses define BASE_URL, API_NAME and an ApiError class.
@@ -28,6 +29,12 @@ class GoogleApiClient
     request["Content-Type"] = "application/json"
     request.body = JSON.generate(body)
     perform_json(uri, request)
+  end
+
+  # Percent-encodes one path segment (also encodes "/", "!", ":", etc.) so
+  # values interpolated into a path cannot alter the request target.
+  def encode(segment)
+    ERB::Util.url_encode(segment.to_s)
   end
 
   def build_uri(path, query)
