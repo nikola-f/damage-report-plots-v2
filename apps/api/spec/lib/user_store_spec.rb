@@ -24,6 +24,24 @@ RSpec.describe UserStore do
         end
       end
     end
+
+    describe "#fetch_or_nil" do
+      context "when the value exists" do
+        before { allow(redis).to receive(:get).with("#{key_prefix}:#{user_id}").and_return("stored-value") }
+
+        it "returns the value" do
+          expect(store.fetch_or_nil(user_id)).to eq("stored-value")
+        end
+      end
+
+      context "when the value does not exist" do
+        before { allow(redis).to receive(:get).and_return(nil) }
+
+        it "returns nil" do
+          expect(store.fetch_or_nil(user_id)).to be_nil
+        end
+      end
+    end
   end
 
   describe ".access_token" do
@@ -180,6 +198,19 @@ RSpec.describe UserStore do
   describe "value stores" do
     it "do not respond to #increment" do
       expect(described_class.access_token(redis:)).not_to respond_to(:increment)
+    end
+  end
+
+  describe "COUNTER_STORE_NAMES" do
+    it "lists exactly the counter-backed stores" do
+      expect(described_class::COUNTER_STORE_NAMES)
+        .to contain_exactly(:threads_found, :threads_processed, :portals_found, :portals_appended)
+    end
+  end
+
+  describe "ACCESS_TOKEN_TTL" do
+    it "matches the Google access token lifetime" do
+      expect(described_class::ACCESS_TOKEN_TTL).to eq(3600)
     end
   end
 end

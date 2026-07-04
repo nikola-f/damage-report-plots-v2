@@ -5,55 +5,33 @@ module UserStatusData
 
   def user_status
     {
-      spreadsheet_exists: spreadsheet_exists?,
-      last_synced_at:     last_synced_at_value,
-      last_processed_at:  last_processed_at_value,
-      threads_found:      fetch_count(UserStore.threads_found),
-      threads_processed:  fetch_count(UserStore.threads_processed),
-      portals_found:              fetch_count(UserStore.portals_found),
-      portals_appended:           fetch_count(UserStore.portals_appended),
-      threads_max_internal_date:  threads_max_internal_date_value,
-      scope_expires_at:           {
-        spreadsheets: scope_expires_at_value(UserStore.scope_spreadsheets),
-        sync:         scope_expires_at_value(UserStore.scope_sync)
+      spreadsheet_exists:        spreadsheet_exists?,
+      last_synced_at:            fetch_int(UserStore.last_synced_at),
+      last_processed_at:         fetch_int(UserStore.last_processed_at),
+      threads_found:             fetch_int(UserStore.threads_found),
+      threads_processed:         fetch_int(UserStore.threads_processed),
+      portals_found:             fetch_int(UserStore.portals_found),
+      portals_appended:          fetch_int(UserStore.portals_appended),
+      threads_max_internal_date: threads_max_internal_date_value,
+      scope_expires_at:          {
+        spreadsheets: fetch_int(UserStore.scope_spreadsheets),
+        sync:         fetch_int(UserStore.scope_sync)
       }
     }
   end
 
   def spreadsheet_exists?
-    UserStore.spreadsheet_id.fetch(current_user_id)
-    true
-  rescue KeyError
-    false
+    !UserStore.spreadsheet_id.fetch_or_nil(current_user_id).nil?
   end
 
-  def last_synced_at_value
-    UserStore.last_synced_at.fetch(current_user_id).to_i
-  rescue KeyError
-    nil
-  end
-
-  def last_processed_at_value
-    UserStore.last_processed_at.fetch(current_user_id).to_i
-  rescue KeyError
-    nil
-  end
-
-  def scope_expires_at_value(store)
-    store.fetch(current_user_id).to_i
-  rescue KeyError
-    nil
-  end
-
+  # Gmail internalDate is in milliseconds; expose a Unix epoch in seconds.
   def threads_max_internal_date_value
-    UserStore.threads_max_internal_date.fetch(current_user_id).to_i / 1000
-  rescue KeyError
-    nil
+    value = UserStore.threads_max_internal_date.fetch_or_nil(current_user_id)
+    value && value.to_i / 1000
   end
 
-  def fetch_count(store)
-    store.fetch(current_user_id).to_i
-  rescue KeyError
-    nil
+  # @return [Integer, nil] the stored value as an integer, nil when absent
+  def fetch_int(store)
+    store.fetch_or_nil(current_user_id)&.to_i
   end
 end

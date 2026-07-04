@@ -34,10 +34,10 @@ RSpec.describe GmailThreadBatchWorker do
   # increment returns the new total (Redis INCRBY); default reaches threads_found
   # so the run counts as complete and last_processed_at is recorded.
   let(:threads_processed_store)          { instance_double(UserStore::CounterStore, increment: thread_ids.size) }
-  let(:threads_found_store)              { instance_double(UserStore, fetch: thread_ids.size.to_s) }
+  let(:threads_found_store)              { instance_double(UserStore, fetch_or_nil: thread_ids.size.to_s) }
   let(:portals_found_store)              { instance_double(UserStore::CounterStore, increment: nil) }
-  let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch: "0", store: nil) }
-  let(:last_processed_at_store)          { instance_double(UserStore, fetch: "0", store: nil) }
+  let(:threads_max_internal_date_store)  { instance_double(UserStore, fetch_or_nil: "0", store: nil) }
+  let(:last_processed_at_store)          { instance_double(UserStore, fetch_or_nil: "0", store: nil) }
 
   before do
     allow(REDIS).to receive(:set)
@@ -118,7 +118,7 @@ RSpec.describe GmailThreadBatchWorker do
 
     context "when more threads were found than have been processed" do
       let(:threads_processed_store) { instance_double(UserStore::CounterStore, increment: thread_ids.size) }
-      let(:threads_found_store)     { instance_double(UserStore, fetch: (thread_ids.size * 10).to_s) }
+      let(:threads_found_store)     { instance_double(UserStore, fetch_or_nil: (thread_ids.size * 10).to_s) }
 
       it "does not update last_processed_at while the run is still in progress" do
         allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
@@ -129,7 +129,7 @@ RSpec.describe GmailThreadBatchWorker do
     end
 
     context "when no threads were found for the run" do
-      let(:threads_found_store) { instance_double(UserStore, fetch: "0") }
+      let(:threads_found_store) { instance_double(UserStore, fetch_or_nil: "0") }
 
       it "does not update last_processed_at" do
         allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
@@ -140,7 +140,7 @@ RSpec.describe GmailThreadBatchWorker do
     end
 
     context "when last_processed_at is already at or after the current time" do
-      let(:last_processed_at_store) { instance_double(UserStore, fetch: "9999999999", store: nil) }
+      let(:last_processed_at_store) { instance_double(UserStore, fetch_or_nil: "9999999999", store: nil) }
 
       it "does not move last_processed_at backward" do
         allow(Time).to receive(:now).and_return(Time.at(1_700_000_500))
@@ -151,7 +151,7 @@ RSpec.describe GmailThreadBatchWorker do
     end
 
     context "when the stored max exceeds the new internal_date" do
-      let(:threads_max_internal_date_store) { instance_double(UserStore, fetch: "9999999999999", store: nil) }
+      let(:threads_max_internal_date_store) { instance_double(UserStore, fetch_or_nil: "9999999999999", store: nil) }
 
       it "does not update threads_max_internal_date" do
         described_class.new.perform

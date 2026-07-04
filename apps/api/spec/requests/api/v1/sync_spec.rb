@@ -3,8 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "POST /api/v1/sync", type: :request do
-  let(:access_token_store)    { instance_double(UserStore, fetch: "ya29.token", store: nil) }
-  let(:spreadsheet_id_store)  { instance_double(UserStore, fetch: "spreadsheet-id", store: nil) }
+  let(:access_token_store)    { instance_double(UserStore, fetch: "ya29.token", fetch_or_nil: "ya29.token", store: nil) }
+  let(:spreadsheet_id_store)  { instance_double(UserStore, fetch_or_nil: "spreadsheet-id", store: nil) }
   let(:last_synced_at_store)  { instance_double(UserStore, store: nil) }
   let(:threads_found_store)     { instance_double(UserStore, store: nil) }
   let(:threads_processed_store) { instance_double(UserStore, store: nil) }
@@ -22,8 +22,8 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     allow(UserStore).to receive(:portals_found).and_return(portals_found_store)
     allow(UserStore).to receive(:portals_appended).and_return(portals_appended_store)
     allow(UserStore).to receive(:threads_max_internal_date).and_return(threads_max_internal_date_store)
-    allow(threads_max_internal_date_store).to receive(:fetch).and_raise(KeyError)
-    allow(last_synced_at_store).to receive(:fetch).and_raise(KeyError)
+    allow(threads_max_internal_date_store).to receive(:fetch_or_nil).and_return(nil)
+    allow(last_synced_at_store).to receive(:fetch_or_nil).and_return(nil)
     allow(SpreadsheetsClient).to receive(:new).and_return(sheets_client)
     allow(GmailThreadListWorker).to receive(:perform_async)
   end
@@ -77,7 +77,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     end
 
     context "when spreadsheet does not exist" do
-      before { allow(spreadsheet_id_store).to receive(:fetch).and_raise(KeyError) }
+      before { allow(spreadsheet_id_store).to receive(:fetch_or_nil).and_return(nil) }
 
       it "creates a spreadsheet and stores the ID" do
         post "/api/v1/sync"
@@ -96,7 +96,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
     end
 
     context "when the access token is missing (evicted from Redis)" do
-      before { allow(access_token_store).to receive(:fetch).and_raise(KeyError) }
+      before { allow(access_token_store).to receive(:fetch_or_nil).and_return(nil) }
 
       it "returns 401 with a reauthorization_required error" do
         post "/api/v1/sync"
@@ -121,7 +121,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
 
     context "when a previous sync started within the minimum interval" do
       before do
-        allow(last_synced_at_store).to receive(:fetch)
+        allow(last_synced_at_store).to receive(:fetch_or_nil)
           .and_return((Time.now.to_i - 5).to_s)
       end
 
@@ -143,7 +143,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
 
     context "when the minimum interval has elapsed since the last sync" do
       before do
-        allow(last_synced_at_store).to receive(:fetch)
+        allow(last_synced_at_store).to receive(:fetch_or_nil)
           .and_return((Time.now.to_i - Settings.sync_min_interval - 1).to_s)
       end
 
@@ -157,7 +157,7 @@ RSpec.describe "POST /api/v1/sync", type: :request do
 
     context "when threads_max_internal_date exists" do
       before do
-        allow(threads_max_internal_date_store).to receive(:fetch)
+        allow(threads_max_internal_date_store).to receive(:fetch_or_nil)
           .and_return((Time.utc(2024, 1, 1).to_i * 1000).to_s)
       end
 

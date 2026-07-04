@@ -12,8 +12,6 @@ class SessionsController < ApplicationController
     SYNC_SCOPE         => %i[scope_spreadsheets scope_sync]
   }.freeze
 
-  ACCESS_TOKEN_TTL = 3600 # seconds — matches Google OAuth access token lifetime
-
   def google_oauth2
     # This endpoint redirects to Google OAuth
     # In an API-only app, clients should use POST to /auth/google_oauth2
@@ -33,7 +31,7 @@ class SessionsController < ApplicationController
       return render json: { error: "Account mismatch during scope upgrade" }, status: :unauthorized if auth["uid"] != user_id
       return render json: { error: "Invalid scope" }, status: :unprocessable_entity unless SCOPE_STORES.key?(scope)
 
-      expires_at = Time.now.to_i + ACCESS_TOKEN_TTL
+      expires_at = Time.now.to_i + UserStore::ACCESS_TOKEN_TTL
       UserStore.access_token.store(user_id, auth["credentials"]["token"])
       SCOPE_STORES[scope].each do |store_name|
         UserStore.public_send(store_name).store(user_id, expires_at.to_s)
@@ -72,17 +70,18 @@ class SessionsController < ApplicationController
     render json: { error: "Authentication failed" }, status: :unauthorized
   end
 
-  def grant_spreadsheets
+  def grant_spreadsheets = grant(SPREADSHEETS_SCOPE)
+
+  def grant_sync = grant(SYNC_SCOPE)
+
+  private
+
+  # Stores the requested scope in the session for the OmniAuth setup phase
+  # (config/initializers/omniauth.rb) and points the client at the OAuth flow.
+  def grant(scope)
     return render json: { error: "Unauthorized" }, status: :unauthorized unless session[:user_id]
 
-    session[:requested_scope] = SPREADSHEETS_SCOPE
-    render json: { authorization_url: "/auth/google_oauth2" }, status: :ok
-  end
-
-  def grant_sync
-    return render json: { error: "Unauthorized" }, status: :unauthorized unless session[:user_id]
-
-    session[:requested_scope] = SYNC_SCOPE
+    session[:requested_scope] = scope
     render json: { authorization_url: "/auth/google_oauth2" }, status: :ok
   end
 end
