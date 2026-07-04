@@ -13,3 +13,7 @@ thread_batch_fetcher_inter_batch_sleep: <%= ENV.fetch('THREAD_BATCH_FETCHER_INTE
 thread_list_worker_thread_id_limit: <%= ENV.fetch('THREAD_LIST_WORKER_THREAD_ID_LIMIT', '6000').to_i %>
 spreadsheet_sync_worker_max_messages_per_run: <%= ENV.fetch('SPREADSHEET_SYNC_WORKER_MAX_MESSAGES_PER_RUN', '3').to_i %>
 sync_min_interval: <%= ENV.fetch('SYNC_MIN_INTERVAL', '300').to_i %>
+rate_limit_global_limit: <%= ENV.fetch('RATE_LIMIT_GLOBAL_LIMIT', '1000').to_i %>
+rate_limit_global_period: <%= ENV.fetch('RATE_LIMIT_GLOBAL_PERIOD', '300').to_i %>
+rate_limit_auth_limit: <%= ENV.fetch('RATE_LIMIT_AUTH_LIMIT', '30').to_i %>
+rate_limit_auth_period: <%= ENV.fetch('RATE_LIMIT_AUTH_PERIOD', '300').to_i %>

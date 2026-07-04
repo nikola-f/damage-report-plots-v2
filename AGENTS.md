@@ -178,6 +178,7 @@ ALLOWED_ORIGINS=http://localhost:3000,https://yourfrontend.com
 - `omniauth-google-oauth2` - Google OAuth2 authentication
 - `omniauth-rails_csrf_protection` - CSRF protection for OmniAuth
 - `rack-cors` - Cross-Origin Resource Sharing support
+- `rack-attack` - Per-client-IP rate limiting (global + `/auth/*`; keys on the CloudFront-appended X-Forwarded-For entry)
 - `redis` - Access token and spreadsheet ID store
 - `aws-sdk-sqs` - Inter-worker messaging
 - `sidekiq` - Background job processing
