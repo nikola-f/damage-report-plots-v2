@@ -4,6 +4,7 @@ class GmailThreadBatchWorker
   include Sidekiq::Worker
   include PollingWorker
   include MemoryInstrumentation
+  include UserIdMasking
 
   sidekiq_options retry: 0
 
@@ -35,14 +36,14 @@ class GmailThreadBatchWorker
   def process_message(message, thread_sqs:, portal_sqs:)
     user_id    = message.message_attributes[UserStore::USER_ID_ATTR].string_value
     thread_ids = JSON.parse(message.body)
-    logger.info "sqs_message_id=#{message.message_id} threads=#{thread_ids.size} user=#{user_id}"
+    logger.info "sqs_message_id=#{message.message_id} threads=#{thread_ids.size} user=#{masked_user_id(user_id)}"
 
     portals, max_date = extract_portals(user_id, thread_ids)
     enqueue_portals(user_id, portals, portal_sqs)
     advance_resume_point(user_id, max_date)
 
     thread_sqs.delete_messages(message.receipt_handle)
-    logger.debug "deleted thread_ids message for user #{user_id}"
+    logger.debug "deleted thread_ids message for user #{masked_user_id(user_id)}"
 
     processed_total = UserStore.threads_processed.increment(user_id, by: thread_ids.size)
     record_completion(user_id, processed_total)
@@ -70,9 +71,9 @@ class GmailThreadBatchWorker
       rss_peak = [rss_peak, current_rss_mb].compact.max
     end
     fetch_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_start) * 1000).round - extract_ms
-    logger.info "user=#{user_id} threads=#{thread_ids.size} fetch=#{fetch_ms}ms extract=#{extract_ms}ms portals=#{portals.size}"
+    logger.info "user=#{masked_user_id(user_id)} threads=#{thread_ids.size} fetch=#{fetch_ms}ms extract=#{extract_ms}ms portals=#{portals.size}"
     alloc_objs = GC.stat(:total_allocated_objects) - alloc_base
-    logger.debug "user=#{user_id} threads=#{thread_ids.size} rss_base=#{rss_base}MB rss_peak=#{rss_peak}MB rss_now=#{current_rss_mb}MB alloc_objs=#{alloc_objs} gc_runs=#{GC.count - gc_base} vmhwm=#{peak_rss_mb}MB"
+    logger.debug "user=#{masked_user_id(user_id)} threads=#{thread_ids.size} rss_base=#{rss_base}MB rss_peak=#{rss_peak}MB rss_now=#{current_rss_mb}MB alloc_objs=#{alloc_objs} gc_runs=#{GC.count - gc_base} vmhwm=#{peak_rss_mb}MB"
 
     [portals, max_date]
   end
@@ -85,7 +86,7 @@ class GmailThreadBatchWorker
     portal_sqs.send_messages(unique_portals.map(&:to_h),
                              attributes: { UserStore::USER_ID_ATTR => user_id })
     sqs_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t_sqs) * 1000).round
-    logger.info "user=#{user_id} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
+    logger.info "user=#{masked_user_id(user_id)} sqs_send unique_portals=#{unique_portals.size} sqs=#{sqs_ms}ms"
     UserStore.portals_found.increment(user_id, by: unique_portals.size)
   end
 

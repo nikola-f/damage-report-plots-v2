@@ -35,6 +35,16 @@ resource "aws_iam_role_policy" "iam_read" {
           "iam:UntagRole",
         ]
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/github-actions-terraform"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicyVersions",
+          "iam:ListPolicyTags",
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/cloudfront-frontend"
       }
     ]
   })
@@ -298,9 +308,10 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
   })
 }
 
-resource "aws_iam_role_policy" "cloudfront_frontend" {
+# Customer managed policy (not inline): the role's inline policies hit the
+# 10,240-byte total limit. Managed policies do not count toward it.
+resource "aws_iam_policy" "cloudfront_frontend" {
   name = "cloudfront-frontend"
-  role = aws_iam_role.github_actions_terraform.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -319,11 +330,19 @@ resource "aws_iam_role_policy" "cloudfront_frontend" {
           "cloudfront:CreateResponseHeadersPolicy", "cloudfront:DeleteResponseHeadersPolicy",
           "cloudfront:GetResponseHeadersPolicy", "cloudfront:GetResponseHeadersPolicyConfig",
           "cloudfront:UpdateResponseHeadersPolicy", "cloudfront:ListResponseHeadersPolicies",
+          "cloudfront:CreateFunction", "cloudfront:DeleteFunction",
+          "cloudfront:DescribeFunction", "cloudfront:GetFunction",
+          "cloudfront:PublishFunction", "cloudfront:UpdateFunction", "cloudfront:ListFunctions",
         ]
         Resource = "*"
       }
     ]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "cloudfront_frontend" {
+  role       = aws_iam_role.github_actions_terraform.name
+  policy_arn = aws_iam_policy.cloudfront_frontend.arn
 }
 
 resource "aws_iam_role_policy" "ecr_ecs_deploy" {

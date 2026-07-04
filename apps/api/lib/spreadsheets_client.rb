@@ -23,7 +23,7 @@ class SpreadsheetsClient < GoogleApiClient
     body = JSON.load_file(PROTECTION_PATH)
     return if body["requests"].empty?
 
-    post("/spreadsheets/#{spreadsheet_id}:batchUpdate", body)
+    post("/spreadsheets/#{encode(spreadsheet_id)}:batchUpdate", body)
   end
 
   # スプレッドシートのメタデータを取得する。
@@ -32,7 +32,7 @@ class SpreadsheetsClient < GoogleApiClient
   # @param spreadsheet_id [String]
   # @return [Hash]
   def get_spreadsheet(spreadsheet_id:)
-    get("/spreadsheets/#{spreadsheet_id}")
+    get("/spreadsheets/#{encode(spreadsheet_id)}")
   end
 
   # 指定範囲の値を取得する。UNFORMATTED_VALUE で数値を数値のまま返す。
@@ -43,7 +43,7 @@ class SpreadsheetsClient < GoogleApiClient
   # @return [Array<Array>] 値の二次元配列 (空なら [])
   def get_values(spreadsheet_id:, range:, value_render_option: "UNFORMATTED_VALUE")
     response = get(
-      "/spreadsheets/#{spreadsheet_id}/values/#{range}",
+      "/spreadsheets/#{encode(spreadsheet_id)}/values/#{encode(range)}",
       query: { valueRenderOption: value_render_option }
     )
     response["values"] || []
@@ -57,7 +57,7 @@ class SpreadsheetsClient < GoogleApiClient
   def append_rows(spreadsheet_id:, sheet_name:, rows:)
     range = "#{sheet_name}!A1"
     post(
-      "/spreadsheets/#{spreadsheet_id}/values/#{range}:append",
+      "/spreadsheets/#{encode(spreadsheet_id)}/values/#{encode(range)}:append",
       { values: rows },
       query: { valueInputOption: "RAW" }
     )

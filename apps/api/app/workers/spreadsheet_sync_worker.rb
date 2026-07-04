@@ -3,6 +3,7 @@
 class SpreadsheetSyncWorker
   include Sidekiq::Worker
   include PollingWorker
+  include UserIdMasking
 
   sidekiq_options retry: 0
 
@@ -26,10 +27,10 @@ class SpreadsheetSyncWorker
         break if messages.empty?
 
         build_batch(messages).each do |user_id, data|
-          logger.debug "received #{data[:records].size} records for user #{user_id}"
+          logger.debug "received #{data[:records].size} records for user #{masked_user_id(user_id)}"
           process(user_id:, records: data[:records])
           sqs.delete_messages(data[:handles])
-          logger.debug "deleted #{data[:handles].size} messages for user #{user_id}"
+          logger.debug "deleted #{data[:handles].size} messages for user #{masked_user_id(user_id)}"
         end
         processed += messages.size
       end
@@ -60,7 +61,7 @@ class SpreadsheetSyncWorker
       rows:           rows
     )
     UserStore.portals_appended.increment(user_id, by: rows.size)
-    logger.debug "appended #{rows.size} rows for user #{user_id}"
+    logger.debug "appended #{rows.size} rows for user #{masked_user_id(user_id)}"
   end
 
   def to_row(record)

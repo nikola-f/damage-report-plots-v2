@@ -57,7 +57,7 @@ class GmailClient < GoogleApiClient
         "Content-Type: application/http\r\n" \
         "Content-ID: <#{index}>\r\n" \
         "\r\n" \
-        "GET /gmail/v1/users/me/threads/#{id}?fields=#{THREAD_FIELDS}\r\n" \
+        "GET /gmail/v1/users/me/threads/#{encode(id)}?fields=#{THREAD_FIELDS}\r\n" \
         "Authorization: Bearer #{@access_token}\r\n" \
         "\r\n"
     end
