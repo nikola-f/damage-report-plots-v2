@@ -50,27 +50,10 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
-  rule {
-    name     = "RateLimitGlobal"
-    priority = 3
-
-    action {
-      block {}
-    }
-
-    statement {
-      rate_based_statement {
-        limit              = 1000
-        aggregate_key_type = "IP"
-      }
-    }
-
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "${local.name_prefix}-rate-limit-global"
-      sampled_requests_enabled   = true
-    }
-  }
+  # Rate limiting lives in the app (rack-attack, apps/api/config/initializers/
+  # rack_attack.rb). A rate_based_statement here would aggregate by CloudFront
+  # edge IP — the ALB's connection source — not by client IP, so it never
+  # counted per user.
 
   rule {
     name     = "AWSManagedRulesAdminProtectionRuleSet"

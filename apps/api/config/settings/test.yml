@@ -1,2 +1,8 @@
 sqs_thread_ids_queue_url: "https://sqs.test/queue"
 sqs_reports_queue_url: "https://sqs.test/portal-queue"
+# Small limits so throttling is testable with a handful of requests.
+# Rack::Attack is disabled outside rate_limit_spec (see rack_attack.rb).
+rate_limit_global_limit: 6
+rate_limit_global_period: 60
+rate_limit_auth_limit: 3
+rate_limit_auth_period: 60

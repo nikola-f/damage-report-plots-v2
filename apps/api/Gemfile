@@ -12,6 +12,9 @@ gem "puma", ">= 5.0"
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 
+# Rate limiting (per-client-IP throttles; see config/initializers/rack_attack.rb)
+gem "rack-attack"
+
 # Google OAuth2 authentication
 gem "omniauth-google-oauth2"
 gem "omniauth-rails_csrf_protection"
