@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-require "net/http"
-require "json"
-
-class GmailClient
-  BASE_URL = "https://gmail.googleapis.com/gmail/v1"
+class GmailClient < GoogleApiClient
+  BASE_URL       = "https://gmail.googleapis.com/gmail/v1"
+  API_NAME       = "Gmail"
   BATCH_BASE_URL = "https://www.googleapis.com"
   BATCH_BOUNDARY = "batch_boundary_gmail_v1"
 
@@ -12,9 +10,7 @@ class GmailClient
   # Limits the response payload to only what downstream processing needs.
   THREAD_FIELDS = "messages/id,messages/internalDate,messages/payload/parts/mimeType,messages/payload/parts/body/data"
 
-  def initialize(access_token)
-    @access_token = access_token
-  end
+  class ApiError < StandardError; end
 
   # Calls users.threads.list API and returns the parsed response.
   # https://developers.google.com/gmail/api/reference/rest/v1/users.threads/list
@@ -29,7 +25,7 @@ class GmailClient
       fields: "threads/id,nextPageToken"
     }.compact
 
-    get("/users/me/threads", params)
+    get("/users/me/threads", query: params)
   end
 
   # Calls users.threads.get for multiple IDs in a single request using the Gmail Batch API.
@@ -44,53 +40,15 @@ class GmailClient
     parse_batch_response(response, ids)
   end
 
-  class ApiError < StandardError; end
-
   private
 
-  def get(path, params = {})
-    base_uri = URI("#{BASE_URL}#{path}")
-
-    query_string = build_query_string(params)
-    request_path = query_string.empty? ? base_uri.path : "#{base_uri.path}?#{query_string}"
-
-    request = Net::HTTP::Get.new(request_path)
-    request["Authorization"] = "Bearer #{@access_token}"
-
-    response = Net::HTTP.start(base_uri.hostname, base_uri.port, use_ssl: true) do |http|
-      http.request(request)
-    end
-
-    raise ApiError, "Gmail API error: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
-
-    body = response.body
-    return {} if body.nil? || body.strip.empty?
-
-    JSON.parse(body)
-  end
-
-  def build_query_string(params)
-    params.flat_map do |key, value|
-      Array(value).map { |v| "#{URI.encode_www_form_component(key.to_s)}=#{URI.encode_www_form_component(v.to_s)}" }
-    end.join("&")
-  end
-
   def batch_post(ids)
-    base_uri = URI(BATCH_BASE_URL)
-    body = build_batch_body(ids)
-
-    request = Net::HTTP::Post.new("/batch/gmail/v1")
-    request["Authorization"] = "Bearer #{@access_token}"
+    uri     = URI("#{BATCH_BASE_URL}/batch/gmail/v1")
+    request = Net::HTTP::Post.new(uri)
     request["Content-Type"] = "multipart/mixed; boundary=#{BATCH_BOUNDARY}"
-    request.body = body
+    request.body = build_batch_body(ids)
 
-    response = Net::HTTP.start(base_uri.hostname, base_uri.port, use_ssl: true) do |http|
-      http.request(request)
-    end
-
-    raise ApiError, "Gmail API error: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
-
-    response
+    execute(uri, request)
   end
 
   def build_batch_body(ids)

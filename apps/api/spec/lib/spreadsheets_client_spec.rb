@@ -67,6 +67,38 @@ RSpec.describe SpreadsheetsClient do
         expect { client.create_spreadsheet }
           .to raise_error(SpreadsheetsClient::ApiError, /403/)
       end
+
+      it "drops a non-JSON body from the message" do
+        expect { client.create_spreadsheet }.to raise_error(SpreadsheetsClient::ApiError) do |e|
+          expect(e.message).to eq("Sheets API error: 403")
+        end
+      end
+    end
+
+    context "when the API returns a JSON error with extra detail" do
+      before do
+        stub_request(:post, "https://sheets.googleapis.com/v4/spreadsheets")
+          .to_return(
+            status: 400,
+            body: {
+              "error" => {
+                "code"    => 400,
+                "message" => "Invalid requests[0]",
+                "details" => [{ "userContent" => "sheet-cell-secret" }]
+              }
+            }.to_json,
+            headers: { "Content-Type" => "application/json" }
+          )
+      end
+
+      # The raw body can carry sheet contents and ends up in logs via the
+      # exception message — only status + error.message may leak.
+      it "carries the status and error message, not the raw body" do
+        expect { client.create_spreadsheet }.to raise_error(SpreadsheetsClient::ApiError) do |e|
+          expect(e.message).to eq("Sheets API error: 400 Invalid requests[0]")
+          expect(e.message).not_to include("sheet-cell-secret")
+        end
+      end
     end
   end
 

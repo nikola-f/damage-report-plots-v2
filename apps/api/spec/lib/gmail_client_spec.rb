@@ -93,6 +93,14 @@ RSpec.describe GmailClient do
       it "raises ApiError" do
         expect { client.list_threads }.to raise_error(GmailClient::ApiError, /401/)
       end
+
+      # The raw body can carry user data (mail snippets, etc.) and ends up in
+      # logs via the exception message — only status + error.message may leak.
+      it "carries the status and Google's error message, not the raw body" do
+        expect { client.list_threads }.to raise_error(GmailClient::ApiError) do |e|
+          expect(e.message).to eq("Gmail API error: 401 Invalid Credentials")
+        end
+      end
     end
 
     context "when API returns 403" do
