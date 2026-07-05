@@ -36,13 +36,19 @@ const LEVEL_LABEL: Record<QueueLevel, string> = {
   red: "Congested",
 };
 
+const MUTED_COLOR = "#8a8f83";
+
+function formatEpoch(epoch: number | null): string {
+  return epoch ? new Date(epoch * 1000).toLocaleString() : "—";
+}
+
 export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [syncMessage, setSyncMessage] = useState("");
-  const [queueStatus, setQueueStatus] = useState<QueueLevel | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
+  const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [copyStatus, setCopyStatus] = useState<SyncStatus>("idle");
   const [copyMessage, setCopyMessage] = useState("");
 
@@ -56,23 +62,27 @@ export default function App() {
   async function refreshStatus(): Promise<AppStatus> {
     const s = await getStatus();
     setStatus(s);
-    const total = s.app.sqs_queues.thread_ids + s.app.sqs_queues.reports;
-    setQueueStatus(queueLevel(total));
+    setStatusUnavailable(false);
     return s;
   }
 
   useEffect(() => {
     if (!profile) {
-      setQueueStatus(null);
       setStatus(null);
+      setStatusUnavailable(false);
       return;
     }
 
-    refreshStatus().catch(console.error);
-    const timerId = setInterval(
-      () => refreshStatus().catch(console.error),
-      STATUS_POLL_INTERVAL_MS,
-    );
+    // Keep the last known status on failure (timestamps stay useful); the
+    // queue row switches to "Unavailable" until a poll succeeds again.
+    const poll = () =>
+      refreshStatus().catch((err) => {
+        console.error(err);
+        setStatusUnavailable(true);
+      });
+
+    poll();
+    const timerId = setInterval(poll, STATUS_POLL_INTERVAL_MS);
     return () => clearInterval(timerId);
   }, [profile]);
 
@@ -214,6 +224,28 @@ export default function App() {
     }
   }
 
+  const queueTotal = status
+    ? status.app.sqs_queues.thread_ids + status.app.sqs_queues.reports
+    : 0;
+  const level = status ? queueLevel(queueTotal) : null;
+  const threadsFound = status?.user.threads_found ?? 0;
+  const threadsProcessed = status?.user.threads_processed ?? 0;
+  const portalsAppended = status?.user.portals_appended ?? 0;
+  // A run is in flight from POST /api/v1/sync (last_synced_at stamped, counters
+  // reset) until the batch stage stamps last_processed_at. That stamp never
+  // happens when a run finds zero threads, so also treat "queues drained and
+  // every discovered thread processed" as finished.
+  const syncInProgress =
+    status !== null &&
+    status.user.last_synced_at !== null &&
+    (status.user.last_processed_at ?? 0) < status.user.last_synced_at &&
+    !(queueTotal === 0 && threadsProcessed >= threadsFound);
+  // threads_found keeps growing while the list stage runs, so the ratio can
+  // temporarily drop; the width transition keeps that from looking jumpy.
+  const progressPct = threadsFound > 0
+    ? Math.min(100, (threadsProcessed / threadsFound) * 100)
+    : 0;
+
   if (authLoading) {
     return <p style={styles.center}>Loading…</p>;
   }
@@ -248,11 +280,11 @@ export default function App() {
         {syncStatus === "loading" ? "Syncing…" : "Sync Gmail → Sheets"}
       </button>
 
-      {syncMessage && (
-        <p style={syncStatus === "error" ? styles.error : styles.success}>
-          {syncMessage}
-        </p>
-      )}
+      {/* Message slots are always rendered at a fixed height so buttons below
+          never shift when messages appear or clear. */}
+      <p style={syncStatus === "error" ? styles.error : styles.success}>
+        {syncMessage}
+      </p>
 
       <button
         onClick={runCopy}
@@ -262,45 +294,48 @@ export default function App() {
         {copyStatus === "loading" ? "Copying…" : "Copy plots JSON"}
       </button>
 
-      {copyMessage && (
-        <p style={copyStatus === "error" ? styles.error : styles.success}>
-          {copyMessage}
-        </p>
-      )}
+      <p style={copyStatus === "error" ? styles.error : styles.success}>
+        {copyMessage}
+      </p>
 
-      {queueStatus && (
+      <div style={styles.statusCard}>
         <div style={styles.statusRow}>
           <span
             style={{
               ...styles.statusDot,
-              background: LEVEL_COLOR[queueStatus],
+              background: statusUnavailable || level === null
+                ? MUTED_COLOR
+                : LEVEL_COLOR[level],
             }}
           />
           <span style={styles.statusLabel}>
-            Queue: {LEVEL_LABEL[queueStatus]}
+            Queue: {statusUnavailable ? "Unavailable" : level === null ? "—" : LEVEL_LABEL[level]}
           </span>
         </div>
-      )}
 
-      {status !== null && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <p style={{ ...styles.statusLabel, margin: 0 }}>
-            Sync started: {status.user.last_synced_at
-              ? new Date(status.user.last_synced_at * 1000).toLocaleString()
-              : "Never"}
-          </p>
-          <p style={{ ...styles.statusLabel, margin: 0 }}>
-            Sync finished: {status.user.last_processed_at
-              ? new Date(status.user.last_processed_at * 1000).toLocaleString()
-              : "—"}
-          </p>
-          <p style={{ ...styles.statusLabel, margin: 0 }}>
-            Latest report: {status.user.threads_max_internal_date
-              ? new Date(status.user.threads_max_internal_date * 1000).toLocaleString()
-              : "—"}
-          </p>
+        <div style={styles.progressRow}>
+          {syncInProgress && (
+            <>
+              <div style={styles.progressTrack}>
+                <div style={{ ...styles.progressFill, width: `${progressPct}%` }} />
+              </div>
+              <span style={{ ...styles.statusLabel, whiteSpace: "nowrap" }}>
+                threads {threadsProcessed} / {threadsFound} · portals {portalsAppended}
+              </span>
+            </>
+          )}
         </div>
-      )}
+
+        <p style={{ ...styles.statusLabel, margin: 0 }}>
+          Sync started: {formatEpoch(status?.user.last_synced_at ?? null)}
+        </p>
+        <p style={{ ...styles.statusLabel, margin: 0 }}>
+          Sync finished: {formatEpoch(status?.user.last_processed_at ?? null)}
+        </p>
+        <p style={{ ...styles.statusLabel, margin: 0 }}>
+          Latest report: {formatEpoch(status?.user.threads_max_internal_date ?? null)}
+        </p>
+      </div>
 
       <button onClick={handleLogout} style={styles.buttonSecondary}>
         Logout
@@ -310,7 +345,7 @@ export default function App() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  center: { textAlign: "center", marginTop: "4rem", color: "#8a8f83" },
+  center: { textAlign: "center", marginTop: "4rem", color: MUTED_COLOR },
   container: {
     maxWidth: 480,
     margin: "4rem auto",
@@ -342,9 +377,28 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     fontSize: "0.875rem",
   },
-  success: { color: "#3fb950", margin: 0 },
-  error: { color: "#f85149", margin: 0 },
+  success: { color: "#3fb950", margin: 0, minHeight: "1.25rem" },
+  error: { color: "#f85149", margin: 0, minHeight: "1.25rem" },
+  statusCard: { display: "flex", flexDirection: "column", gap: "0.25rem" },
   statusRow: { display: "flex", alignItems: "center", gap: "0.5rem" },
   statusDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0 } as React.CSSProperties,
-  statusLabel: { fontSize: "0.8rem", color: "#8a8f83" },
+  statusLabel: { fontSize: "0.8rem", color: MUTED_COLOR },
+  progressRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    minHeight: "1.5rem",
+  },
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    background: "#2a2a2a",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 3,
+    background: "#5AB5B2",
+    transition: "width 0.3s",
+  },
 };
