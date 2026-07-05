@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { getPlots, getProfile, getStatus, grantSpreadsheets, grantSync, logout, sync, type Profile, type Status as AppStatus } from "./api.ts";
+// Pre-approved "Sign in with Google" asset (dark theme, Android+Web @4x,
+// 720x160 shown at 180x40) from
+// https://developers.google.com/identity/branding-guidelines — do not restyle.
+import googleSignin from "./assets/google-signin-dark.png";
 
 type SyncStatus = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
@@ -300,8 +304,8 @@ export default function App() {
     return (
       <div className="container">
         <h1 className="title">Damage Report Plots</h1>
-        <button onClick={handleLogin} className="btn primary">
-          Login with Google
+        <button onClick={handleLogin} className="google-signin">
+          <img src={googleSignin} alt="Sign in with Google" height={40} />
         </button>
       </div>
     );
