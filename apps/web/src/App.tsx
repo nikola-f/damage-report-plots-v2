@@ -28,19 +28,11 @@ function queueLevel(available: number): QueueLevel {
   return "red";
 }
 
-const LEVEL_COLOR: Record<QueueLevel, string> = {
-  green: "#3fb950",
-  yellow: "#d29922",
-  red: "#f85149",
-};
-
 const LEVEL_LABEL: Record<QueueLevel, string> = {
   green: "Idle",
   yellow: "Busy",
   red: "Congested",
 };
-
-const MUTED_COLOR = "#8a8f83";
 
 function formatEpoch(epoch: number | null): string {
   return epoch ? new Date(epoch * 1000).toLocaleString() : "—";
@@ -301,14 +293,14 @@ export default function App() {
     : 0;
 
   if (authLoading) {
-    return <p style={styles.center}>Loading…</p>;
+    return <p className="center">Loading…</p>;
   }
 
   if (!profile) {
     return (
-      <div style={styles.container}>
-        <h1 style={styles.title}>Damage Report Plots</h1>
-        <button onClick={handleLogin} style={styles.button}>
+      <div className="container">
+        <h1 className="title">Damage Report Plots</h1>
+        <button onClick={handleLogin} className="btn primary">
           Login with Google
         </button>
       </div>
@@ -316,143 +308,77 @@ export default function App() {
   }
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Damage Report Plots</h1>
-
-      <div style={styles.profile}>
-        <img src={profile.picture} alt={profile.name} style={styles.avatar} />
-        <div>
-          <p style={styles.name}>{profile.name}</p>
+    <div className="container">
+      <header className="header">
+        <h1 className="title">Damage Report Plots</h1>
+        <div className="header-user">
+          <img src={profile.picture} alt={profile.name} className="avatar" />
+          <span className="name">{profile.name}</span>
+          <button onClick={handleLogout} className="btn secondary">
+            Logout
+          </button>
         </div>
-      </div>
+      </header>
 
       <button
         onClick={handleSync}
         disabled={syncStatus === "loading"}
-        style={styles.button}
+        className="btn primary"
       >
         {syncStatus === "loading" ? "Syncing…" : "Sync Gmail → Sheets"}
       </button>
 
       {/* Message slots are always rendered at a fixed height so buttons below
           never shift when messages appear or clear. */}
-      <p style={syncStatus === "error" ? styles.error : styles.success}>
+      <p className={`message ${syncStatus === "error" ? "error" : "success"}`}>
         {syncMessage}
       </p>
 
       <button
         onClick={handleCopy}
         disabled={copyStatus === "loading"}
-        style={styles.buttonSecondary}
+        className="btn secondary"
       >
         {copyStatus === "loading" ? "Copying…" : "Copy plots JSON"}
       </button>
 
-      <p style={copyStatus === "error" ? styles.error : styles.success}>
+      <p className={`message ${copyStatus === "error" ? "error" : "success"}`}>
         {copyMessage}
       </p>
 
-      <div style={styles.statusCard}>
-        <div style={styles.statusRow}>
+      <div className="status-card">
+        <div className="status-row">
           <span
-            style={{
-              ...styles.statusDot,
-              background: statusUnavailable || level === null
-                ? MUTED_COLOR
-                : LEVEL_COLOR[level],
-            }}
+            className={`status-dot ${statusUnavailable || level === null ? "muted" : level}`}
           />
-          <span style={styles.statusLabel}>
+          <span className="status-label">
             Queue: {statusUnavailable ? "Unavailable" : level === null ? "—" : LEVEL_LABEL[level]}
           </span>
         </div>
 
-        <div style={styles.progressRow}>
+        <div className="progress-row">
           {syncInProgress && (
             <>
-              <div style={styles.progressTrack}>
-                <div style={{ ...styles.progressFill, width: `${progressPct}%` }} />
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${progressPct}%` }} />
               </div>
-              <span style={{ ...styles.statusLabel, whiteSpace: "nowrap" }}>
+              <span className="status-label">
                 threads {threadsProcessed} / {threadsFound} · portals {portalsAppended}
               </span>
             </>
           )}
         </div>
 
-        <p style={{ ...styles.statusLabel, margin: 0 }}>
+        <p className="status-label">
           Sync started: {formatEpoch(status?.user.last_synced_at ?? null)}
         </p>
-        <p style={{ ...styles.statusLabel, margin: 0 }}>
+        <p className="status-label">
           Sync finished: {formatEpoch(status?.user.last_processed_at ?? null)}
         </p>
-        <p style={{ ...styles.statusLabel, margin: 0 }}>
+        <p className="status-label">
           Latest report: {formatEpoch(status?.user.threads_max_internal_date ?? null)}
         </p>
       </div>
-
-      <button onClick={handleLogout} style={styles.buttonSecondary}>
-        Logout
-      </button>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  center: { textAlign: "center", marginTop: "4rem", color: MUTED_COLOR },
-  container: {
-    maxWidth: 480,
-    margin: "4rem auto",
-    padding: "2rem",
-    fontFamily: "system-ui, sans-serif",
-    display: "flex",
-    flexDirection: "column",
-    gap: "1rem",
-  },
-  title: { fontSize: "1.5rem", fontWeight: 700, margin: 0 },
-  profile: { display: "flex", alignItems: "center", gap: "0.75rem" },
-  avatar: { width: 48, height: 48, borderRadius: "50%" },
-  name: { margin: 0, fontWeight: 600 },
-  button: {
-    padding: "0.625rem 1.25rem",
-    background: "#5AB5B2",
-    color: "#0F0F0F",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: "1rem",
-  },
-  buttonSecondary: {
-    padding: "0.5rem 1rem",
-    background: "transparent",
-    color: "#EEF0E3",
-    border: "1px solid #333",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: "0.875rem",
-  },
-  success: { color: "#3fb950", margin: 0, minHeight: "1.25rem" },
-  error: { color: "#f85149", margin: 0, minHeight: "1.25rem" },
-  statusCard: { display: "flex", flexDirection: "column", gap: "0.25rem" },
-  statusRow: { display: "flex", alignItems: "center", gap: "0.5rem" },
-  statusDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0 } as React.CSSProperties,
-  statusLabel: { fontSize: "0.8rem", color: MUTED_COLOR },
-  progressRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    minHeight: "1.5rem",
-  },
-  progressTrack: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    background: "#2a2a2a",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 3,
-    background: "#5AB5B2",
-    transition: "width 0.3s",
-  },
-};
