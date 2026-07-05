@@ -90,11 +90,22 @@ function IitcIcon() {
       viewBox="0 0 36 36"
       aria-hidden="true"
     >
-      {/* Heatmap rings: the scatter dots condensed into one hot spot, cooling
-          outward through the favicon colors. */}
-      <circle cx="18" cy="18" r="12.5" fill="none" stroke="#00c5ff" strokeWidth="2" />
-      <circle cx="18" cy="18" r="7.5" fill="none" stroke="#03fe03" strokeWidth="2" />
-      <circle cx="18" cy="18" r="3" fill="var(--warning)" />
+      <g
+        fill="none"
+        stroke="var(--muted)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Trifold map outline with two fold lines. */}
+        <path d="M5 9 L13.7 6.5 L22.3 9 L31 6.5 V27 L22.3 29.5 L13.7 27 L5 29.5 Z" />
+        <path d="M13.7 6.5 V27" />
+        <path d="M22.3 9 V29.5" />
+      </g>
+      {/* The favicon dots again, now plotted on the map. */}
+      <circle cx="10" cy="21.5" r="2.5" fill="#00c5ff" />
+      <circle cx="18" cy="13.5" r="2.2" fill="#03fe03" />
+      <circle cx="26.5" cy="19.5" r="2" fill="#5ab5b2" />
     </svg>
   );
 }
@@ -130,7 +141,7 @@ export default function HowItWorks() {
         <div className="pipeline-step">
           <GmailIcon />
           <span className="pipeline-label">Gmail</span>
-          <span className="pipeline-caption">Damage report emails</span>
+          <span className="pipeline-caption">Scan damage report emails</span>
         </div>
         <Arrow />
         <div className="pipeline-step">
@@ -142,13 +153,13 @@ export default function HowItWorks() {
         <div className="pipeline-step">
           <PlotsIcon />
           <span className="pipeline-label">Sheets</span>
-          <span className="pipeline-caption">Appended to your Google Sheet</span>
+          <span className="pipeline-caption">Append to your spreadsheet</span>
         </div>
         <Arrow />
         <div className="pipeline-step">
           <IitcIcon />
           <span className="pipeline-label">IITC</span>
-          <span className="pipeline-caption">Heatmap on the Intel map</span>
+          <span className="pipeline-caption">Plot on the Intel map</span>
         </div>
       </div>
     </section>
