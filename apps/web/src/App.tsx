@@ -4,6 +4,7 @@ import { getPlots, getProfile, getStatus, grantSpreadsheets, grantSync, logout, 
 // 720x160 shown at 180x40) from
 // https://developers.google.com/identity/branding-guidelines — do not restyle.
 import googleSignin from "./assets/google-signin-dark.png";
+import HowItWorks from "./HowItWorks.tsx";
 
 type SyncStatus = "idle" | "loading" | "success" | "error";
 type QueueLevel = "green" | "yellow" | "red";
@@ -304,6 +305,7 @@ export default function App() {
     return (
       <div className="container">
         <h1 className="title">Damage Report Plots</h1>
+        <HowItWorks />
         <button onClick={handleLogin} className="google-signin">
           <img src={googleSignin} alt="Sign in with Google" height={40} />
         </button>
