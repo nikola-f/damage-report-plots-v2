@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getPlots, getProfile, getStatus, grantSpreadsheets, grantSync, logout, sync, type Profile, type Status as AppStatus } from "./api.ts";
 
 type SyncStatus = "idle" | "loading" | "success" | "error";
@@ -17,6 +17,10 @@ const QUEUE_RED_MIN = 61;
 // workers keep using the token while the pipeline drains, so it must outlive
 // the whole run, not just the POST /api/v1/sync call.
 const SYNC_TOKEN_MARGIN_S = 30 * 60;
+// Copy only needs the token for the immediate sheet read, so a minute of
+// leeway is plenty; below that the plots request is doomed, so skip it and
+// re-authorize directly.
+const COPY_TOKEN_MARGIN_S = 60;
 
 function queueLevel(available: number): QueueLevel {
   if (available <= QUEUE_GREEN_MAX) return "green";
@@ -51,6 +55,10 @@ export default function App() {
   const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [copyStatus, setCopyStatus] = useState<SyncStatus>("idle");
   const [copyMessage, setCopyMessage] = useState("");
+  // Plots JSON fetched by the post-redirect resume but not yet copied: the
+  // Clipboard API needs a user gesture, so the next click writes this
+  // directly instead of refetching.
+  const readiedCopyRef = useRef<{ json: string; count: number } | null>(null);
 
   useEffect(() => {
     getProfile()
@@ -108,6 +116,7 @@ export default function App() {
 
   async function handleLogout() {
     await logout();
+    readiedCopyRef.current = null;
     setProfile(null);
   }
 
@@ -184,6 +193,52 @@ export default function App() {
     }
   }
 
+  // Re-acquire the spreadsheets scope (mints a fresh access token) and resume
+  // the copy after Google redirects us back.
+  async function redirectToSpreadsheetsGrant() {
+    const authorizationUrl = await grantSpreadsheets();
+    sessionStorage.setItem(PENDING_COPY_KEY, "1");
+    window.location.href = authorizationUrl;
+  }
+
+  // Button entry point. A copy readied by the post-redirect resume only needs
+  // this click's gesture, no refetch. Otherwise, when the polled status shows
+  // the spreadsheets token expired (or never granted), the plots request is
+  // doomed — skip it and re-authorize right away.
+  async function handleCopy() {
+    const readied = readiedCopyRef.current;
+    if (readied !== null) {
+      readiedCopyRef.current = null;
+      try {
+        await navigator.clipboard.writeText(readied.json);
+        setCopyStatus("success");
+        setCopyMessage(`Copied ${readied.count} plots to clipboard.`);
+        return;
+      } catch {
+        // Clipboard rejected despite the gesture; fall through to a full run.
+      }
+    }
+
+    const expiresAt = status?.user.scope_expires_at.spreadsheets ?? null;
+    const knownExpired =
+      status !== null &&
+      !statusUnavailable &&
+      (expiresAt === null || expiresAt * 1000 - Date.now() < COPY_TOKEN_MARGIN_S * 1000);
+    if (knownExpired) {
+      setCopyStatus("loading");
+      setCopyMessage("");
+      try {
+        await redirectToSpreadsheetsGrant();
+      } catch (err) {
+        setCopyStatus("error");
+        setCopyMessage(err instanceof Error ? err.message : "Authorization failed.");
+      }
+      return;
+    }
+
+    await runCopy();
+  }
+
   // Fetch the plots sheet and copy it to the clipboard as JSON. If the access
   // token has expired, re-acquire the spreadsheets scope and resume on return.
   async function runCopy() {
@@ -201,7 +256,8 @@ export default function App() {
         setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
       } catch {
         // The Clipboard API needs a user gesture; the post-redirect resume has
-        // none, so prompt the user to click again (the token is now valid).
+        // none. Keep the JSON so the next click copies it without refetching.
+        readiedCopyRef.current = { json, count: plots.length };
         setCopyStatus("error");
         setCopyMessage('Ready. Click "Copy plots JSON" again to copy.');
       }
@@ -209,9 +265,7 @@ export default function App() {
       const message = err instanceof Error ? err.message : "Copy failed.";
       if (message === "reauthorization_required") {
         try {
-          const authorizationUrl = await grantSpreadsheets();
-          sessionStorage.setItem(PENDING_COPY_KEY, "1");
-          window.location.href = authorizationUrl;
+          await redirectToSpreadsheetsGrant();
           return;
         } catch (grantErr) {
           setCopyStatus("error");
@@ -287,7 +341,7 @@ export default function App() {
       </p>
 
       <button
-        onClick={runCopy}
+        onClick={handleCopy}
         disabled={copyStatus === "loading"}
         style={styles.buttonSecondary}
       >
