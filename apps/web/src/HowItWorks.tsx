@@ -81,6 +81,24 @@ function PlotsIcon() {
   );
 }
 
+function IitcIcon() {
+  return (
+    <svg
+      className="pipeline-icon"
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 36 36"
+      aria-hidden="true"
+    >
+      {/* Heatmap rings: the scatter dots condensed into one hot spot, cooling
+          outward through the favicon colors. */}
+      <circle cx="18" cy="18" r="12.5" fill="none" stroke="#00c5ff" strokeWidth="2" />
+      <circle cx="18" cy="18" r="7.5" fill="none" stroke="#03fe03" strokeWidth="2" />
+      <circle cx="18" cy="18" r="3" fill="var(--warning)" />
+    </svg>
+  );
+}
+
 function Arrow() {
   return (
     <svg
@@ -125,6 +143,12 @@ export default function HowItWorks() {
           <PlotsIcon />
           <span className="pipeline-label">Sheets</span>
           <span className="pipeline-caption">Appended to your Google Sheet</span>
+        </div>
+        <Arrow />
+        <div className="pipeline-step">
+          <IitcIcon />
+          <span className="pipeline-label">IITC</span>
+          <span className="pipeline-caption">Heatmap on the Intel map</span>
         </div>
       </div>
     </section>
