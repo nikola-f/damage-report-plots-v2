@@ -6,6 +6,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a monorepo project for "damage-report-plots-v2" with a Rails API-only backend. The project is structured with an `apps/` directory containing individual applications.
 
+> **Note**: The project is migrating to a fully client-side architecture to avoid
+> a CASA security assessment. The server-based pipeline documented below is being
+> replaced — see "Client-Side Migration" next. Existing architecture docs remain
+> valid until each phase's decommission step lands.
+
+## Client-Side Migration (In Progress — CASA Avoidance)
+
+**Why**: `gmail.readonly` is a Google *restricted* scope; serving external users
+would normally require a CASA Tier 2 security assessment (paid, annual renewal).
+Google exempts apps that never store or transmit restricted-scope data on a
+server. A PoC (`apps/poc/`, **GO verdict**) proved the whole Gmail
+fetch → parse → Sheets-write flow runs entirely in the browser. Full rationale,
+measurements, and design: `apps/poc/DESIGN.md` and `apps/poc/RESULTS.md`.
+
+**Target delivery form** (decided):
+- **`apps/web`** absorbs the entire pipeline: GIS **token-model** auth
+  (PKCE, no client secret) → in-browser Gmail sync (`threads.list` + batch
+  `threads.get`) → HTML parse → dedupe/aggregate → write to the user's **own**
+  Google Sheet → **copy the plots JSON to the clipboard**.
+- **`apps/iitc` is unchanged.** It already ingests via paste (see the dialog in
+  `apps/iitc/src/plugin.ts` and `parsePlots` in `apps/iitc/src/plots.ts`).
+  **Hard constraint**: apps/web's clipboard output MUST stay the same `Plot[]`
+  shape `{lat, lng, count, latest}` that `apps/iitc/src/plots.ts` expects.
+- No Gmail data ever reaches a server → CASA not required (only brand
+  verification for production).
+
+**Invariants** (breaking any one re-triggers CASA):
+- Gmail access token / message bodies / derived data are never sent to, stored
+  on, or logged by the backend.
+- OAuth uses the GIS token model only (no client-secret server exchange).
+
+**Phased plan**:
+0. Create a **Web-application** OAuth client for GIS; register JS origins; enable
+   Gmail API + Google Sheets API.
+1. Port server logic to TypeScript in `apps/web`: `DamageReportQuery`,
+   `GmailClient` (list + batch get), `EmailHtmlDecoder` (DOMParser +
+   `document.evaluate` XPath), `DamageReportRecord` + dedupe/aggregate,
+   `SpreadsheetsClient` (create/protect/append/get). Windowed scan with resume,
+   429 backoff, silent token re-acquisition; run in a Web Worker.
+2. Rework `apps/web` UI: replace omniauth/session login with GIS; the sync button
+   drives the in-browser pipeline with progress; "Copy plots JSON" is sourced
+   from in-browser/Sheet data (format unchanged).
+3. Parallel run: validate client-side output has parity with the current backend;
+   run an at-scale full-history scan check.
+4. **Staged** backend decommission: remove Sidekiq workers, SQS, Redis/Valkey,
+   and related ECS services (Terraform/ecspresso); slim or remove the Rails API
+   (keep static hosting for apps/web); drop omniauth/session/rack-attack-auth and
+   the Gmail/SQS e2e specs.
+5. Production readiness (brand verification only, **no CASA**): privacy policy,
+   homepage, demo video, per-scope justification; publish the consent screen.
+
+**Status**: PoC complete (GO). Implementation not yet started.
+Branch: `feat/casa-client-side-poc`.
+
 ## Architecture
 
 ### Monorepo Structure
