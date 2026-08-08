@@ -6,6 +6,16 @@ import type { DamageReportRecord } from "./record";
 
 const PORTAL_XPATH = "//tbody/tr/td[div/a[contains(@href,'ingress.com/intel')]]";
 
+const MILLIS_PER_DAY = 86_400_000;
+// 1 day = 86,400 s = 864 × 100 s. Truncate the Gmail internalDate (ms) to the
+// UTC day and store it in 100-second units, so same-day reports of the same
+// portal share a value and collapse in deduplicate() (matches Ruby).
+const DAY_IN_HUNDRED_SECONDS = 864;
+
+export function truncateInternalDate(internalDateMs: string): number {
+  return Math.floor(Number(internalDateMs) / MILLIS_PER_DAY) * DAY_IN_HUNDRED_SECONDS;
+}
+
 // Decode a Gmail base64url message-part body into a parsed HTML document.
 export function decodeHtmlBody(base64url: string): Document {
   const b64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
@@ -30,8 +40,9 @@ function xFirst(doc: Document, ctx: Node, expr: string): Node | null {
   return doc.evaluate(expr, ctx, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 }
 
-// internalDate is Gmail's epoch-ms string, carried onto each record unchanged.
+// internalDate is Gmail's epoch-ms string; it is day-truncated onto each record.
 export function extractPortals(doc: Document, internalDate: string): DamageReportRecord[] {
+  const truncatedDate = truncateInternalDate(internalDate);
   const agentName = xString(
     doc,
     doc,
@@ -54,7 +65,7 @@ export function extractPortals(doc: Document, internalDate: string): DamageRepor
       latitude: lat ?? "",
       longitude: lng ?? "",
       owned: Boolean(agentName && owner && agentName === owner),
-      internalDate,
+      internalDate: truncatedDate,
     };
   });
 }

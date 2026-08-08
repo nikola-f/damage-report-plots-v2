@@ -41,8 +41,9 @@ describe("extractPortals", () => {
     expect(portals[1].owned).toBe(false); // SomeoneElse !== AgentX
   });
 
-  it("carries the internalDate through unchanged", () => {
-    expect(portals[0].internalDate).toBe("1700000000000");
+  it("day-truncates the internalDate into 100-second units", () => {
+    // floor(1700000000000 / 86400000) * 864 = 19675 * 864
+    expect(portals[0].internalDate).toBe(16_999_200);
   });
 });
 

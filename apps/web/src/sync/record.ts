@@ -7,9 +7,10 @@ export interface DamageReportRecord {
   latitude: string;
   longitude: string;
   owned: boolean;
-  // Gmail internalDate (epoch ms) as returned by the API, carried through
-  // unchanged (the spreadsheet packs it with the portal name downstream).
-  internalDate: string;
+  // Day-truncated report time in 100-second units (see truncateInternalDate in
+  // decoder.ts). The spreadsheet packs this with the portal name in column E,
+  // and dedupe uses it so same-day reports of a portal collapse.
+  internalDate: number;
 }
 
 // Same alphabet as the Ruby SQIDS_ALPHABET (printable ASCII minus " and ').

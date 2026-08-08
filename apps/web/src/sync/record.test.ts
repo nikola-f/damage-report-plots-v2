@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { deduplicate, portalId, type DamageReportRecord } from "./record";
 
 function rec(p: Partial<DamageReportRecord> = {}): DamageReportRecord {
-  return { name: "P", latitude: "1", longitude: "2", owned: false, internalDate: "100", ...p };
+  return { name: "P", latitude: "1", longitude: "2", owned: false, internalDate: 100, ...p };
 }
 
 describe("deduplicate", () => {
@@ -19,7 +19,7 @@ describe("deduplicate", () => {
   });
 
   it("keeps records that differ in any key field", () => {
-    const out = deduplicate([rec({ internalDate: "100" }), rec({ internalDate: "200" })]);
+    const out = deduplicate([rec({ internalDate: 100 }), rec({ internalDate: 200 })]);
     expect(out).toHaveLength(2);
   });
 
