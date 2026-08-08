@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CASA client-side PoC — R1/R2 検証スパイク</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 900px; line-height: 1.5; }
+    button { padding: .5rem 1rem; margin: .25rem .25rem .25rem 0; cursor: pointer; }
+    #log { background: #111; color: #ddd; padding: 1rem; border-radius: 6px; white-space: pre-wrap;
+           font-family: ui-monospace, monospace; font-size: 13px; max-height: 45vh; overflow: auto; }
+    .metric { display: inline-block; background: #eef; padding: .25rem .5rem; border-radius: 4px; margin: .2rem; }
+    label { display: inline-block; min-width: 12rem; }
+    input { padding: .3rem; }
+    .warn { color: #b30; }
+  </style>
+</head>
+<body>
+  <h1>CASA client-side PoC — R1/R2 検証スパイク</h1>
+  <p>Gmail の取得・解析を <b>ブラウザ内のみ</b> で完結できるか（R1: CORS 実リクエスト成否、R2: スループット→フルスキャン推定時間）を計測する使い捨てツール。セットアップは <code>README.md</code> 参照。</p>
+
+  <div>
+    <label for="clientId">OAuth Client ID</label>
+    <input id="clientId" size="60" placeholder="xxxx.apps.googleusercontent.com" />
+  </div>
+  <div>
+    <label for="windowDays">走査窓（日数, 過去〜現在）</label>
+    <input id="windowDays" type="number" value="90" min="1" />
+  </div>
+  <div>
+    <label for="concurrency">並列 GET 同時実行数</label>
+    <input id="concurrency" type="number" value="15" min="1" />
+  </div>
+
+  <h3>手順</h3>
+  <div>
+    <button id="btnAuth">1. Google 認可 (gmail.readonly + spreadsheets)</button>
+    <button id="btnList" disabled>2. threads.list（窓走査）</button>
+    <button id="btnBatch" disabled>3a. R1: BATCH 取得+解析</button>
+    <button id="btnParallel" disabled>3b. R1: 並列 GET 取得+解析</button>
+    <button id="btnSheet" disabled>4. R3: Sheets 作成+書込</button>
+  </div>
+
+  <h3>計測</h3>
+  <div id="metrics"></div>
+
+  <h3>ログ</h3>
+  <div id="log"></div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="./poc.js"></script>
+</body>
+</html>
