@@ -10,63 +10,6 @@ output "gcp_service_account" {
   sensitive   = true
 }
 
-output "ecr_repository_url" {
-  description = "ECR repository URL"
-  value       = module.app_infra.ecr_repository_url
-  sensitive   = true
-}
-
-output "ecr_repository_url_dualstack" {
-  description = "ECR repository URL (dual-stack, IPv6 compatible)"
-  value       = module.app_infra.ecr_repository_url_dualstack
-  sensitive   = true
-}
-
-output "alb_dns_name" {
-  description = "ALB DNS name"
-  value       = module.app_infra.alb_dns_name
-  sensitive   = true
-}
-
-output "rails_master_key_secret_arn" {
-  description = "Secrets Manager ARN for RAILS_MASTER_KEY — set the real value after first apply"
-  value       = module.app_infra.rails_master_key_secret_arn
-  sensitive   = true
-}
-
-output "redis_url_secret_arn" {
-  description = "Secrets Manager ARN for REDIS_URL"
-  value       = module.app_infra.redis_url_secret_arn
-  sensitive   = true
-}
-
-output "google_client_id_secret_arn" {
-  description = "Secrets Manager ARN for GOOGLE_CLIENT_ID"
-  value       = module.app_infra.google_client_id_secret_arn
-  sensitive   = true
-}
-
-output "google_client_secret_secret_arn" {
-  description = "Secrets Manager ARN for GOOGLE_CLIENT_SECRET"
-  value       = module.app_infra.google_client_secret_secret_arn
-  sensitive   = true
-}
-
-output "web_target_group_arn" {
-  value     = module.app_infra.web_target_group_arn
-  sensitive = true
-}
-
-output "task_execution_role_arn" {
-  value     = module.app_infra.task_execution_role_arn
-  sensitive = true
-}
-
-output "task_role_arn" {
-  value     = module.app_infra.task_role_arn
-  sensitive = true
-}
-
 output "public_subnet_ids_csv" {
   value     = module.app_infra.public_subnet_ids_csv
   sensitive = true
@@ -74,36 +17,6 @@ output "public_subnet_ids_csv" {
 
 output "ipv6_subnet_ids_csv" {
   value     = module.app_infra.ipv6_subnet_ids_csv
-  sensitive = true
-}
-
-output "ecs_security_group_id" {
-  value     = module.app_infra.ecs_security_group_id
-  sensitive = true
-}
-
-output "log_group_web" {
-  value     = module.app_infra.log_group_web
-  sensitive = true
-}
-
-output "log_group_worker" {
-  value     = module.app_infra.log_group_worker
-  sensitive = true
-}
-
-output "redis_url" {
-  value     = module.app_infra.redis_url
-  sensitive = true
-}
-
-output "sqs_thread_ids_queue_url" {
-  value     = module.app_infra.sqs_thread_ids_queue_url
-  sensitive = true
-}
-
-output "sqs_reports_queue_url" {
-  value     = module.app_infra.sqs_reports_queue_url
   sensitive = true
 }
 
@@ -121,57 +34,11 @@ output "frontend_bucket_name" {
 }
 
 output "frontend_cloudfront_domain" {
-  description = "Set as authorized redirect URI in Google Cloud Console: https://<domain>/auth/google_oauth2/callback"
-  value       = module.app_infra.frontend_cloudfront_domain
-  sensitive   = true
+  value     = module.app_infra.frontend_cloudfront_domain
+  sensitive = true
 }
 
 output "frontend_cloudfront_distribution_id" {
   value     = module.app_infra.frontend_cloudfront_distribution_id
   sensitive = true
-}
-
-output "thread_batch_worker_poll_interval" {
-  value = module.app_infra.thread_batch_worker_poll_interval
-}
-
-output "thread_batch_worker_lock_ttl" {
-  value = module.app_infra.thread_batch_worker_lock_ttl
-}
-
-output "thread_batch_worker_max_messages_per_run" {
-  value = module.app_infra.thread_batch_worker_max_messages_per_run
-}
-
-output "spreadsheet_sync_worker_poll_interval" {
-  value = module.app_infra.spreadsheet_sync_worker_poll_interval
-}
-
-output "spreadsheet_sync_worker_lock_ttl" {
-  value = module.app_infra.spreadsheet_sync_worker_lock_ttl
-}
-
-output "thread_list_worker_threads_per_message" {
-  value = module.app_infra.thread_list_worker_threads_per_message
-}
-
-output "thread_batch_fetcher_batch_size" {
-  value = module.app_infra.thread_batch_fetcher_batch_size
-}
-
-output "thread_batch_fetcher_inter_batch_sleep" {
-  value = module.app_infra.thread_batch_fetcher_inter_batch_sleep
-}
-
-
-output "thread_list_worker_thread_id_limit" {
-  value = module.app_infra.thread_list_worker_thread_id_limit
-}
-
-output "spreadsheet_sync_worker_max_messages_per_run" {
-  value = module.app_infra.spreadsheet_sync_worker_max_messages_per_run
-}
-
-output "sync_min_interval" {
-  value = module.app_infra.sync_min_interval
 }
