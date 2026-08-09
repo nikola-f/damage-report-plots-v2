@@ -17,6 +17,8 @@ permissions:
   contents: read
 
 jobs:
+  # Validation gate (PRs + pushes). No client id needed — the app falls back to
+  # a client-id input when VITE_GOOGLE_CLIENT_ID is unset.
   build:
     runs-on: ubuntu-latest
 
@@ -39,24 +41,35 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload dist
-        uses: actions/upload-artifact@v7
-        with:
-          name: web-dist
-          path: apps/web/dist/
-          retention-days: 1
-
+  # dev/prod use separate GCP OAuth clients, so the client id is baked in at
+  # build time per environment. Each deploy job rebuilds with its environment's
+  # VITE_GOOGLE_CLIENT_ID (a public value — stored as an environment variable).
   deploy-dev:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     environment: dev
 
+    defaults:
+      run:
+        working-directory: apps/web
+
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
         with:
-          name: web-dist
-          path: dist/
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Configure AWS credentials (management OIDC)
         uses: aws-actions/configure-aws-credentials@v6
@@ -86,11 +99,26 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
 
+    defaults:
+      run:
+        working-directory: apps/web
+
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
         with:
-          name: web-dist
-          path: dist/
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Configure AWS credentials (management OIDC)
         uses: aws-actions/configure-aws-credentials@v6
