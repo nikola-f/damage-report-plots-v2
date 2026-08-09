@@ -1,13 +1,3 @@
-output "public_subnet_ids_csv" {
-  description = "Public subnet IDs as a comma-separated string"
-  value       = join(",", aws_subnet.public[*].id)
-}
-
-output "ipv6_subnet_ids_csv" {
-  description = "IPv6-only subnet IDs as a comma-separated string"
-  value       = join(",", aws_subnet.app_ipv6[*].id)
-}
-
 output "allowed_origins" {
   description = "CORS allowed origins"
   value       = var.allowed_origins

@@ -10,16 +10,6 @@ output "gcp_service_account" {
   sensitive   = true
 }
 
-output "public_subnet_ids_csv" {
-  value     = module.app_infra.public_subnet_ids_csv
-  sensitive = true
-}
-
-output "ipv6_subnet_ids_csv" {
-  value     = module.app_infra.ipv6_subnet_ids_csv
-  sensitive = true
-}
-
 output "allowed_origins" {
   value = module.app_infra.allowed_origins
 }
