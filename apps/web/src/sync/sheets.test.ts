@@ -50,6 +50,11 @@ describe("getValues", () => {
     const fetchFn = mockFetch({});
     expect(await getValues("tok", "S1", "plots!A:F", fetchFn as unknown as FetchLike)).toEqual([]);
   });
+
+  it("returns [] on a 204 No Content", async () => {
+    const fetchFn = vi.fn(async (_u: string, _i?: RequestInit) => new Response(null, { status: 204 }));
+    expect(await getValues("tok", "S1", "plots!A:F", fetchFn as unknown as FetchLike)).toEqual([]);
+  });
 });
 
 describe("protectRanges", () => {

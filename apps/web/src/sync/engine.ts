@@ -70,6 +70,9 @@ async function listThreadIds(token: string, query: string, fetchFn: FetchLike): 
 
     const res = await fetchFn(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`threads.list ${res.status}`);
+    // Gmail returns 204 No Content (empty body) when a window matches no
+    // threads — common when scanning history — so there's nothing to parse.
+    if (res.status === 204) break;
     const data = (await res.json()) as { threads?: { id: string }[]; nextPageToken?: string };
     for (const t of data.threads ?? []) ids.push(t.id);
     pageToken = data.nextPageToken;

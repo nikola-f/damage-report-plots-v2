@@ -69,6 +69,7 @@ export async function getValues(
     await fetchFn(url, { headers: { Authorization: `Bearer ${token}` } }),
     "spreadsheets.values.get",
   );
+  if (res.status === 204) return []; // no content → treat as an empty range
   const data = (await res.json()) as { values?: unknown[][] };
   return data.values ?? [];
 }

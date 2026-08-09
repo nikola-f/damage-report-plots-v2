@@ -129,6 +129,12 @@ describe("runSync", () => {
     expect(sleep).toHaveBeenCalledOnce();
   });
 
+  it("treats a 204 No Content window as empty (Gmail's empty-result response)", async () => {
+    const fetchFn = router([new Response(null, { status: 204 })], []); // no batch call expected
+    const { records } = await runSync({ accessToken: "tok", fetchFn, since: T0, until: T0 + 5 * DAY });
+    expect(records).toHaveLength(0);
+  });
+
   it("reports progress phases and skips windows with no threads", async () => {
     const phases: SyncProgress["phase"][] = [];
     const fetchFn = router([listResponse([])], []); // empty window, no batch call
