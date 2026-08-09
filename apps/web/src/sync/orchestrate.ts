@@ -1,0 +1,86 @@
+// End-to-end client-side sync: resolve the user's single spreadsheet, resume
+// from where the sheet left off, scan Gmail, append new reports, then read back
+// the aggregated plots for the clipboard. Replaces the entire server pipeline
+// (sync_controller + the three Sidekiq workers). No Gmail data touches a server.
+
+import definition from "./spreadsheetDefinition.json";
+import protection from "./spreadsheetProtection.json";
+import { findOrCreateSpreadsheetId } from "./spreadsheet";
+import { findSpreadsheetId } from "./drive";
+import { readResumeSince } from "./resume";
+import { runSync, type SyncProgress } from "./engine";
+import { defaultFetch, type FetchLike } from "./http";
+import { appendRows, getValues } from "./sheets";
+import { toReportRow, rowsToPlots, type Plot } from "./mapping";
+import { DEFAULT_AFTER_DATE } from "./query";
+
+const REPORTS_SHEET = "reports";
+const PLOTS_RANGE = "plots!A:F";
+
+export interface FullSyncOptions {
+  accessToken: string;
+  fetchFn?: FetchLike;
+  onProgress?: (p: SyncProgress) => void;
+  until?: number; // epoch seconds; default now (mainly for tests)
+  now?: Date; // append-timestamp clock; injectable for tests
+}
+
+export interface FullSyncResult {
+  spreadsheetId: string;
+  appended: number; // number of report rows written this run
+  truncated: boolean; // true when the run hit the thread cap; sync again to continue
+}
+
+// Discover the user's existing spreadsheet (id) without creating one, so the UI
+// can enable Copy after a fresh login even when no sync ran this session. Returns
+// null if the user has never synced. Works across devices via drive.file.
+export async function findSpreadsheet(
+  accessToken: string,
+  fetchFn: FetchLike = defaultFetch,
+): Promise<string | null> {
+  return findSpreadsheetId(accessToken, fetchFn);
+}
+
+// Read the aggregated plots for the clipboard. Kept separate from runFullSync so
+// the UI reads on the Copy click — after the sheet's QUERY has recalculated from
+// this run's (possibly large) append, and as an explicit user-gesture request.
+export async function readPlots(
+  accessToken: string,
+  spreadsheetId: string,
+  fetchFn: FetchLike = defaultFetch,
+): Promise<Plot[]> {
+  return rowsToPlots(await getValues(accessToken, spreadsheetId, PLOTS_RANGE, fetchFn));
+}
+
+export async function runFullSync(options: FullSyncOptions): Promise<FullSyncResult> {
+  const fetchFn = options.fetchFn ?? defaultFetch;
+  const { accessToken } = options;
+
+  const { spreadsheetId } = await findOrCreateSpreadsheetId(
+    accessToken,
+    fetchFn,
+    definition,
+    protection,
+  );
+
+  const since = (await readResumeSince(accessToken, spreadsheetId, fetchFn)) ?? DEFAULT_AFTER_DATE;
+
+  // Append each window's reports as they're scanned, so an interrupted run keeps
+  // its progress (and the sheet's resume point advances) instead of losing
+  // everything.
+  let appended = 0;
+  const { truncated } = await runSync({
+    accessToken,
+    fetchFn,
+    since,
+    until: options.until,
+    onProgress: options.onProgress,
+    onWindow: async (windowRecords) => {
+      const rows = await Promise.all(windowRecords.map((r) => toReportRow(r, options.now)));
+      await appendRows(accessToken, spreadsheetId, REPORTS_SHEET, rows, fetchFn);
+      appended += windowRecords.length;
+    },
+  });
+
+  return { spreadsheetId, appended, truncated };
+}
