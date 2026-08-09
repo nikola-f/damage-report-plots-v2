@@ -2,6 +2,8 @@
 
 resource "aws_s3_bucket" "logs" {
   bucket = "drp-${var.environment}-logs-${data.aws_caller_identity.current.account_id}"
+  # Allow destroy with objects present (Phase 3 decommission).
+  force_destroy = true
 
   tags = {
     Name = "${local.name_prefix}-logs"
@@ -67,6 +69,8 @@ resource "aws_s3_bucket_policy" "logs" {
 
 resource "aws_s3_bucket" "waf_logs" {
   bucket = "aws-waf-logs-drp-${var.environment}-${data.aws_caller_identity.current.account_id}"
+  # Allow destroy with objects present (Phase 3 decommission).
+  force_destroy = true
 
   tags = {
     Name = "${local.name_prefix}-waf-logs"

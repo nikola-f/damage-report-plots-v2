@@ -1,6 +1,8 @@
 resource "aws_ecr_repository" "api" {
   name                 = "${var.app_name}-api"
   image_tag_mutability = "IMMUTABLE"
+  # Allow destroy even though the repo holds images (Phase 3 decommission).
+  force_delete = true
 
   image_scanning_configuration {
     scan_on_push = true
