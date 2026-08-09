@@ -19,7 +19,13 @@ import { defaultFetch, type FetchLike } from "./http";
 export type { FetchLike };
 
 const SECONDS_PER_DAY = 86_400;
-const BATCH_SIZE = 100; // Gmail batch endpoint caps sub-requests at 100
+// Each batched threads.get sub-request runs concurrently server-side, so the
+// batch size is Gmail's per-user concurrency budget — not the API's 100 cap.
+// 20 + a 1s inter-batch pause mirrors the proven server config
+// (thread_batch_fetcher_batch_size / _inter_batch_sleep) and avoids
+// "Too many concurrent requests for user" 429s.
+const BATCH_SIZE = 20;
+const INTER_BATCH_SLEEP_MS = 1000;
 const HTML_MIME = "text/html";
 const DEFAULT_MAX_RETRIES = 6; // 1+2+4+8+16+32 = 63s, covers one quota window
 const DEFAULT_MAX_BACKOFF = 32; // seconds
@@ -112,6 +118,7 @@ async function fetchBatchWithRetry(
 async function batchGetThreads(token: string, ids: string[], cfg: RetryConfig): Promise<GmailThread[]> {
   const threads: GmailThread[] = [];
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    if (i > 0) await cfg.sleep(INTER_BATCH_SLEEP_MS); // pace batches to stay under the concurrency limit
     threads.push(...(await fetchBatchWithRetry(token, ids.slice(i, i + BATCH_SIZE), cfg)));
   }
   return threads;

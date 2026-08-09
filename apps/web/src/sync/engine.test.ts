@@ -110,6 +110,28 @@ describe("runSync", () => {
     expect(records.map((r) => r.name).sort()).toEqual(["A", "B"]);
   });
 
+  it("splits into 20-id batches and pauses between them (concurrency guard)", async () => {
+    const sleep = vi.fn(async () => {});
+    const ids = Array.from({ length: 21 }, (_, i) => `t${i}`);
+    const mkThreads = (chunk: string[], base: number) =>
+      chunk.map((id, i) => thread(id, base + i + 1, html(`P${base + i}`, `${base + i}.0,1.0`, "Me", "Me")));
+    const fetchFn = router(
+      [listResponse(ids)],
+      [batchResponse(mkThreads(ids.slice(0, 20), 0)), batchResponse(mkThreads(ids.slice(20), 20))],
+    );
+
+    const { records } = await runSync({
+      accessToken: "tok",
+      fetchFn,
+      since: T0,
+      until: T0 + 5 * DAY,
+      sleep,
+    });
+
+    expect(records).toHaveLength(21); // both batches processed
+    expect(sleep).toHaveBeenCalledTimes(1); // exactly one pause between the two batches
+  });
+
   it("retries the batch request on a 429 with backoff", async () => {
     const sleep = vi.fn(async () => {});
     const fetchFn = router(
