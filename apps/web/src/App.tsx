@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { requestAccessToken } from "./sync/auth.ts";
-import { runSyncInWorker } from "./sync/runInWorker.ts";
 import type { SyncProgress } from "./sync/engine.ts";
-import type { FullSyncResult } from "./sync/orchestrate.ts";
+import { runFullSync, type FullSyncResult } from "./sync/orchestrate.ts";
 import type { Plot } from "./sync/mapping.ts";
 import { fetchProfile, type Profile } from "./profile.ts";
 // Pre-approved "Sign in with Google" asset (dark theme, Android+Web @4x,
@@ -78,7 +77,10 @@ export default function App() {
     setCopyMessage("");
     try {
       const accessToken = await acquireToken();
-      const res = await runSyncInWorker(accessToken, setProgress);
+      // Runs on the main thread: the HTML decoder needs DOMParser/document.evaluate,
+      // which don't exist in a Web Worker. Work is network-bound and awaits between
+      // batches, so progress renders and the UI stays responsive.
+      const res = await runFullSync({ accessToken, onProgress: setProgress });
       setResult(res);
       setPhase("done");
     } catch (e) {
