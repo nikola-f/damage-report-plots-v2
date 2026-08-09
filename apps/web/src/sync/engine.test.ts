@@ -151,6 +151,30 @@ describe("runSync", () => {
     expect(sleep).toHaveBeenCalledOnce();
   });
 
+  it("emits each window's records via onWindow for progressive persistence", async () => {
+    const perWindow: number[] = [];
+    const fetchFn = router(
+      [listResponse(["a"]), listResponse(["b"])], // two windows, one thread each
+      [
+        batchResponse([thread("a", 1, html("A", "1,2", "Me", "Me"))]),
+        batchResponse([thread("b", 2, html("B", "3,4", "Me", "Me"))]),
+      ],
+    );
+
+    const { records } = await runSync({
+      accessToken: "tok",
+      fetchFn,
+      since: T0,
+      until: T0 + 60 * DAY, // spans two 30-day windows
+      onWindow: async (recs) => {
+        perWindow.push(recs.length);
+      },
+    });
+
+    expect(perWindow).toEqual([1, 1]); // one emission per non-empty window
+    expect(records.map((r) => r.name).sort()).toEqual(["A", "B"]);
+  });
+
   it("caps the run at maxThreads and flags truncation when history remains", async () => {
     const fetchFn = router(
       [listResponse(["a", "b"]), listResponse(["c", "d"])], // two windows available

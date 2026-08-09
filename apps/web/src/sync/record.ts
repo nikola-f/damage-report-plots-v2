@@ -20,6 +20,8 @@ const sqids = new Sqids({ alphabet: SQIDS_ALPHABET });
 
 // Deduplicate by name/latitude/longitude/internalDate; owned:true wins over
 // owned:false, and first-occurrence order is preserved (Ruby: group_by + max_by).
+// Applied per window: all reports for a given day fall in one 30-day window, so
+// window-scoped dedup fully covers same-day/same-portal duplicates.
 export function deduplicate(records: DamageReportRecord[]): DamageReportRecord[] {
   const byKey = new Map<string, DamageReportRecord>();
   for (const r of records) {

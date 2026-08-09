@@ -61,6 +61,10 @@ export interface SyncOptions {
   since?: number; // resume epoch seconds; default DEFAULT_AFTER_DATE
   until?: number; // upper bound epoch seconds; default now
   onProgress?: (p: SyncProgress) => void;
+  // Called once per non-empty window with that window's deduped records, so the
+  // caller can persist progressively. Throwing aborts the run (earlier windows
+  // stay persisted).
+  onWindow?: (records: DamageReportRecord[]) => Promise<void>;
   sleep?: (ms: number) => Promise<void>;
   maxRetries?: number;
   maxBackoff?: number; // seconds
@@ -165,14 +169,22 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
 
     if (ids.length > 0) {
       const threads = await batchGetThreads(options.accessToken, ids, cfg);
+      const windowRecords: DamageReportRecord[] = [];
       for (const thread of threads) {
         for (const msg of thread.messages ?? []) {
           if (msg.internalDate) maxInternalDate = Math.max(maxInternalDate, Number(msg.internalDate));
           const data = (msg.payload?.parts ?? []).find((p) => p.mimeType === HTML_MIME)?.body?.data;
           if (!data) continue;
-          collected.push(...extractPortals(decodeHtmlBody(data), msg.internalDate ?? "0"));
+          windowRecords.push(...extractPortals(decodeHtmlBody(data), msg.internalDate ?? "0"));
         }
       }
+
+      // All reports for a given day are in this one 30-day window, so
+      // window-scoped dedup fully collapses same-day/same-portal duplicates.
+      const windowDeduped = deduplicate(windowRecords);
+      if (windowDeduped.length > 0) await options.onWindow?.(windowDeduped);
+      collected.push(...windowDeduped);
+
       threadsProcessed += ids.length;
       options.onProgress?.({
         phase: "fetch",
@@ -193,7 +205,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     }
   }
 
-  const records = deduplicate(collected);
+  const records = collected;
   options.onProgress?.({
     phase: "done",
     windowStart: until,

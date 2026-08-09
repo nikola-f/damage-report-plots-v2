@@ -65,18 +65,22 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
 
   const since = (await readResumeSince(accessToken, spreadsheetId, fetchFn)) ?? DEFAULT_AFTER_DATE;
 
-  const { records, truncated } = await runSync({
+  // Append each window's reports as they're scanned, so an interrupted run keeps
+  // its progress (and the sheet's resume point advances) instead of losing
+  // everything.
+  let appended = 0;
+  const { truncated } = await runSync({
     accessToken,
     fetchFn,
     since,
     until: options.until,
     onProgress: options.onProgress,
+    onWindow: async (windowRecords) => {
+      const rows = await Promise.all(windowRecords.map((r) => toReportRow(r, options.now)));
+      await appendRows(accessToken, spreadsheetId, REPORTS_SHEET, rows, fetchFn);
+      appended += windowRecords.length;
+    },
   });
 
-  if (records.length > 0) {
-    const rows = await Promise.all(records.map((r) => toReportRow(r, options.now)));
-    await appendRows(accessToken, spreadsheetId, REPORTS_SHEET, rows, fetchFn);
-  }
-
-  return { spreadsheetId, appended: records.length, truncated };
+  return { spreadsheetId, appended, truncated };
 }
