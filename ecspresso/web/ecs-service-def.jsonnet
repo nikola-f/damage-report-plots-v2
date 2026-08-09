@@ -1,7 +1,9 @@
 local tfstate = std.native('tfstate');
 
 {
-  desiredCount: 1,
+  // Phase 3, Stage 1: scaled to 0 — the client-side SPA no longer uses the API.
+  // The service is deleted in Stage 2.
+  desiredCount: 0,
   launchType: 'FARGATE',
   networkConfiguration: {
     awsvpcConfiguration: {

@@ -101,20 +101,6 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
-  # Origin 2: ALB (Rails API)
-  origin {
-    domain_name = var.domain_name
-    origin_id   = "ALB"
-
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-      ip_address_type        = "ipv6"
-    }
-  }
-
   # Default behavior: S3 (static files)
   default_cache_behavior {
     target_origin_id       = "S3"
@@ -133,37 +119,12 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  # /api/* → ALB
-  ordered_cache_behavior {
-    path_pattern           = "/api/*"
-    target_origin_id       = "ALB"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods         = ["GET", "HEAD"]
-
-    # CachingDisabled
-    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-    # AllViewer (forward all headers, cookies, query strings)
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
-  }
-
-  # /auth/* → ALB
-  ordered_cache_behavior {
-    path_pattern           = "/auth/*"
-    target_origin_id       = "ALB"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods         = ["GET", "HEAD"]
-
-    # CachingDisabled
-    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-    # AllViewer
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
-  }
+  # The Rails API/ALB origin and its /api/* and /auth/* behaviors were removed
+  # in the client-side migration (Phase 3, Stage 1): the SPA now talks to Google
+  # directly, so the frontend distribution serves only static files.
 
   # SPA routing is handled by the spa_rewrite viewer-request function on the
-  # S3 behavior. No distribution-wide custom_error_response: it would also
-  # rewrite /api/* and /auth/* error responses into HTML 200s.
+  # S3 behavior.
 
   restrictions {
     geo_restriction {
