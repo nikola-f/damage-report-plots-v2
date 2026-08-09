@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runFullSync } from "./orchestrate";
+import { runFullSync, readPlots } from "./orchestrate";
 import { BATCH_URL } from "./gmail";
 import type { FetchLike } from "./http";
 
@@ -59,9 +59,6 @@ describe("runFullSync", () => {
         appendBodies.push(JSON.parse(init?.body as string));
         return json({});
       }
-      if (url.includes("/values/plots")) {
-        return json({ values: [[35.1, 139.2, 1, 3, 17_000_000, 16_990_000]] });
-      }
       throw new Error(`unexpected ${init?.method ?? "GET"} ${url}`);
     });
 
@@ -74,8 +71,20 @@ describe("runFullSync", () => {
 
     expect(result.spreadsheetId).toBe("SHEET");
     expect(result.appended).toBe(1);
+    expect(result.truncated).toBe(false);
     expect(appendBodies).toHaveLength(1);
-    expect(result.plots).toEqual([
+  });
+});
+
+describe("readPlots", () => {
+  it("reads plots!A:F fresh and maps it to Plot objects", async () => {
+    const fetchFn = vi.fn(async (url: string) => {
+      expect(url).toContain("/values/plots");
+      return json({ values: [[35.1, 139.2, 1, 3, 17_000_000, 16_990_000]] });
+    });
+
+    const plots = await readPlots("tok", "SHEET", fetchFn as unknown as FetchLike);
+    expect(plots).toEqual([
       { lat: 35.1, lng: 139.2, owned: 1, count: 3, latest: 17_000_000, oldest: 16_990_000 },
     ]);
   });

@@ -26,9 +26,19 @@ export interface FullSyncOptions {
 
 export interface FullSyncResult {
   spreadsheetId: string;
-  plots: Plot[]; // clipboard payload (same shape as the old GET /api/v1/plots)
   appended: number; // number of report rows written this run
   truncated: boolean; // true when the run hit the thread cap; sync again to continue
+}
+
+// Read the aggregated plots for the clipboard. Kept separate from runFullSync so
+// the UI reads on the Copy click — after the sheet's QUERY has recalculated from
+// this run's (possibly large) append, and as an explicit user-gesture request.
+export async function readPlots(
+  accessToken: string,
+  spreadsheetId: string,
+  fetchFn: FetchLike = defaultFetch,
+): Promise<Plot[]> {
+  return rowsToPlots(await getValues(accessToken, spreadsheetId, PLOTS_RANGE, fetchFn));
 }
 
 export async function runFullSync(options: FullSyncOptions): Promise<FullSyncResult> {
@@ -57,6 +67,5 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
     await appendRows(accessToken, spreadsheetId, REPORTS_SHEET, rows, fetchFn);
   }
 
-  const plots = rowsToPlots(await getValues(accessToken, spreadsheetId, PLOTS_RANGE, fetchFn));
-  return { spreadsheetId, plots, appended: records.length, truncated };
+  return { spreadsheetId, appended: records.length, truncated };
 }

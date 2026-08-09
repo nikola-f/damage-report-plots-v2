@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { requestAccessToken } from "./sync/auth.ts";
 import type { SyncProgress } from "./sync/engine.ts";
-import { runFullSync, type FullSyncResult } from "./sync/orchestrate.ts";
+import { runFullSync, readPlots, type FullSyncResult } from "./sync/orchestrate.ts";
 import type { Plot } from "./sync/mapping.ts";
 import { fetchProfile, type Profile } from "./profile.ts";
 // Pre-approved "Sign in with Google" asset (dark theme, Android+Web @4x,
@@ -91,11 +91,14 @@ export default function App() {
 
   async function handleCopy() {
     if (!result) return;
+    setCopyMessage("Reading plots…");
     try {
-      await navigator.clipboard.writeText(plotsJson(result.plots));
-      setCopyMessage(`Copied ${result.plots.length} plots to clipboard.`);
-    } catch {
-      setCopyMessage("Clipboard was blocked — click Copy again.");
+      const accessToken = await acquireToken();
+      const plots = await readPlots(accessToken, result.spreadsheetId);
+      await navigator.clipboard.writeText(plotsJson(plots));
+      setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
+    } catch (e) {
+      setCopyMessage(e instanceof Error ? e.message : "Copy failed.");
     }
   }
 
@@ -165,10 +168,6 @@ export default function App() {
         Copy plots JSON
       </button>
       <p className="message success">{copyMessage}</p>
-
-      {result && (
-        <p className="status-label">{result.plots.length} plots in your spreadsheet.</p>
-      )}
     </div>
   );
 }
