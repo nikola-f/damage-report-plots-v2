@@ -151,6 +151,30 @@ describe("runSync", () => {
     expect(sleep).toHaveBeenCalledOnce();
   });
 
+  it("caps the run at maxThreads and flags truncation when history remains", async () => {
+    const fetchFn = router(
+      [listResponse(["a", "b"]), listResponse(["c", "d"])], // two windows available
+      [batchResponse([thread("a", 1, html("A", "1,2", "Me", "Me")), thread("b", 2, html("B", "3,4", "Me", "Me"))])],
+    );
+
+    const { records, truncated } = await runSync({
+      accessToken: "tok",
+      fetchFn,
+      since: T0,
+      until: T0 + 60 * DAY, // spans two 30-day windows
+      maxThreads: 1, // exceeded after the first window
+    });
+
+    expect(truncated).toBe(true);
+    expect(records.map((r) => r.name).sort()).toEqual(["A", "B"]); // only the first window was fetched
+  });
+
+  it("does not flag truncation when the scan reaches the end within the cap", async () => {
+    const fetchFn = router([listResponse([])], []);
+    const { truncated } = await runSync({ accessToken: "tok", fetchFn, since: T0, until: T0 + 5 * DAY });
+    expect(truncated).toBe(false);
+  });
+
   it("treats a 204 No Content window as empty (Gmail's empty-result response)", async () => {
     const fetchFn = router([new Response(null, { status: 204 })], []); // no batch call expected
     const { records } = await runSync({ accessToken: "tok", fetchFn, since: T0, until: T0 + 5 * DAY });

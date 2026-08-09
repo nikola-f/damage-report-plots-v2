@@ -29,6 +29,10 @@ const INTER_BATCH_SLEEP_MS = 1000;
 const HTML_MIME = "text/html";
 const DEFAULT_MAX_RETRIES = 6; // 1+2+4+8+16+32 = 63s, covers one quota window
 const DEFAULT_MAX_BACKOFF = 32; // seconds
+// Cap threads discovered per run so a first-time full-history scan is bounded
+// (keeps a run inside the token lifetime); resume continues next sync. Mirrors
+// the server's thread_list_worker_thread_id_limit.
+const DEFAULT_THREAD_LIMIT = 6000;
 
 // Mirrors the Ruby GmailThreadBatchFetcher retry trigger.
 const RETRYABLE = /429|503|Rate Limit Exceeded|Quota exceeded|Too many concurrent|unavailable/i;
@@ -46,6 +50,9 @@ export interface SyncResult {
   // Raw Gmail internalDate (ms) high-water mark. The caller persists this and
   // passes it back as `since` (÷1000) to resume the next sync (Ruby parity).
   maxInternalDate: number;
+  // True when the run stopped at the thread cap with history still unscanned —
+  // the caller should prompt another sync to continue.
+  truncated: boolean;
 }
 
 export interface SyncOptions {
@@ -57,6 +64,7 @@ export interface SyncOptions {
   sleep?: (ms: number) => Promise<void>;
   maxRetries?: number;
   maxBackoff?: number; // seconds
+  maxThreads?: number; // cap threads discovered per run; default DEFAULT_THREAD_LIMIT
 }
 
 interface RetryConfig {
@@ -133,12 +141,14 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     maxBackoff: options.maxBackoff ?? DEFAULT_MAX_BACKOFF,
   };
   const until = options.until ?? Math.floor(Date.now() / 1000);
+  const maxThreads = options.maxThreads ?? DEFAULT_THREAD_LIMIT;
   let current = options.since ?? DEFAULT_AFTER_DATE;
 
   const collected: DamageReportRecord[] = [];
   let maxInternalDate = 0;
   let threadsFound = 0;
   let threadsProcessed = 0;
+  let truncated = false;
 
   while (current < until) {
     const before = current + DAYS_WINDOW * SECONDS_PER_DAY;
@@ -174,6 +184,13 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     }
 
     current = before;
+
+    // Bound the run once enough threads are discovered (server parity). If more
+    // history remains, flag truncation so the caller resumes on the next sync.
+    if (threadsFound > maxThreads) {
+      truncated = current < until;
+      break;
+    }
   }
 
   const records = deduplicate(collected);
@@ -184,5 +201,5 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     threadsProcessed,
     portalsFound: records.length,
   });
-  return { records, maxInternalDate };
+  return { records, maxInternalDate, truncated };
 }

@@ -28,6 +28,7 @@ export interface FullSyncResult {
   spreadsheetId: string;
   plots: Plot[]; // clipboard payload (same shape as the old GET /api/v1/plots)
   appended: number; // number of report rows written this run
+  truncated: boolean; // true when the run hit the thread cap; sync again to continue
 }
 
 export async function runFullSync(options: FullSyncOptions): Promise<FullSyncResult> {
@@ -43,7 +44,7 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
 
   const since = (await readResumeSince(accessToken, spreadsheetId, fetchFn)) ?? DEFAULT_AFTER_DATE;
 
-  const { records } = await runSync({
+  const { records, truncated } = await runSync({
     accessToken,
     fetchFn,
     since,
@@ -57,5 +58,5 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
   }
 
   const plots = rowsToPlots(await getValues(accessToken, spreadsheetId, PLOTS_RANGE, fetchFn));
-  return { spreadsheetId, plots, appended: records.length };
+  return { spreadsheetId, plots, appended: records.length, truncated };
 }

@@ -143,7 +143,8 @@ export default function App() {
         {phase === "error"
           ? syncError
           : phase === "done"
-            ? `Synced. ${result?.appended ?? 0} new report${result?.appended === 1 ? "" : "s"}.`
+            ? `Synced. ${result?.appended ?? 0} new report${result?.appended === 1 ? "" : "s"}.` +
+              (result?.truncated ? " More history remains — Sync again to continue." : "")
             : ""}
       </p>
 
