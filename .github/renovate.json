@@ -3,27 +3,10 @@
   "extends": ["config:recommended"],
   "minimumReleaseAge": "5 days",
   "schedule": ["at any time"],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Track Ruby version in rbenv-style .ruby-version files (ruby-X.Y.Z)",
-      "managerFilePatterns": ["/(^|/)\\.ruby-version$/"],
-      "matchStrings": ["ruby-(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
-      "depNameTemplate": "ruby",
-      "packageNameTemplate": "ruby/ruby",
-      "datasourceTemplate": "github-releases",
-      "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+\\.\\d+)$"
-    }
-  ],
   "packageRules": [
     {
       "matchManagers": ["terraform"],
       "groupName": "terraform providers"
-    },
-    {
-      "description": "Keep all Ruby version references (Gemfile, Dockerfile, .ruby-version, .tool-versions) in a single PR so they never drift",
-      "matchDepNames": ["ruby"],
-      "groupName": "ruby"
     }
   ]
 }

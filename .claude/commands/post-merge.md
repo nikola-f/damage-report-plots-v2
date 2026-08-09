@@ -14,14 +14,13 @@ PR がマージされたので、以下のマージ後ルーチンを実行し�
 
 2. **CI 確認**
    - `gh run list --branch develop --limit 5` で develop push のワークフロー
-     (Terraform CI / ci-api など)が成功しているか確認する。
+     (Terraform CI / Web CI など)が成功しているか確認する。
      実行中なら完了を待ってから結果を報告する
 
 3. **マージ内容から追加作業を判定して報告**(今回のマージで変更されたファイルを
    `git log -1 --stat` や `gh pr view <PR番号> --json files` で確認):
-   - `apps/api/` に変更あり → dev への反映には **deploy-dev ワークフローを
-     image_tag 指定で実行**する必要がある(image_tag 未指定だと task definition が
-     更新されない)
+   - `apps/web/` に変更あり → ci-web の deploy ジョブが develop push で dev へ
+     自動デプロイ(S3 同期 + CloudFront invalidation)。CI 成功を確認すれば OK
    - `terraform/**/iam_cicd.tf` に変更あり → CI ロールは自身の IAM を更新できない
      ため、**ローカルから targeted apply(IAM bootstrap)**が必要。dev/prod 両方の
      要否を判定する
