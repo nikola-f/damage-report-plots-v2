@@ -357,44 +357,6 @@ resource "aws_iam_role_policy" "ecr_ecs_deploy" {
         Action   = "ecr:GetAuthorizationToken"
         Resource = "*"
       },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:InitiateLayerUpload",
-          "ecr:UploadLayerPart",
-          "ecr:CompleteLayerUpload",
-          "ecr:PutImage",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-        ]
-        Resource = module.app_infra.ecr_repository_arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecs:DescribeTaskDefinition",
-          "ecs:RegisterTaskDefinition",
-          "ecs:CreateService",
-          "ecs:DeleteService",
-          "ecs:DescribeServices",
-          "ecs:UpdateService",
-          "ecs:ListTasks",
-          "ecs:DescribeTasks",
-          "ecs:ListServiceDeployments",
-          "ecs:DescribeServiceDeployments",
-          "ecs:TagResource",
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = "iam:PassRole"
-        Resource = [
-          module.app_infra.task_execution_role_arn,
-          module.app_infra.task_role_arn,
-        ]
-      },
     ]
   })
 }
