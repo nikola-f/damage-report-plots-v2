@@ -44,7 +44,9 @@ measurements, and design: `apps/poc/DESIGN.md` and `apps/poc/RESULTS.md`.
    `GmailClient` (list + batch get), `EmailHtmlDecoder` (DOMParser +
    `document.evaluate` XPath), `DamageReportRecord` + dedupe/aggregate,
    `SpreadsheetsClient` (create/protect/append/get). Windowed scan with resume,
-   429 backoff, silent token re-acquisition; run in a Web Worker.
+   429 backoff, silent token re-acquisition. Runs on the **main thread** — a Web
+   Worker can't be used because the HTML decoder needs DOMParser/document.evaluate,
+   which don't exist in worker scope.
 2. Rework `apps/web` UI: replace omniauth/session login with GIS; the sync button
    drives the in-browser pipeline with progress; "Copy plots JSON" is sourced
    from in-browser/Sheet data (format unchanged).
@@ -57,8 +59,39 @@ measurements, and design: `apps/poc/DESIGN.md` and `apps/poc/RESULTS.md`.
 5. Production readiness (brand verification only, **no CASA**): privacy policy,
    homepage, demo video, per-scope justification; publish the consent screen.
 
-**Status**: PoC complete (GO). Implementation not yet started.
-Branch: `feat/casa-client-side-poc`.
+**Status**: Phase 1 complete — merged to `develop` (PR #349) and running in **dev**
+(GIS login → in-browser Gmail sync → Drive spreadsheet → Copy → IITC verified
+end-to-end). Now in **Phase 3 (backend decommission)**. Prod is not cut over yet
+(needs prod `VITE_GOOGLE_CLIENT_ID` + JS origin), so the prod backend stays until
+prod cutover / Phase 5.
+
+### Backend decommission (Phase 3, staged)
+
+Decommission the server pipeline now that the SPA talks to Google directly. Do
+**dev first, prod later** (after prod cutover). Each stage is a small PR; keep the
+frontend healthy throughout.
+
+- **Stage 1 — API traffic cutover (reversible)**: remove the ALB origin and
+  `/api/*` `/auth/*` behaviors from the frontend CloudFront (`frontend.tf`) — the
+  distribution is **shared**, so keep the S3 origin/default behavior; scale the
+  `web`/`worker` ECS services to `desiredCount: 0` (ecspresso). Observe dev.
+- **Stage 2 — delete ECS compute**: `ecspresso delete` web/worker; remove ECS
+  cluster, ECR, ECS task/exec IAM, FireLens/log groups; delete `ecspresso/`.
+- **Stage 3 — delete API-support infra** (Terraform): ALB/TG/listener/SG,
+  ElastiCache (Valkey) + SG + VPC endpoint, SQS, Secrets (rails_master_key,
+  google_client_id/secret, redis_url), SSM params, WAF, ACM (api), API alarms.
+  **Order**: CloudFront must lose its ALB reference (Stage 1) before the ALB is
+  deleted here.
+- **Stage 4 — CI/CD & app**: delete `ci-api.yml`, `deploy-dev.yml`, `scale-dev.yml`;
+  remove `apps/api` (Rails app, omniauth/session/rack-attack, workers, Gmail/SQS
+  e2e). Update this doc.
+- **Stage 5 — network teardown (optional, last)**: if the VPC has no tenants left,
+  remove VPC/subnets/NAT/IGW (drops the NAT fixed cost).
+
+**Caveats**: Terraform applies via ci-terraform on merge; changes to the CI role's
+own IAM (`iam_cicd.tf`) need a **local targeted apply** (CI can't edit its own
+policy). Redis-held tokens/spreadsheet_ids are discarded — fine, the client uses
+Drive discovery for fresh sheets.
 
 ## Architecture
 

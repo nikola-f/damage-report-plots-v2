@@ -1,7 +1,9 @@
 local tfstate = std.native('tfstate');
 
 {
-  desiredCount: 1,
+  // Phase 3, Stage 1: scaled to 0 — no more server-side Gmail sync work.
+  // The service is deleted in Stage 2.
+  desiredCount: 0,
   capacityProviderStrategy: [
     { capacityProvider: 'FARGATE_SPOT', weight: 1, base: 0 },
   ],
