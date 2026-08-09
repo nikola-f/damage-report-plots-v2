@@ -14,8 +14,9 @@ import {
 } from "./gmail";
 import { decodeHtmlBody, extractPortals } from "./decoder";
 import { deduplicate, type DamageReportRecord } from "./record";
+import { defaultFetch, type FetchLike } from "./http";
 
-export type FetchLike = typeof fetch;
+export type { FetchLike };
 
 const SECONDS_PER_DAY = 86_400;
 const BATCH_SIZE = 100; // Gmail batch endpoint caps sub-requests at 100
@@ -117,7 +118,7 @@ async function batchGetThreads(token: string, ids: string[], cfg: RetryConfig): 
 }
 
 export async function runSync(options: SyncOptions): Promise<SyncResult> {
-  const fetchFn = options.fetchFn ?? fetch;
+  const fetchFn = options.fetchFn ?? defaultFetch;
   const cfg: RetryConfig = {
     fetchFn,
     sleep: options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),

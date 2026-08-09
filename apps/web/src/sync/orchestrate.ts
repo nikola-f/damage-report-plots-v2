@@ -7,7 +7,8 @@ import definition from "./spreadsheetDefinition.json";
 import protection from "./spreadsheetProtection.json";
 import { findOrCreateSpreadsheetId } from "./spreadsheet";
 import { readResumeSince } from "./resume";
-import { runSync, type FetchLike, type SyncProgress } from "./engine";
+import { runSync, type SyncProgress } from "./engine";
+import { defaultFetch, type FetchLike } from "./http";
 import { appendRows, getValues } from "./sheets";
 import { toReportRow, rowsToPlots, type Plot } from "./mapping";
 import { DEFAULT_AFTER_DATE } from "./query";
@@ -30,7 +31,7 @@ export interface FullSyncResult {
 }
 
 export async function runFullSync(options: FullSyncOptions): Promise<FullSyncResult> {
-  const fetchFn = options.fetchFn ?? fetch;
+  const fetchFn = options.fetchFn ?? defaultFetch;
   const { accessToken } = options;
 
   const { spreadsheetId } = await findOrCreateSpreadsheetId(
