@@ -110,14 +110,14 @@ describe("runSync", () => {
     expect(records.map((r) => r.name).sort()).toEqual(["A", "B"]);
   });
 
-  it("splits into 20-id batches and pauses between them (concurrency guard)", async () => {
+  it("splits into 40-id batches and pauses between them (concurrency guard)", async () => {
     const sleep = vi.fn(async () => {});
-    const ids = Array.from({ length: 21 }, (_, i) => `t${i}`);
+    const ids = Array.from({ length: 41 }, (_, i) => `t${i}`);
     const mkThreads = (chunk: string[], base: number) =>
       chunk.map((id, i) => thread(id, base + i + 1, html(`P${base + i}`, `${base + i}.0,1.0`, "Me", "Me")));
     const fetchFn = router(
       [listResponse(ids)],
-      [batchResponse(mkThreads(ids.slice(0, 20), 0)), batchResponse(mkThreads(ids.slice(20), 20))],
+      [batchResponse(mkThreads(ids.slice(0, 40), 0)), batchResponse(mkThreads(ids.slice(40), 40))],
     );
 
     const { records } = await runSync({
@@ -128,7 +128,7 @@ describe("runSync", () => {
       sleep,
     });
 
-    expect(records).toHaveLength(21); // both batches processed
+    expect(records).toHaveLength(41); // both batches processed (40 + 1)
     expect(sleep).toHaveBeenCalledTimes(1); // exactly one pause between the two batches
   });
 
