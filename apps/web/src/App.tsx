@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { requestAccessToken } from "./sync/auth.ts";
 import type { SyncProgress } from "./sync/engine.ts";
-import { runFullSync, readPlots, type FullSyncResult } from "./sync/orchestrate.ts";
+import { runFullSync, readPlots, findSpreadsheet, type FullSyncResult } from "./sync/orchestrate.ts";
 import type { Plot } from "./sync/mapping.ts";
 import { fetchProfile, type Profile } from "./profile.ts";
 // Pre-approved "Sign in with Google" asset (dark theme, Android+Web @4x,
@@ -38,6 +38,9 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [result, setResult] = useState<FullSyncResult | null>(null);
+  // The user's spreadsheet id, from this session's sync or discovered on login.
+  // Persistent in Drive, so Copy works after a re-login without re-syncing.
+  const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
 
@@ -56,6 +59,11 @@ export default function App() {
       const r = await requestAccessToken(clientId);
       setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000 });
       setProfile(await fetchProfile(r.accessToken));
+      // Best-effort: find an existing spreadsheet so Copy is usable without a
+      // fresh sync. Never blocks login.
+      findSpreadsheet(r.accessToken)
+        .then(setSpreadsheetId)
+        .catch(() => {});
     } catch (e) {
       setAuthError(e instanceof Error ? e.message : "Sign-in failed.");
     }
@@ -65,6 +73,7 @@ export default function App() {
     setToken(null);
     setProfile(null);
     setResult(null);
+    setSpreadsheetId(null);
     setProgress(null);
     setPhase("idle");
     setCopyMessage("");
@@ -82,6 +91,7 @@ export default function App() {
       // batches, so progress renders and the UI stays responsive.
       const res = await runFullSync({ accessToken, onProgress: setProgress });
       setResult(res);
+      setSpreadsheetId(res.spreadsheetId);
       setPhase("done");
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : "Sync failed.");
@@ -90,11 +100,11 @@ export default function App() {
   }
 
   async function handleCopy() {
-    if (!result) return;
+    if (!spreadsheetId) return;
     setCopyMessage("Reading plots…");
     try {
       const accessToken = await acquireToken();
-      const plots = await readPlots(accessToken, result.spreadsheetId);
+      const plots = await readPlots(accessToken, spreadsheetId);
       await navigator.clipboard.writeText(plotsJson(plots));
       setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
     } catch (e) {
@@ -164,7 +174,7 @@ export default function App() {
         </div>
       )}
 
-      <button onClick={handleCopy} disabled={!result} className="btn secondary">
+      <button onClick={handleCopy} disabled={!spreadsheetId} className="btn secondary">
         Copy plots JSON
       </button>
       <p className="message success">{copyMessage}</p>

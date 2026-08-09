@@ -6,6 +6,7 @@
 import definition from "./spreadsheetDefinition.json";
 import protection from "./spreadsheetProtection.json";
 import { findOrCreateSpreadsheetId } from "./spreadsheet";
+import { findSpreadsheetId } from "./drive";
 import { readResumeSince } from "./resume";
 import { runSync, type SyncProgress } from "./engine";
 import { defaultFetch, type FetchLike } from "./http";
@@ -28,6 +29,16 @@ export interface FullSyncResult {
   spreadsheetId: string;
   appended: number; // number of report rows written this run
   truncated: boolean; // true when the run hit the thread cap; sync again to continue
+}
+
+// Discover the user's existing spreadsheet (id) without creating one, so the UI
+// can enable Copy after a fresh login even when no sync ran this session. Returns
+// null if the user has never synced. Works across devices via drive.file.
+export async function findSpreadsheet(
+  accessToken: string,
+  fetchFn: FetchLike = defaultFetch,
+): Promise<string | null> {
+  return findSpreadsheetId(accessToken, fetchFn);
 }
 
 // Read the aggregated plots for the clipboard. Kept separate from runFullSync so
