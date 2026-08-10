@@ -45,33 +45,84 @@ const SINCE_UNITS = 16_999_200; // lastReportTime value in 100-second units
 const SINCE = SINCE_UNITS * 100; // epoch seconds
 const UNTIL = SINCE + 5 * 86_400; // one 30-day window
 
-describe("runFullSync", () => {
-  it("resolves the sheet, resumes, scans, appends, and returns plots", async () => {
-    const appendBodies: unknown[] = [];
+const MESSAGE_MS = 1_700_000_000_000; // the batch response's only message
 
-    const fetchFn = vi.fn(async (input: string, init?: RequestInit) => {
-      const url = String(input);
-      if (url.startsWith(BATCH_URL)) return batchResponse();
-      if (url.includes("/drive/v3/files")) return json({ files: [{ id: "SHEET" }] }); // existing sheet
-      if (url.includes("gmail.googleapis.com")) return json({ threads: [{ id: "t1" }] });
-      if (url.includes("/values/lastReportTime")) return json({ values: [[SINCE_UNITS]] });
-      if (url.includes(":append")) {
-        appendBodies.push(JSON.parse(init?.body as string));
+// `pointer` is the value the stats!A7 cell returns (undefined = a sheet created
+// before the precise pointer existed).
+function fakeSheets(pointer?: number) {
+  const appendBodies: unknown[] = [];
+  const pointerWrites: number[] = [];
+
+  const fetchFn = vi.fn(async (input: string, init?: RequestInit) => {
+    const url = String(input);
+    if (url.startsWith(BATCH_URL)) return batchResponse();
+    if (url.includes("/drive/v3/files")) return json({ files: [{ id: "SHEET" }] }); // existing sheet
+    if (url.includes("gmail.googleapis.com")) return json({ threads: [{ id: "t1" }] });
+    if (url.includes("/values/lastReportTime")) return json({ values: [[SINCE_UNITS]] });
+    if (url.includes("/values/stats")) {
+      if (init?.method === "PUT") {
+        pointerWrites.push((JSON.parse(init.body as string) as { values: number[][] }).values[0][0]);
         return json({});
       }
-      throw new Error(`unexpected ${init?.method ?? "GET"} ${url}`);
-    });
+      return json(pointer === undefined ? {} : { values: [[pointer]] });
+    }
+    if (url.includes(":append")) {
+      appendBodies.push(JSON.parse(init?.body as string));
+      return json({});
+    }
+    throw new Error(`unexpected ${init?.method ?? "GET"} ${url}`);
+  });
 
-    const result = await runFullSync({
-      accessToken: "tok",
-      fetchFn: fetchFn as unknown as FetchLike,
-      until: UNTIL,
-      now: new Date(Date.UTC(2024, 0, 1)),
-    });
+  return { fetchFn, appendBodies, pointerWrites };
+}
+
+function run(fetchFn: unknown) {
+  return runFullSync({
+    accessToken: "tok",
+    fetchFn: fetchFn as FetchLike,
+    until: UNTIL,
+    now: new Date(Date.UTC(2024, 0, 1)),
+  });
+}
+
+describe("runFullSync", () => {
+  it("resolves the sheet, resumes, scans, appends, and returns plots", async () => {
+    const { fetchFn, appendBodies } = fakeSheets();
+
+    const result = await run(fetchFn);
 
     expect(result.spreadsheetId).toBe("SHEET");
     expect(result.appended).toBe(1);
     expect(result.truncated).toBe(false);
+    expect(appendBodies).toHaveLength(1);
+  });
+
+  it("advances the precise pointer to the message high-water mark after appending", async () => {
+    const { fetchFn, pointerWrites } = fakeSheets();
+
+    await run(fetchFn);
+
+    expect(pointerWrites).toEqual([MESSAGE_MS]);
+  });
+
+  it("skips messages already covered by the pointer instead of re-appending them", async () => {
+    // The resume day is re-queried (Gmail's after: is day-granular), so the same
+    // message comes back; it must not be written a second time.
+    const { fetchFn, appendBodies, pointerWrites } = fakeSheets(MESSAGE_MS);
+
+    const result = await run(fetchFn);
+
+    expect(result.appended).toBe(0);
+    expect(appendBodies).toEqual([]);
+    expect(pointerWrites).toEqual([]);
+  });
+
+  it("still appends messages newer than the pointer within the same day", async () => {
+    const { fetchFn, appendBodies } = fakeSheets(MESSAGE_MS - 1);
+
+    const result = await run(fetchFn);
+
+    expect(result.appended).toBe(1);
     expect(appendBodies).toHaveLength(1);
   });
 });

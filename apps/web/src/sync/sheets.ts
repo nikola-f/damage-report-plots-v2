@@ -74,6 +74,28 @@ export async function getValues(
   return data.values ?? [];
 }
 
+// Overwrite an exact range (RAW). Used for single-cell bookkeeping such as the
+// resume pointer; unlike appendRows this replaces rather than adds rows.
+export async function updateValues(
+  token: string,
+  spreadsheetId: string,
+  range: string,
+  rows: unknown[][],
+  fetchFn: FetchLike,
+): Promise<void> {
+  const url =
+    `${SHEETS_BASE}/spreadsheets/${seg(spreadsheetId)}/values/${seg(range)}` +
+    `?valueInputOption=RAW`;
+  await ok(
+    await fetchFn(url, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: rows }),
+    }),
+    "spreadsheets.values.update",
+  );
+}
+
 // Append rows to the end of a sheet (RAW so strings aren't reinterpreted).
 export async function appendRows(
   token: string,

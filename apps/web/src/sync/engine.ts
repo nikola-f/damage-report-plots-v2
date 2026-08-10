@@ -59,12 +59,17 @@ export interface SyncOptions {
   accessToken: string;
   fetchFn?: FetchLike;
   since?: number; // resume epoch seconds; default DEFAULT_AFTER_DATE
+  // Raw internalDate (ms) already persisted by a previous run. Gmail's after: is
+  // day-granular, so `since` re-queries the whole last day; messages at or below
+  // this mark were already written and are skipped instead of re-appended.
+  sinceInternalDateMs?: number;
   until?: number; // upper bound epoch seconds; default now
   onProgress?: (p: SyncProgress) => void;
-  // Called once per non-empty window with that window's deduped records, so the
-  // caller can persist progressively. Throwing aborts the run (earlier windows
-  // stay persisted).
-  onWindow?: (records: DamageReportRecord[]) => Promise<void>;
+  // Called once per non-empty window with that window's deduped records and the
+  // raw internalDate (ms) high-water mark of the messages behind them, so the
+  // caller can persist progressively and advance the pointer in step. Throwing
+  // aborts the run (earlier windows stay persisted).
+  onWindow?: (records: DamageReportRecord[], maxInternalDate: number) => Promise<void>;
   sleep?: (ms: number) => Promise<void>;
   maxRetries?: number;
   maxBackoff?: number; // seconds
@@ -147,6 +152,9 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
   const until = options.until ?? Math.floor(Date.now() / 1000);
   const maxThreads = options.maxThreads ?? DEFAULT_THREAD_LIMIT;
   let current = options.since ?? DEFAULT_AFTER_DATE;
+  const sinceInternalDateMs = options.sinceInternalDateMs ?? 0;
+  const alreadyPersisted = (internalDate: number) =>
+    sinceInternalDateMs > 0 && internalDate > 0 && internalDate <= sinceInternalDateMs;
 
   const collected: DamageReportRecord[] = [];
   let maxInternalDate = 0;
@@ -170,9 +178,16 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     if (ids.length > 0) {
       const threads = await batchGetThreads(options.accessToken, ids, cfg);
       const windowRecords: DamageReportRecord[] = [];
+      let windowMaxInternalDate = 0;
       for (const thread of threads) {
         for (const msg of thread.messages ?? []) {
-          if (msg.internalDate) maxInternalDate = Math.max(maxInternalDate, Number(msg.internalDate));
+          const internalDate = Number(msg.internalDate ?? 0);
+          if (msg.internalDate) maxInternalDate = Math.max(maxInternalDate, internalDate);
+          // Already written by an earlier run (the overlap day re-queried
+          // because Gmail's after: is day-granular) — skip so it isn't appended
+          // twice, which would inflate the plots `count`.
+          if (alreadyPersisted(internalDate)) continue;
+          windowMaxInternalDate = Math.max(windowMaxInternalDate, internalDate);
           const data = (msg.payload?.parts ?? []).find((p) => p.mimeType === HTML_MIME)?.body?.data;
           if (!data) continue;
           windowRecords.push(...extractPortals(decodeHtmlBody(data), msg.internalDate ?? "0"));
@@ -182,7 +197,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       // All reports for a given day are in this one 30-day window, so
       // window-scoped dedup fully collapses same-day/same-portal duplicates.
       const windowDeduped = deduplicate(windowRecords);
-      if (windowDeduped.length > 0) await options.onWindow?.(windowDeduped);
+      if (windowDeduped.length > 0) await options.onWindow?.(windowDeduped, windowMaxInternalDate);
       collected.push(...windowDeduped);
 
       threadsProcessed += ids.length;
