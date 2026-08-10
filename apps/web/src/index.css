@@ -265,18 +265,6 @@ body {
   transition: width 0.3s;
 }
 
-/* Dev-only client-id input (shown when VITE_GOOGLE_CLIENT_ID is unset). */
-.client-id {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font: inherit;
-}
-
 .footer {
   margin-top: 2rem;
   display: flex;
@@ -293,4 +281,33 @@ body {
 .footer a:hover {
   color: var(--fg);
   text-decoration: underline;
+}
+
+.summary-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.summary-value {
+  color: var(--accent);
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-label {
+  color: var(--muted);
+  font-size: 0.9rem;
 }

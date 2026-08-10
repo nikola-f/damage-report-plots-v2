@@ -1,19 +1,21 @@
 import { useState } from "react";
-import { requestAccessToken } from "./sync/auth.ts";
+import { requestAccessToken, LOGIN_SCOPE, SYNC_SCOPE } from "./sync/auth.ts";
 import type { SyncProgress } from "./sync/engine.ts";
 import { runFullSync, readPlots, findSpreadsheet, type FullSyncResult } from "./sync/orchestrate.ts";
 import type { Plot } from "./sync/mapping.ts";
 import { fetchProfile, type Profile } from "./profile.ts";
+import { readStats, type SheetStats } from "./sync/status.ts";
+import { loadLastSync, saveLastSync, type LastSync } from "./localState.ts";
 // Pre-approved "Sign in with Google" asset (dark theme, Android+Web @4x,
 // 720x160 shown at 180x40) from
 // https://developers.google.com/identity/branding-guidelines — do not restyle.
 import googleSignin from "./assets/google-signin-dark.png";
 import HowItWorks from "./HowItWorks.tsx";
 
-// Provided at build time; when absent (e.g. local dev) the login screen shows an
-// input so the client id can be pasted, mirroring the PoC.
-const ENV_CLIENT_ID = (import.meta.env as unknown as { VITE_GOOGLE_CLIENT_ID?: string })
-  .VITE_GOOGLE_CLIENT_ID;
+// Injected at build time (CI per environment; a local .env for dev). Sign-in is
+// disabled if it's missing.
+const CLIENT_ID =
+  (import.meta.env as unknown as { VITE_GOOGLE_CLIENT_ID?: string }).VITE_GOOGLE_CLIENT_ID ?? "";
 // Re-request the token when under a minute of its ~1h life remains.
 const TOKEN_MARGIN_MS = 60_000;
 
@@ -22,6 +24,7 @@ type Phase = "idle" | "syncing" | "done" | "error";
 interface Token {
   value: string;
   expiresAt: number; // epoch ms
+  scope: string; // the scope this token was requested for
 }
 
 // One plot per line: compact but diff-friendly, matching the old copy format the
@@ -30,8 +33,15 @@ function plotsJson(plots: Plot[]): string {
   return plots.length === 0 ? "[]" : `[\n${plots.map((p) => JSON.stringify(p)).join(",\n")}\n]`;
 }
 
+function fmtDay(epochSec?: number): string | null {
+  return epochSec ? new Date(epochSec * 1000).toLocaleDateString() : null;
+}
+
+function fmtWhen(ms: number): string {
+  return new Date(ms).toLocaleString();
+}
+
 export default function App() {
-  const [clientId, setClientId] = useState(ENV_CLIENT_ID ?? "");
   const [token, setToken] = useState<Token | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authError, setAuthError] = useState("");
@@ -43,26 +53,47 @@ export default function App() {
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
+  // Post-login state: shared summary read from the sheet, plus this device's
+  // last-sync record from localStorage.
+  const [stats, setStats] = useState<SheetStats | null>(null);
+  const [lastSync, setLastSync] = useState<LastSync | null>(null);
 
-  // Reuse the in-memory token while it is comfortably valid; otherwise ask GIS
-  // for a fresh one (silent when the Google session is still active).
-  async function acquireToken(): Promise<string> {
-    if (token && token.expiresAt - Date.now() > TOKEN_MARGIN_MS) return token.value;
-    const r = await requestAccessToken(clientId);
-    setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000 });
+  // Load the cross-device summary (sheet) and this device's last-sync record.
+  async function loadStatus(accessToken: string, id: string) {
+    setLastSync(loadLastSync(id));
+    try {
+      setStats(await readStats(accessToken, id));
+    } catch {
+      // Never block the UI on the summary read; the sheet may be brand new.
+    }
+  }
+
+  // Reuse the in-memory token while it is comfortably valid and was requested for
+  // the same scope; otherwise ask GIS for a fresh one (silent when the Google
+  // session is still active). Keying on scope keeps login (identity + Drive) and
+  // sync (Gmail) tokens separate for incremental authorization.
+  async function acquireToken(scope: string): Promise<string> {
+    if (token && token.scope === scope && token.expiresAt - Date.now() > TOKEN_MARGIN_MS) {
+      return token.value;
+    }
+    const r = await requestAccessToken(CLIENT_ID, { scope });
+    setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000, scope });
     return r.accessToken;
   }
 
   async function handleLogin() {
     setAuthError("");
     try {
-      const r = await requestAccessToken(clientId);
-      setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000 });
-      setProfile(await fetchProfile(r.accessToken));
+      // Login asks only for identity + Drive; gmail.readonly is deferred to sync.
+      const accessToken = await acquireToken(LOGIN_SCOPE);
+      setProfile(await fetchProfile(accessToken));
       // Best-effort: find an existing spreadsheet so Copy is usable without a
-      // fresh sync. Never blocks login.
-      findSpreadsheet(r.accessToken)
-        .then(setSpreadsheetId)
+      // fresh sync, and surface the last-sync summary. Never blocks login.
+      findSpreadsheet(accessToken)
+        .then((id) => {
+          setSpreadsheetId(id);
+          if (id) void loadStatus(accessToken, id);
+        })
         .catch(() => {});
     } catch (e) {
       setAuthError(e instanceof Error ? e.message : "Sign-in failed.");
@@ -77,6 +108,8 @@ export default function App() {
     setProgress(null);
     setPhase("idle");
     setCopyMessage("");
+    setStats(null);
+    setLastSync(null);
   }
 
   async function handleSync() {
@@ -85,7 +118,9 @@ export default function App() {
     setProgress(null);
     setCopyMessage("");
     try {
-      const accessToken = await acquireToken();
+      // Sync needs gmail.readonly (read mail) + drive.file (write the sheet);
+      // this is where the user is first prompted for Gmail access.
+      const accessToken = await acquireToken(SYNC_SCOPE);
       // Runs on the main thread: the HTML decoder needs DOMParser/document.evaluate,
       // which don't exist in a Web Worker. Work is network-bound and awaits between
       // batches, so progress renders and the UI stays responsive.
@@ -93,6 +128,11 @@ export default function App() {
       setResult(res);
       setSpreadsheetId(res.spreadsheetId);
       setPhase("done");
+      // Record this device's sync and refresh the summary from the sheet.
+      const record = { at: Date.now(), appended: res.appended };
+      saveLastSync(res.spreadsheetId, record);
+      setLastSync(record);
+      void loadStatus(accessToken, res.spreadsheetId);
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : "Sync failed.");
       setPhase("error");
@@ -103,7 +143,9 @@ export default function App() {
     if (!spreadsheetId) return;
     setCopyMessage("Reading plots…");
     try {
-      const accessToken = await acquireToken();
+      // Reading the sheet needs only drive.file, so the login-scope token works
+      // and Copy never triggers the Gmail prompt.
+      const accessToken = await acquireToken(LOGIN_SCOPE);
       const plots = await readPlots(accessToken, spreadsheetId);
       await navigator.clipboard.writeText(plotsJson(plots));
       setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
@@ -117,15 +159,7 @@ export default function App() {
       <div className="container">
         <h1 className="title">Damage Report Plots</h1>
         <HowItWorks />
-        {!ENV_CLIENT_ID && (
-          <input
-            className="client-id"
-            placeholder="Google OAuth Client ID"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-          />
-        )}
-        <button onClick={handleLogin} className="google-signin" disabled={!clientId}>
+        <button onClick={handleLogin} className="google-signin" disabled={!CLIENT_ID}>
           <img src={googleSignin} alt="Sign in with Google" height={40} />
         </button>
         {authError && <p className="message error">{authError}</p>}
@@ -150,6 +184,36 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {(stats || lastSync) && (
+        <div className="summary-card">
+          {stats && (
+            <div className="summary-row">
+              <span className="summary-value">{stats.portals.toLocaleString()}</span>
+              <span className="summary-label">
+                portals tracked
+                {stats.ownedPortals > 0 && ` · ${stats.ownedPortals.toLocaleString()} owned`}
+              </span>
+            </div>
+          )}
+          {stats && fmtDay(stats.latestReport) && (
+            <div className="summary-row">
+              <span className="summary-label">
+                Reports {fmtDay(stats.oldestReport) ? `${fmtDay(stats.oldestReport)} – ` : "up to "}
+                {fmtDay(stats.latestReport)}
+              </span>
+            </div>
+          )}
+          {lastSync && (
+            <div className="summary-row">
+              <span className="summary-label">
+                Last synced on this device {fmtWhen(lastSync.at)}
+                {lastSync.appended > 0 && ` · +${lastSync.appended.toLocaleString()} reports`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <button onClick={handleSync} disabled={syncing} className="btn primary">
         {syncing ? "Syncing…" : "Sync Gmail → Sheet"}

@@ -7,12 +7,17 @@
 // non-sensitive and replaces the old sensitive `spreadsheets` scope: it lets the
 // app create/read/write only its own spreadsheet AND rediscover it across
 // devices (see drive.ts).
-export const SCOPES = [
-  "email",
-  "profile",
-  "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/drive.file",
-].join(" ");
+const GMAIL_READONLY = "https://www.googleapis.com/auth/gmail.readonly";
+const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
+
+// Incremental authorization. At login we ask only for identity + the app's own
+// Drive file; the restricted gmail.readonly scope is deferred to the start of a
+// sync (SYNC_SCOPE), so users grant Gmail access only when they actually run one.
+// In the GIS token model each token is valid only for the scopes requested, so
+// SYNC_SCOPE also includes drive.file — a sync both reads Gmail and writes the
+// spreadsheet.
+export const LOGIN_SCOPE = ["email", "profile", DRIVE_FILE].join(" ");
+export const SYNC_SCOPE = [GMAIL_READONLY, DRIVE_FILE].join(" ");
 
 export interface TokenResult {
   accessToken: string;
@@ -87,7 +92,7 @@ export async function requestAccessToken(
   return new Promise<TokenResult>((resolve, reject) => {
     const client = gis.initTokenClient({
       client_id: clientId,
-      scope: opts.scope ?? SCOPES,
+      scope: opts.scope ?? LOGIN_SCOPE,
       callback: (r) => {
         if (r.error || !r.access_token) {
           reject(new Error(r.error ?? "no access_token returned"));
