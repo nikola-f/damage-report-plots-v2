@@ -191,8 +191,9 @@ body {
   min-height: 1.25rem;
 }
 
+/* Normal (non-error) messages use the app's accent, not the green success hue. */
 .message.success {
-  color: var(--success);
+  color: var(--accent);
 }
 
 .message.error {

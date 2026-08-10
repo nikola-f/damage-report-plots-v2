@@ -194,7 +194,7 @@ export default function App() {
       const accessToken = await acquireToken(LOGIN_SCOPE);
       const plots = await readPlots(accessToken, spreadsheetId);
       await navigator.clipboard.writeText(plotsJson(plots));
-      setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
+      setCopyMessage(`Copied ${plots.length.toLocaleString()} plots to clipboard.`);
     } catch (e) {
       setCopyMessage(e instanceof Error ? e.message : "Copy failed.");
     }
