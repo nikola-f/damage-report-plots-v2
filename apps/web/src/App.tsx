@@ -262,7 +262,7 @@ export default function App() {
       )}
 
       <button onClick={handleSync} disabled={syncing} className="btn primary">
-        {syncing ? "Syncing…" : "Sync Gmail → Sheet"}
+        {syncing ? `Syncing… Elapsed ${fmtDuration(elapsedMs)}` : "Sync Gmail → Sheet"}
       </button>
 
       {/* Fixed message slot so the layout doesn't jump. */}
@@ -275,21 +275,16 @@ export default function App() {
             : ""}
       </p>
 
-      {syncing && (
+      {syncing && progress && (
         <div className="status-card">
-          <p className="status-label">Elapsed {fmtDuration(elapsedMs)}</p>
-          {progress && (
-            <>
-              <p className="status-label">
-                {progress.phase === "list" ? "Listing threads" : "Fetching threads"} · window{" "}
-                {new Date(progress.windowStart * 1000).toLocaleDateString()}
-              </p>
-              <p className="status-label">
-                threads {progress.threadsProcessed} / {progress.threadsFound} · portals{" "}
-                {progress.portalsFound}
-              </p>
-            </>
-          )}
+          <p className="status-label">
+            {progress.phase === "list" ? "Listing threads" : "Fetching threads"} · window{" "}
+            {new Date(progress.windowStart * 1000).toLocaleDateString()}
+          </p>
+          <p className="status-label">
+            threads {progress.threadsProcessed} / {progress.threadsFound} · portals{" "}
+            {progress.portalsFound}
+          </p>
         </div>
       )}
 
