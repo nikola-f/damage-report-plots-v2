@@ -4,6 +4,8 @@ import type { SyncProgress } from "./sync/engine.ts";
 import { runFullSync, readPlots, findSpreadsheet, type FullSyncResult } from "./sync/orchestrate.ts";
 import type { Plot } from "./sync/mapping.ts";
 import { fetchProfile, type Profile } from "./profile.ts";
+import { readStats, type SheetStats } from "./sync/status.ts";
+import { loadLastSync, saveLastSync, type LastSync } from "./localState.ts";
 // Pre-approved "Sign in with Google" asset (dark theme, Android+Web @4x,
 // 720x160 shown at 180x40) from
 // https://developers.google.com/identity/branding-guidelines — do not restyle.
@@ -31,6 +33,14 @@ function plotsJson(plots: Plot[]): string {
   return plots.length === 0 ? "[]" : `[\n${plots.map((p) => JSON.stringify(p)).join(",\n")}\n]`;
 }
 
+function fmtDay(epochSec?: number): string | null {
+  return epochSec ? new Date(epochSec * 1000).toLocaleDateString() : null;
+}
+
+function fmtWhen(ms: number): string {
+  return new Date(ms).toLocaleString();
+}
+
 export default function App() {
   const [token, setToken] = useState<Token | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -43,6 +53,20 @@ export default function App() {
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
+  // Post-login state: shared summary read from the sheet, plus this device's
+  // last-sync record from localStorage.
+  const [stats, setStats] = useState<SheetStats | null>(null);
+  const [lastSync, setLastSync] = useState<LastSync | null>(null);
+
+  // Load the cross-device summary (sheet) and this device's last-sync record.
+  async function loadStatus(accessToken: string, id: string) {
+    setLastSync(loadLastSync(id));
+    try {
+      setStats(await readStats(accessToken, id));
+    } catch {
+      // Never block the UI on the summary read; the sheet may be brand new.
+    }
+  }
 
   // Reuse the in-memory token while it is comfortably valid and was requested for
   // the same scope; otherwise ask GIS for a fresh one (silent when the Google
@@ -64,9 +88,12 @@ export default function App() {
       const accessToken = await acquireToken(LOGIN_SCOPE);
       setProfile(await fetchProfile(accessToken));
       // Best-effort: find an existing spreadsheet so Copy is usable without a
-      // fresh sync. Never blocks login.
+      // fresh sync, and surface the last-sync summary. Never blocks login.
       findSpreadsheet(accessToken)
-        .then(setSpreadsheetId)
+        .then((id) => {
+          setSpreadsheetId(id);
+          if (id) void loadStatus(accessToken, id);
+        })
         .catch(() => {});
     } catch (e) {
       setAuthError(e instanceof Error ? e.message : "Sign-in failed.");
@@ -81,6 +108,8 @@ export default function App() {
     setProgress(null);
     setPhase("idle");
     setCopyMessage("");
+    setStats(null);
+    setLastSync(null);
   }
 
   async function handleSync() {
@@ -99,6 +128,11 @@ export default function App() {
       setResult(res);
       setSpreadsheetId(res.spreadsheetId);
       setPhase("done");
+      // Record this device's sync and refresh the summary from the sheet.
+      const record = { at: Date.now(), appended: res.appended };
+      saveLastSync(res.spreadsheetId, record);
+      setLastSync(record);
+      void loadStatus(accessToken, res.spreadsheetId);
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : "Sync failed.");
       setPhase("error");
@@ -150,6 +184,36 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {(stats || lastSync) && (
+        <div className="summary-card">
+          {stats && (
+            <div className="summary-row">
+              <span className="summary-value">{stats.portals.toLocaleString()}</span>
+              <span className="summary-label">
+                portals tracked
+                {stats.ownedPortals > 0 && ` · ${stats.ownedPortals.toLocaleString()} owned`}
+              </span>
+            </div>
+          )}
+          {stats && fmtDay(stats.latestReport) && (
+            <div className="summary-row">
+              <span className="summary-label">
+                Reports {fmtDay(stats.oldestReport) ? `${fmtDay(stats.oldestReport)} – ` : "up to "}
+                {fmtDay(stats.latestReport)}
+              </span>
+            </div>
+          )}
+          {lastSync && (
+            <div className="summary-row">
+              <span className="summary-label">
+                Last synced on this device {fmtWhen(lastSync.at)}
+                {lastSync.appended > 0 && ` · +${lastSync.appended.toLocaleString()} reports`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <button onClick={handleSync} disabled={syncing} className="btn primary">
         {syncing ? "Syncing…" : "Sync Gmail → Sheet"}
