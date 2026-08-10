@@ -265,18 +265,6 @@ body {
   transition: width 0.3s;
 }
 
-/* Dev-only client-id input (shown when VITE_GOOGLE_CLIENT_ID is unset). */
-.client-id {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font: inherit;
-}
-
 .footer {
   margin-top: 2rem;
   display: flex;

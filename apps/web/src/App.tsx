@@ -10,10 +10,10 @@ import { fetchProfile, type Profile } from "./profile.ts";
 import googleSignin from "./assets/google-signin-dark.png";
 import HowItWorks from "./HowItWorks.tsx";
 
-// Provided at build time; when absent (e.g. local dev) the login screen shows an
-// input so the client id can be pasted, mirroring the PoC.
-const ENV_CLIENT_ID = (import.meta.env as unknown as { VITE_GOOGLE_CLIENT_ID?: string })
-  .VITE_GOOGLE_CLIENT_ID;
+// Injected at build time (CI per environment; a local .env for dev). Sign-in is
+// disabled if it's missing.
+const CLIENT_ID =
+  (import.meta.env as unknown as { VITE_GOOGLE_CLIENT_ID?: string }).VITE_GOOGLE_CLIENT_ID ?? "";
 // Re-request the token when under a minute of its ~1h life remains.
 const TOKEN_MARGIN_MS = 60_000;
 
@@ -31,7 +31,6 @@ function plotsJson(plots: Plot[]): string {
 }
 
 export default function App() {
-  const [clientId, setClientId] = useState(ENV_CLIENT_ID ?? "");
   const [token, setToken] = useState<Token | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authError, setAuthError] = useState("");
@@ -48,7 +47,7 @@ export default function App() {
   // for a fresh one (silent when the Google session is still active).
   async function acquireToken(): Promise<string> {
     if (token && token.expiresAt - Date.now() > TOKEN_MARGIN_MS) return token.value;
-    const r = await requestAccessToken(clientId);
+    const r = await requestAccessToken(CLIENT_ID);
     setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000 });
     return r.accessToken;
   }
@@ -56,7 +55,7 @@ export default function App() {
   async function handleLogin() {
     setAuthError("");
     try {
-      const r = await requestAccessToken(clientId);
+      const r = await requestAccessToken(CLIENT_ID);
       setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000 });
       setProfile(await fetchProfile(r.accessToken));
       // Best-effort: find an existing spreadsheet so Copy is usable without a
@@ -117,15 +116,7 @@ export default function App() {
       <div className="container">
         <h1 className="title">Damage Report Plots</h1>
         <HowItWorks />
-        {!ENV_CLIENT_ID && (
-          <input
-            className="client-id"
-            placeholder="Google OAuth Client ID"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-          />
-        )}
-        <button onClick={handleLogin} className="google-signin" disabled={!clientId}>
+        <button onClick={handleLogin} className="google-signin" disabled={!CLIENT_ID}>
           <img src={googleSignin} alt="Sign in with Google" height={40} />
         </button>
         {authError && <p className="message error">{authError}</p>}
