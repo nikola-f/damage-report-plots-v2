@@ -7,7 +7,7 @@ import definition from "./spreadsheetDefinition.json";
 import protection from "./spreadsheetProtection.json";
 import { findOrCreateSpreadsheetId } from "./spreadsheet";
 import { findSpreadsheetId } from "./drive";
-import { readResumeSince } from "./resume";
+import { readResumeSince, readSyncPointer, writeSyncPointer } from "./resume";
 import { runSync, type SyncProgress } from "./engine";
 import { defaultFetch, type FetchLike } from "./http";
 import { appendRows, getValues } from "./sheets";
@@ -64,6 +64,10 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
   );
 
   const since = (await readResumeSince(accessToken, spreadsheetId, fetchFn)) ?? DEFAULT_AFTER_DATE;
+  // Exact high-water mark of what's already in the sheet. `since` is only
+  // day-granular, so without this the last day's messages are re-appended on
+  // every sync. Absent on sheets created before the pointer existed.
+  const sinceInternalDateMs = await readSyncPointer(accessToken, spreadsheetId, fetchFn);
 
   // Append each window's reports as they're scanned, so an interrupted run keeps
   // its progress (and the sheet's resume point advances) instead of losing
@@ -73,12 +77,18 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
     accessToken,
     fetchFn,
     since,
+    sinceInternalDateMs,
     until: options.until,
     onProgress: options.onProgress,
-    onWindow: async (windowRecords) => {
+    onWindow: async (windowRecords, windowMaxInternalDate) => {
       const rows = await Promise.all(windowRecords.map((r) => toReportRow(r, options.now)));
       await appendRows(accessToken, spreadsheetId, REPORTS_SHEET, rows, fetchFn);
       appended += windowRecords.length;
+      // Advance the pointer only after the rows are persisted, so an interrupted
+      // run resumes from what actually landed in the sheet.
+      if (windowMaxInternalDate > 0) {
+        await writeSyncPointer(accessToken, spreadsheetId, windowMaxInternalDate, fetchFn);
+      }
     },
   });
 
