@@ -129,6 +129,9 @@ export default function App() {
           <img src={googleSignin} alt="Sign in with Google" height={40} />
         </button>
         {authError && <p className="message error">{authError}</p>}
+        <footer className="footer">
+          <a href="/privacy.html">Privacy Policy</a>
+        </footer>
       </div>
     );
   }
