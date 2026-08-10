@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SCOPES, requestAccessToken, type GisOAuth2 } from "./auth";
+import { LOGIN_SCOPE, SYNC_SCOPE, requestAccessToken, type GisOAuth2 } from "./auth";
 
 function fakeOAuth2(response: {
   access_token?: string;
@@ -12,17 +12,28 @@ function fakeOAuth2(response: {
   };
 }
 
-describe("SCOPES", () => {
-  it("requests gmail.readonly and drive.file, and drops the sensitive spreadsheets scope", () => {
-    expect(SCOPES).toContain("gmail.readonly");
-    expect(SCOPES).toContain("drive.file");
-    expect(SCOPES).not.toContain("auth/spreadsheets");
+describe("scopes (incremental authorization)", () => {
+  it("login asks for identity + drive.file but not the restricted gmail scope", () => {
+    expect(LOGIN_SCOPE).toContain("email");
+    expect(LOGIN_SCOPE).toContain("profile");
+    expect(LOGIN_SCOPE).toContain("drive.file");
+    expect(LOGIN_SCOPE).not.toContain("gmail.readonly");
+  });
+
+  it("sync adds gmail.readonly and keeps drive.file for writing the sheet", () => {
+    expect(SYNC_SCOPE).toContain("gmail.readonly");
+    expect(SYNC_SCOPE).toContain("drive.file");
+  });
+
+  it("neither scope uses the sensitive spreadsheets scope", () => {
+    expect(LOGIN_SCOPE).not.toContain("auth/spreadsheets");
+    expect(SYNC_SCOPE).not.toContain("auth/spreadsheets");
   });
 });
 
 describe("requestAccessToken", () => {
   it("resolves with the token on success", async () => {
-    const oauth2 = fakeOAuth2({ access_token: "tok", expires_in: 3599, scope: SCOPES });
+    const oauth2 = fakeOAuth2({ access_token: "tok", expires_in: 3599, scope: LOGIN_SCOPE });
     await expect(requestAccessToken("cid", {}, oauth2)).resolves.toMatchObject({
       accessToken: "tok",
       expiresIn: 3599,

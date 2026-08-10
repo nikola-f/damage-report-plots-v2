@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { requestAccessToken } from "./sync/auth.ts";
+import { requestAccessToken, LOGIN_SCOPE, SYNC_SCOPE } from "./sync/auth.ts";
 import type { SyncProgress } from "./sync/engine.ts";
 import { runFullSync, readPlots, findSpreadsheet, type FullSyncResult } from "./sync/orchestrate.ts";
 import type { Plot } from "./sync/mapping.ts";
@@ -22,6 +22,7 @@ type Phase = "idle" | "syncing" | "done" | "error";
 interface Token {
   value: string;
   expiresAt: number; // epoch ms
+  scope: string; // the scope this token was requested for
 }
 
 // One plot per line: compact but diff-friendly, matching the old copy format the
@@ -43,24 +44,28 @@ export default function App() {
   const [syncError, setSyncError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
 
-  // Reuse the in-memory token while it is comfortably valid; otherwise ask GIS
-  // for a fresh one (silent when the Google session is still active).
-  async function acquireToken(): Promise<string> {
-    if (token && token.expiresAt - Date.now() > TOKEN_MARGIN_MS) return token.value;
-    const r = await requestAccessToken(CLIENT_ID);
-    setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000 });
+  // Reuse the in-memory token while it is comfortably valid and was requested for
+  // the same scope; otherwise ask GIS for a fresh one (silent when the Google
+  // session is still active). Keying on scope keeps login (identity + Drive) and
+  // sync (Gmail) tokens separate for incremental authorization.
+  async function acquireToken(scope: string): Promise<string> {
+    if (token && token.scope === scope && token.expiresAt - Date.now() > TOKEN_MARGIN_MS) {
+      return token.value;
+    }
+    const r = await requestAccessToken(CLIENT_ID, { scope });
+    setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000, scope });
     return r.accessToken;
   }
 
   async function handleLogin() {
     setAuthError("");
     try {
-      const r = await requestAccessToken(CLIENT_ID);
-      setToken({ value: r.accessToken, expiresAt: Date.now() + r.expiresIn * 1000 });
-      setProfile(await fetchProfile(r.accessToken));
+      // Login asks only for identity + Drive; gmail.readonly is deferred to sync.
+      const accessToken = await acquireToken(LOGIN_SCOPE);
+      setProfile(await fetchProfile(accessToken));
       // Best-effort: find an existing spreadsheet so Copy is usable without a
       // fresh sync. Never blocks login.
-      findSpreadsheet(r.accessToken)
+      findSpreadsheet(accessToken)
         .then(setSpreadsheetId)
         .catch(() => {});
     } catch (e) {
@@ -84,7 +89,9 @@ export default function App() {
     setProgress(null);
     setCopyMessage("");
     try {
-      const accessToken = await acquireToken();
+      // Sync needs gmail.readonly (read mail) + drive.file (write the sheet);
+      // this is where the user is first prompted for Gmail access.
+      const accessToken = await acquireToken(SYNC_SCOPE);
       // Runs on the main thread: the HTML decoder needs DOMParser/document.evaluate,
       // which don't exist in a Web Worker. Work is network-bound and awaits between
       // batches, so progress renders and the UI stays responsive.
@@ -102,7 +109,9 @@ export default function App() {
     if (!spreadsheetId) return;
     setCopyMessage("Reading plots…");
     try {
-      const accessToken = await acquireToken();
+      // Reading the sheet needs only drive.file, so the login-scope token works
+      // and Copy never triggers the Gmail prompt.
+      const accessToken = await acquireToken(LOGIN_SCOPE);
       const plots = await readPlots(accessToken, spreadsheetId);
       await navigator.clipboard.writeText(plotsJson(plots));
       setCopyMessage(`Copied ${plots.length} plots to clipboard.`);
