@@ -275,7 +275,9 @@ export default function App() {
             : ""}
       </p>
 
-      {syncing && progress && (
+      {/* Kept after completion (progress is cleared only when the next sync
+          starts or on logout) so the final per-window state stays visible. */}
+      {progress && (
         <div className="status-card">
           <p className="status-label">
             {progress.phase === "list" ? "Listing threads" : "Fetching threads"} · window{" "}
