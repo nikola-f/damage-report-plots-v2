@@ -110,16 +110,70 @@ until prod cutover** because the shared module reconciles prod only on merge to
   `scale-dev.yml` / `decommission-ecs.yml` workflows.
 - **Stage 5** — deleted the now-empty VPC/subnets/gateways/route tables. (No cost
   change: the IPv6-only design used a free egress-only IGW; there was no NAT.)
+- **Follow-up** — pruned the now-dead backend permissions from the
+  `github-actions-terraform` CI role (`iam_cicd.tf`, dev+prod); only ACM/S3/
+  CloudFront/CloudTrail/tfstate grants remain.
 
-**Remaining**: prod cutover (set prod `VITE_GOOGLE_CLIENT_ID` + JS origin →
-verify prod frontend → merge `develop`→`main` to tear down prod backend in one
-apply, Terraform orders the destroy correctly) and Phase 5 production readiness
-(brand verification only — **no CASA**: privacy policy, homepage, demo video,
-per-scope justification; publish the consent screen).
+**Prod status**: prod was **never fully deployed** — its state holds only the
+bootstrap IAM role + tfstate access + GCP WIF (the #358 prod plan is
+`~13 to add, 0 to destroy`). So **prod cutover is a first-time *creation* of the
+prod frontend, not a teardown.** It happens when `develop`→`main` is merged and
+`apply-prod` runs — but because that apply creates IAM policies on the CI's own
+role, the **first prod apply must be a local bootstrap apply** (see Caveat),
+after which CI takes over. Prod cutover also needs a prod `VITE_GOOGLE_CLIENT_ID`
+GitHub var and the prod OAuth client's JS origin.
 
 **Caveat**: Terraform applies via ci-terraform on merge; changes to the CI role's
 own IAM (`iam_cicd.tf`) need a **local targeted apply** (CI can't edit its own
 policy).
+
+## Phase 5 — production readiness (OAuth verification, no CASA)
+
+Publish the **prod** GCP OAuth consent screen (Testing → In production) and pass
+Google's OAuth verification so external users can use the app without the
+"unverified app" warning / 100-test-user cap.
+
+**What actually needs verification**: only **`gmail.readonly`** (restricted).
+`email`/`profile` (non-sensitive) and `drive.file` (non-sensitive, recommended)
+don't drive verification. Client-side-only handling keeps us **exempt from the
+CASA security assessment**; standard OAuth verification (brand + scope review +
+demo video) still applies.
+
+**Hard dependency**: the consent screen's homepage & privacy-policy URLs must be
+live on the **verified prod domain**, and the prod OAuth client must exist — so
+**prod cutover (above) must precede the verification submit.** Deliverables D1,
+D2, D5, D6 can be produced in parallel now (recorded/written against dev).
+
+**Deliverables** (owner):
+- **D1 — Privacy policy page** (`/privacy` in `apps/web`): includes the **Limited
+  Use disclosure** (compliance with the Google API Services User Data Policy;
+  restricted data stays in the browser, is never sent to a server or shared).
+  *Code — drafted in-repo.*
+- **D2 — Homepage/landing**: extend the `HowItWorks` explainer with a clear app
+  description, a screenshot, and a link to the privacy policy. *Code.*
+- **D3 — Domain ownership verification**: verify the prod frontend domain in
+  Google Search Console; add it to the consent screen's Authorized domains.
+  *User (Google Console).*
+- **D4 — Consent screen config (prod project)**: app name, logo, support email,
+  developer contact, authorized domains, scopes, homepage + privacy URLs. *User;
+  copy drafted in-repo.*
+- **D5 — Per-scope justification**: English text explaining `gmail.readonly` is
+  used only to parse "Ingress Damage Report" email bodies, plus Limited-Use and
+  client-side-only statements. *Drafted in-repo.*
+- **D6 — Demo video** (unlisted YouTube): the OAuth consent flow then the
+  gmail.readonly usage (sync → Sheet → Copy → IITC), noting restricted data never
+  leaves the browser. *User records; storyboard drafted in-repo.*
+- **D7 — Submit for verification** and set Publishing status to In production.
+  *User (Google Console).*
+
+**Sequence**: (1) build D1/D2/D5 + D6 storyboard now (one PR); (2) prod cutover;
+(3) D3 domain verification; (4) record D6; (5) D4 → D7 submit; (6) answer
+Google's review follow-ups.
+
+**Notes**: restricted-scope review can take **weeks** with back-and-forth;
+weak/absent **Limited Use** wording and demo-video gaps are the common rejection
+reasons. The app remains usable during review (unverified warning + 100-user
+cap); approval clears both.
 
 ## Infrastructure Setup Status
 
