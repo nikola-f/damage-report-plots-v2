@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0F0F0F" />
+    <meta name="robots" content="all" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Privacy Policy · Damage Report Plots</title>
+    <style>
+      :root {
+        --bg: #0f0f0f;
+        --fg: #eef0e3;
+        --muted: #a3a89b;
+        --accent: #5ab5b2;
+        --border: #4a4a4a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      h1 {
+        font-size: 1.7rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin: 2rem 0 0.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.3rem;
+      }
+      .updated {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0 0 1.5rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      code {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.05rem 0.35rem;
+        font-size: 0.9em;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      li {
+        margin: 0.35rem 0;
+      }
+      .callout {
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        padding: 0.9rem 1.1rem;
+        margin: 1rem 0;
+        background: rgba(90, 181, 178, 0.08);
+      }
+      .back {
+        display: inline-block;
+        margin-top: 2.5rem;
+        color: var(--muted);
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #ffffff;
+          --fg: #1a1c17;
+          --muted: #5c6157;
+          --accent: #2f8f8b;
+          --border: #d4d7cd;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Damage Report Plots · Last updated: August 10, 2026</p>
+
+      <p>
+        Damage Report Plots ("the app", "we") is a client-side web application
+        that reads your "Ingress Damage Report" emails from Gmail, extracts the
+        portal locations they describe, records them in a Google Sheet that the
+        app creates in your own Google Drive, and lets you copy the resulting
+        list to your clipboard for use in an IITC map plugin.
+      </p>
+
+      <p>
+        <strong
+          >The app has no backend server. All processing happens entirely inside
+          your browser.</strong
+        >
+        Your Gmail data, the access token, and everything derived from them are
+        never sent to, stored on, or logged by any server operated by us.
+      </p>
+
+      <h2>Information the app accesses</h2>
+      <p>
+        When you sign in with Google, you grant the app the following OAuth
+        scopes. Access lasts only for the ~1-hour lifetime of a single access
+        token; the app requests no refresh token.
+      </p>
+      <ul>
+        <li>
+          <code>gmail.readonly</code> — read-only access to Gmail, used
+          <em>only</em> to find and parse the HTML body of "Ingress Damage
+          Report" emails so it can extract portal names and coordinates. The app
+          reads no other messages beyond what this purpose requires and never
+          modifies, sends, or deletes email.
+        </li>
+        <li>
+          <code>drive.file</code> — access limited to the single spreadsheet the
+          app itself creates. It cannot see any of your other Drive files. This
+          lets the app find and reuse the same spreadsheet across devices.
+        </li>
+        <li>
+          <code>email</code> and <code>profile</code> — your basic Google
+          account identity (name, email address, profile picture), used to show
+          who is signed in.
+        </li>
+      </ul>
+
+      <h2>How your data is used and stored</h2>
+      <ul>
+        <li>
+          Gmail message contents are parsed in your browser and immediately
+          reduced to portal records (location, count, timestamp). Raw email
+          content is not retained after processing.
+        </li>
+        <li>
+          The extracted portal records are written to a Google Sheet in
+          <strong>your own Google Drive</strong>, which remains under your
+          control. You can view, edit, or delete it at any time.
+        </li>
+        <li>
+          The clipboard copy you trigger stays on your device; the app does not
+          transmit it anywhere.
+        </li>
+        <li>
+          We keep no copy of any of this data. There is no server-side database,
+          storage, or logging of your Google user data.
+        </li>
+      </ul>
+
+      <h2>Limited Use disclosure</h2>
+      <div class="callout">
+        <p style="margin: 0">
+          Damage Report Plots' use and transfer of information received from
+          Google APIs to any other app will adhere to the
+          <a
+            href="https://developers.google.com/terms/api-services-user-data-policy"
+            target="_blank"
+            rel="noopener"
+            >Google API Services User Data Policy</a
+          >, including the Limited Use requirements.
+        </p>
+      </div>
+      <p>
+        In particular, data obtained through Gmail restricted scopes is used
+        solely to provide and improve the app's user-facing feature described
+        above, is processed only on your device, is not transferred to others
+        except as necessary to provide that feature (writing to your own Google
+        Sheet), is never used for advertising, and is never sold. No humans read
+        your data, except where required for security, to comply with applicable
+        law, or with your explicit consent.
+      </p>
+
+      <h2>Data sharing</h2>
+      <p>
+        We do not sell, rent, or share your Google user data with any third
+        party. The app communicates only with Google's own APIs (Gmail, Drive,
+        Sheets, and Google Identity Services) directly from your browser.
+      </p>
+
+      <h2>Security</h2>
+      <p>
+        Sign-in uses the Google Identity Services token model with PKCE and no
+        client secret. The access token is held in memory for the duration of
+        your session only and is discarded when the token expires or you sign
+        out. Because there is no server, there is no server-side attack surface
+        for your Google data.
+      </p>
+
+      <h2>Revoking access</h2>
+      <p>
+        You can revoke the app's access to your Google account at any time from
+        your Google Account permissions page at
+        <a
+          href="https://myaccount.google.com/permissions"
+          target="_blank"
+          rel="noopener"
+          >myaccount.google.com/permissions</a
+        >.
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        The app is not directed to children under the age required to hold a
+        Google account in their jurisdiction and does not knowingly collect
+        their data.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        We may update this policy from time to time. Material changes will be
+        reflected by the "Last updated" date above.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy or the app's data handling can be sent to
+        <a href="mailto:admin@plots.world">admin@plots.world</a>.
+      </p>
+
+      <a class="back" href="/">← Back to Damage Report Plots</a>
+    </main>
+  </body>
+</html>
