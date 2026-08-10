@@ -77,12 +77,32 @@ export default function App() {
   }, [phase, syncStartedAt]);
 
   // Load the cross-device summary (sheet) and this device's last-sync record.
+  // Used on login, when the sheet's aggregates are settled.
   async function loadStatus(accessToken: string, id: string) {
     setLastSync(loadLastSync(id));
     try {
       setStats(await readStats(accessToken, id));
     } catch {
       // Never block the UI on the summary read; the sheet may be brand new.
+    }
+  }
+
+  // After a sync the `plots` QUERY (and thus the stats COUNT) recalculates;
+  // reading too soon returns 0. When we expect data, poll until the count
+  // catches up so the card never flashes "0 portals". Falls through quietly if
+  // it never settles — the previous summary stays on screen.
+  async function refreshStatsAfterSync(accessToken: string, id: string, expectData: boolean) {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        const s = await readStats(accessToken, id);
+        if (!expectData || s.portals > 0) {
+          setStats(s);
+          return;
+        }
+      } catch {
+        // keep retrying
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
   }
 
@@ -150,11 +170,14 @@ export default function App() {
       setSpreadsheetId(res.spreadsheetId);
       setElapsedMs(Date.now() - startedAt);
       setPhase("done");
-      // Record this device's sync and refresh the summary from the sheet.
+      // Record this device's sync and refresh the summary from the sheet. The
+      // stats read is polled because the sheet's QUERY recalculates after the
+      // append (see refreshStatsAfterSync).
       const record = { at: Date.now(), appended: res.appended };
       saveLastSync(res.spreadsheetId, record);
       setLastSync(record);
-      void loadStatus(accessToken, res.spreadsheetId);
+      const expectData = res.appended > 0 || (stats?.portals ?? 0) > 0;
+      void refreshStatsAfterSync(accessToken, res.spreadsheetId, expectData);
     } catch (e) {
       setElapsedMs(Date.now() - startedAt);
       setSyncError(e instanceof Error ? e.message : "Sync failed.");
@@ -210,7 +233,7 @@ export default function App() {
 
       {(stats || lastSync) && (
         <div className="summary-card">
-          {stats && (
+          {stats && stats.portals > 0 && (
             <div className="summary-row">
               <span className="summary-value">{stats.portals.toLocaleString()}</span>
               <span className="summary-label">
