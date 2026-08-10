@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { requestAccessToken, LOGIN_SCOPE, SYNC_SCOPE } from "./sync/auth.ts";
 import type { SyncProgress } from "./sync/engine.ts";
 import { runFullSync, readPlots, findSpreadsheet, type FullSyncResult } from "./sync/orchestrate.ts";
@@ -41,6 +41,13 @@ function fmtWhen(ms: number): string {
   return new Date(ms).toLocaleString();
 }
 
+function fmtDuration(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 export default function App() {
   const [token, setToken] = useState<Token | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -57,6 +64,17 @@ export default function App() {
   // last-sync record from localStorage.
   const [stats, setStats] = useState<SheetStats | null>(null);
   const [lastSync, setLastSync] = useState<LastSync | null>(null);
+  // Elapsed time since the current/last sync started. `syncStartedAt` is null
+  // until the first sync of the session.
+  const [syncStartedAt, setSyncStartedAt] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  // Tick the elapsed clock once a second while a sync is running.
+  useEffect(() => {
+    if (phase !== "syncing" || syncStartedAt == null) return;
+    const id = setInterval(() => setElapsedMs(Date.now() - syncStartedAt), 1000);
+    return () => clearInterval(id);
+  }, [phase, syncStartedAt]);
 
   // Load the cross-device summary (sheet) and this device's last-sync record.
   async function loadStatus(accessToken: string, id: string) {
@@ -113,6 +131,9 @@ export default function App() {
   }
 
   async function handleSync() {
+    const startedAt = Date.now();
+    setSyncStartedAt(startedAt);
+    setElapsedMs(0);
     setPhase("syncing");
     setSyncError("");
     setProgress(null);
@@ -127,6 +148,7 @@ export default function App() {
       const res = await runFullSync({ accessToken, onProgress: setProgress });
       setResult(res);
       setSpreadsheetId(res.spreadsheetId);
+      setElapsedMs(Date.now() - startedAt);
       setPhase("done");
       // Record this device's sync and refresh the summary from the sheet.
       const record = { at: Date.now(), appended: res.appended };
@@ -134,6 +156,7 @@ export default function App() {
       setLastSync(record);
       void loadStatus(accessToken, res.spreadsheetId);
     } catch (e) {
+      setElapsedMs(Date.now() - startedAt);
       setSyncError(e instanceof Error ? e.message : "Sync failed.");
       setPhase("error");
     }
@@ -224,21 +247,26 @@ export default function App() {
         {phase === "error"
           ? syncError
           : phase === "done"
-            ? `Synced. ${result?.appended ?? 0} new report${result?.appended === 1 ? "" : "s"}.` +
+            ? `Synced in ${fmtDuration(elapsedMs)}. ${result?.appended ?? 0} new report${result?.appended === 1 ? "" : "s"}.` +
               (result?.truncated ? " More history remains — Sync again to continue." : "")
             : ""}
       </p>
 
-      {syncing && progress && (
+      {syncing && (
         <div className="status-card">
-          <p className="status-label">
-            {progress.phase === "list" ? "Listing threads" : "Fetching threads"} · window{" "}
-            {new Date(progress.windowStart * 1000).toLocaleDateString()}
-          </p>
-          <p className="status-label">
-            threads {progress.threadsProcessed} / {progress.threadsFound} · portals{" "}
-            {progress.portalsFound}
-          </p>
+          <p className="status-label">Elapsed {fmtDuration(elapsedMs)}</p>
+          {progress && (
+            <>
+              <p className="status-label">
+                {progress.phase === "list" ? "Listing threads" : "Fetching threads"} · window{" "}
+                {new Date(progress.windowStart * 1000).toLocaleDateString()}
+              </p>
+              <p className="status-label">
+                threads {progress.threadsProcessed} / {progress.threadsFound} · portals{" "}
+                {progress.portalsFound}
+              </p>
+            </>
+          )}
         </div>
       )}
 
