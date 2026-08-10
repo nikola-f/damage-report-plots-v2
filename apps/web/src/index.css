@@ -279,7 +279,9 @@ body {
 
 .footer {
   margin-top: 2rem;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
   font-size: 0.85rem;
 }
 

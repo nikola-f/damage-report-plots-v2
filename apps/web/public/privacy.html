@@ -74,10 +74,19 @@
         margin: 1rem 0;
         background: rgba(90, 181, 178, 0.08);
       }
-      .back {
-        display: inline-block;
+      .nav {
+        display: flex;
+        gap: 1.25rem;
         margin-top: 2.5rem;
+        font-size: 0.9rem;
+      }
+      .nav a {
         color: var(--muted);
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: var(--fg);
+        text-decoration: underline;
       }
       @media (prefers-color-scheme: light) {
         :root {
@@ -230,7 +239,10 @@
         <a href="mailto:admin@plots.world">admin@plots.world</a>.
       </p>
 
-      <a class="back" href="/">← Back to Damage Report Plots</a>
+      <nav class="nav">
+        <a href="/">← Back to app</a>
+        <a href="/about.html">How it works</a>
+      </nav>
     </main>
   </body>
 </html>
