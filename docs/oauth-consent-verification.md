@@ -1,4 +1,4 @@
-# Phase 5 · D5 — OAuth scope justification (copy for the verification form)
+# Google OAuth consent — verification submission copy
 
 Reference text to paste into the **prod** GCP project's OAuth verification form
 (APIs & Services → OAuth consent screen → scope justifications / "Data access"
