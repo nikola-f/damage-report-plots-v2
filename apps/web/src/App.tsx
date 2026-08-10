@@ -130,6 +130,7 @@ export default function App() {
         </button>
         {authError && <p className="message error">{authError}</p>}
         <footer className="footer">
+          <a href="/about.html">How it works</a>
           <a href="/privacy.html">Privacy Policy</a>
         </footer>
       </div>
