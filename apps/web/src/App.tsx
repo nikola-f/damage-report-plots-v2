@@ -284,8 +284,9 @@ export default function App() {
             {new Date(progress.windowStart * 1000).toLocaleDateString()}
           </p>
           <p className="status-label">
-            threads {progress.threadsProcessed} / {progress.threadsFound} - reports{" "}
-            {progress.portalsFound}
+            threads {progress.threadsProcessed.toLocaleString()} /{" "}
+            {progress.threadsFound.toLocaleString()} - reports{" "}
+            {progress.reportsFound.toLocaleString()}
           </p>
         </div>
       )}
