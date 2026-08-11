@@ -49,20 +49,48 @@ which don't exist in worker scope):
 - `auth.ts` — GIS token-model auth (`loadGis`, `requestAccessToken`).
 - `query.ts` — `buildQuery` (Gmail search query; 30-day windows, day-aligned).
 - `gmail.ts` — batch `threads.get` body builder + multipart response parser.
-- `engine.ts` — `runSync`: windowed scan, batch size 40 + 1s inter-batch sleep
-  (avoids "Too many concurrent requests" 429), 429 backoff, 5000-thread cap with
-  resume, 204 empty-window handling, `onWindow` callback for per-window append.
+- `engine.ts` — `runSync`: windowed scan, quota-paced batches (see below),
+  backoff on 429/403-quota (reported via `onRetry`, default `console.warn`),
+  5000-thread cap with resume, 204 empty-window handling, `onWindow` callback
+  for per-window append, `onProgress` fired per list page / per batch.
 - `decoder.ts` — `EmailHtmlDecoder` port (native `DOMParser` + `document.evaluate`
   XPath). `truncateInternalDate` = 100-second day units (used for dedup + sheet).
-- `record.ts` — `DamageReportRecord` + `deduplicate` (per-window is sufficient;
-  a day belongs to one window) + `portalId` (SHA-256 → sqids, array-split).
+- `record.ts` — `DamageReportRecord` + `deduplicate` (per-window) + `portalId`
+  (SHA-256 → sqids, array-split).
 - `drive.ts` / `sheets.ts` / `spreadsheet.ts` — Drive discovery (`appProperties`
   marker) + Sheets create/protect/append/get; `findOrCreateSpreadsheetId`.
-- `resume.ts` — reads `lastReportTime` named range to resume the next scan.
+- `resume.ts` — `readResumeSince` (`lastReportTime` named range, day-granular)
+  plus the precise `stats!A7` pointer (`readSyncPointer`/`writeSyncPointer`),
+  the raw `internalDate` high-water mark that stops the resume day being
+  re-appended. `runFullSync` only ever advances it (forward-only).
 - `mapping.ts` — `toReportRow` and `rowsToPlots` (→ `Plot[]` for the clipboard).
 - `orchestrate.ts` — `runFullSync` (find/create → resume → scan → per-window
   append) and `readPlots` (read on Copy click, avoids QUERY recalc race).
 - `http.ts` — `defaultFetch` wrapper (binds `globalThis.fetch`).
+
+#### Gmail API rate limits (two separate limits)
+
+Both are per user, and the constants live at the top of `engine.ts`:
+
+- **Per-minute quota** — the dev GCP project is still on the pre-May-2026 set:
+  `Previous quota: Units per minute per user` = **15,000**, `threads.get` = **10
+  units** (the console usage graph is the only check; the old cost table is not
+  published). `MIN_BATCH_INTERVAL_MS` is *derived* from `BATCH_SIZE ×
+  THREADS_GET_UNITS` and the budget — never tune the two independently. The
+  pacer holds batch *starts* that far apart and subtracts the request's own
+  duration. Exceeding it returns **403** `Quota exceeded`, not 429.
+- **Concurrency** — every sub-request of a batch runs at once, so `BATCH_SIZE`
+  *is* the concurrency. 40 drew "Too many concurrent requests for user" 429s;
+  **20** is clean. Lowering it is free: throughput is `BATCH_SIZE / interval`,
+  which the derivation keeps constant (1,200 threads/min).
+
+A batch's inner sub-responses carry their own status inside a **200** multipart
+body, so rate limiting is invisible in the browser network panel —
+`parseBatchResponse` reads the inner status and `onRetry` logs the backoff.
+
+**Prod cutover**: the prod project has never called this API, so it may fall
+under the post-May-2026 set instead (6,000 units/min, `threads.get` = 40) —
+10× stricter. Check `Queries per minute per user` in the prod console.
 
 ## Development Commands
 
