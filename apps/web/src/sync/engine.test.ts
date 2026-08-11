@@ -195,10 +195,39 @@ describe("runSync", () => {
       since: T0,
       until: T0 + 5 * DAY,
       sleep,
+      onRetry: () => {},
     });
 
     expect(records).toHaveLength(1);
     expect(sleep).toHaveBeenCalledOnce();
+  });
+
+  it("reports every backoff so a rate-limited run is visible in the console", async () => {
+    const onRetry = vi.fn();
+    const fetchFn = router(
+      [listResponse(["a"])],
+      [
+        errorResponse(429, "Too many concurrent requests for user"),
+        batchResponse([thread("a", 5, html("A", "1,2", "Me", "Me"))]),
+      ],
+    );
+
+    await runSync({
+      accessToken: "tok",
+      fetchFn,
+      since: T0,
+      until: T0 + 5 * DAY,
+      sleep: async () => {},
+      onRetry,
+    });
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledWith({
+      attempt: 1,
+      maxRetries: 6,
+      waitMs: 1000, // 2^0 seconds
+      reason: expect.stringContaining("Too many concurrent requests for user"),
+    });
   });
 
   it("retries a 429 that is inside an otherwise-200 batch response", async () => {
@@ -225,6 +254,7 @@ describe("runSync", () => {
       since: T0,
       until: T0 + 5 * DAY,
       sleep,
+      onRetry: () => {},
     });
 
     expect(sleep).toHaveBeenCalledOnce(); // backed off rather than losing the thread
@@ -259,6 +289,7 @@ describe("runSync", () => {
       since: T0,
       until: T0 + 5 * DAY,
       sleep,
+      onRetry: () => {},
     });
 
     expect(records).toHaveLength(1); // the retried page went through
