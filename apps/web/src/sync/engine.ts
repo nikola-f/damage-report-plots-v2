@@ -83,7 +83,15 @@ interface RetryConfig {
   maxBackoff: number;
 }
 
-async function listThreadIds(token: string, query: string, fetchFn: FetchLike): Promise<string[]> {
+// `onPage` fires after every threads.list page so the discovered-thread count
+// climbs as pagination proceeds instead of jumping once the window is fully
+// listed.
+async function listThreadIds(
+  token: string,
+  query: string,
+  fetchFn: FetchLike,
+  onPage?: (added: number) => void,
+): Promise<string[]> {
   const ids: string[] = [];
   let pageToken: string | undefined;
   do {
@@ -98,7 +106,9 @@ async function listThreadIds(token: string, query: string, fetchFn: FetchLike): 
     // threads — common when scanning history — so there's nothing to parse.
     if (res.status === 204) break;
     const data = (await res.json()) as { threads?: { id: string }[]; nextPageToken?: string };
-    for (const t of data.threads ?? []) ids.push(t.id);
+    const page = data.threads ?? [];
+    for (const t of page) ids.push(t.id);
+    if (page.length > 0) onPage?.(page.length);
     pageToken = data.nextPageToken;
   } while (pageToken);
   return ids;
@@ -132,11 +142,21 @@ async function fetchBatchWithRetry(
   }
 }
 
-async function batchGetThreads(token: string, ids: string[], cfg: RetryConfig): Promise<GmailThread[]> {
+// `onBatch` fires after each threads.get batch resolves (with how many thread
+// ids that batch covered) so the processed count advances every ~40 threads
+// rather than once per 30-day window.
+async function batchGetThreads(
+  token: string,
+  ids: string[],
+  cfg: RetryConfig,
+  onBatch?: (processed: number) => void,
+): Promise<GmailThread[]> {
   const threads: GmailThread[] = [];
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
     if (i > 0) await cfg.sleep(INTER_BATCH_SLEEP_MS); // pace batches to stay under the concurrency limit
-    threads.push(...(await fetchBatchWithRetry(token, ids.slice(i, i + BATCH_SIZE), cfg)));
+    const chunk = ids.slice(i, i + BATCH_SIZE);
+    threads.push(...(await fetchBatchWithRetry(token, chunk, cfg)));
+    onBatch?.(chunk.length);
   }
   return threads;
 }
@@ -162,21 +182,38 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
   let threadsProcessed = 0;
   let truncated = false;
 
-  while (current < until) {
-    const before = current + DAYS_WINDOW * SECONDS_PER_DAY;
+  // Single snapshot of the live counters, so every call site reports the same
+  // numbers and each counter can be published the moment it changes:
+  // threadsFound per threads.list page, threadsProcessed per threads.get batch,
+  // portalsFound once the window's records are persisted by onWindow.
+  const emit = (phase: SyncProgress["phase"], windowStart = current) =>
     options.onProgress?.({
-      phase: "list",
-      windowStart: current,
+      phase,
+      windowStart,
       threadsFound,
       threadsProcessed,
       portalsFound: collected.length,
     });
 
-    const ids = await listThreadIds(options.accessToken, buildQuery(current, before), fetchFn);
-    threadsFound += ids.length;
+  while (current < until) {
+    const before = current + DAYS_WINDOW * SECONDS_PER_DAY;
+    emit("list");
+
+    const ids = await listThreadIds(
+      options.accessToken,
+      buildQuery(current, before),
+      fetchFn,
+      (added) => {
+        threadsFound += added;
+        emit("list");
+      },
+    );
 
     if (ids.length > 0) {
-      const threads = await batchGetThreads(options.accessToken, ids, cfg);
+      const threads = await batchGetThreads(options.accessToken, ids, cfg, (processed) => {
+        threadsProcessed += processed;
+        emit("fetch");
+      });
       const windowRecords: DamageReportRecord[] = [];
       let windowMaxInternalDate = 0;
       for (const thread of threads) {
@@ -200,14 +237,9 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       if (windowDeduped.length > 0) await options.onWindow?.(windowDeduped, windowMaxInternalDate);
       collected.push(...windowDeduped);
 
-      threadsProcessed += ids.length;
-      options.onProgress?.({
-        phase: "fetch",
-        windowStart: current,
-        threadsFound,
-        threadsProcessed,
-        portalsFound: collected.length,
-      });
+      // Only now are these portals in the sheet, so this is where the count is
+      // published.
+      emit("fetch");
     }
 
     current = before;
@@ -220,13 +252,6 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     }
   }
 
-  const records = collected;
-  options.onProgress?.({
-    phase: "done",
-    windowStart: until,
-    threadsFound,
-    threadsProcessed,
-    portalsFound: records.length,
-  });
-  return { records, maxInternalDate, truncated };
+  emit("done", until);
+  return { records: collected, maxInternalDate, truncated };
 }
