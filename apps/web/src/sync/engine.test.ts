@@ -151,6 +151,53 @@ describe("runSync", () => {
     expect(sleep).toHaveBeenCalledOnce();
   });
 
+  // Gmail returns the per-user quota as a 403, not a 429, so the status alone
+  // cannot separate it from a permission error — only the body can.
+  function errorResponse(status: number, message: string): Response {
+    return new Response(JSON.stringify({ error: { code: status, message } }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("retries threads.list when the per-user quota comes back as a 403", async () => {
+    const sleep = vi.fn(async () => {});
+    const fetchFn = router(
+      [
+        errorResponse(
+          403,
+          "Quota exceeded for quota metric 'Queries' and limit 'Previous quota: Units per minute per user'",
+        ),
+        listResponse(["a"]),
+      ],
+      [batchResponse([thread("a", 5, html("A", "1,2", "Me", "Me"))])],
+    );
+
+    const { records } = await runSync({
+      accessToken: "tok",
+      fetchFn,
+      since: T0,
+      until: T0 + 5 * DAY,
+      sleep,
+    });
+
+    expect(records).toHaveLength(1); // the retried page went through
+    expect(sleep).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry a 403 that is a real permission error", async () => {
+    const sleep = vi.fn(async () => {});
+    const fetchFn = router(
+      [errorResponse(403, "Request had insufficient authentication scopes.")],
+      [],
+    );
+
+    await expect(
+      runSync({ accessToken: "tok", fetchFn, since: T0, until: T0 + 5 * DAY, sleep }),
+    ).rejects.toThrow(/insufficient authentication scopes/);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
   it("emits each window's records via onWindow for progressive persistence", async () => {
     const perWindow: number[] = [];
     const fetchFn = router(

@@ -36,7 +36,11 @@ const DEFAULT_MAX_BACKOFF = 32; // seconds
 // the server's thread_list_worker_thread_id_limit (tuned down to 5000).
 const DEFAULT_THREAD_LIMIT = 5000;
 
-// Mirrors the Ruby GmailThreadBatchFetcher retry trigger.
+// Mirrors the Ruby GmailThreadBatchFetcher retry trigger. It matches on the
+// message rather than the status because Gmail reports the per-user quota as a
+// **403**, not a 429 ("Quota exceeded for quota metric 'Queries' …"), and a 403
+// is otherwise a permission error that must not be retried — only the body
+// tells them apart. See apiError.
 const RETRYABLE = /429|503|Rate Limit Exceeded|Quota exceeded|Too many concurrent|unavailable/i;
 
 export interface SyncProgress {
@@ -85,13 +89,43 @@ interface RetryConfig {
   maxBackoff: number;
 }
 
+// Build the error for a non-2xx Google response. Google's reason lives in the
+// JSON body, not the status, so it is folded into the message for RETRYABLE to
+// match on. Only `error.message` is used, never the raw body, which can carry
+// user data (the retired GoogleApiClient#error_message did the same).
+async function apiError(res: Response, label: string): Promise<Error> {
+  let detail: string | undefined;
+  try {
+    detail = (JSON.parse(await res.text()) as { error?: { message?: string } }).error?.message;
+  } catch {
+    // non-JSON body — the status alone has to carry the signal
+  }
+  return new Error([label, String(res.status), detail].filter(Boolean).join(" "));
+}
+
+// Retry `fn` with exponential backoff while its error looks rate-related.
+// Shared by threads.list and threads.get: both draw on the same per-user quota,
+// so either can be the one that trips it.
+async function withRetry<T>(cfg: RetryConfig, fn: () => Promise<T>, attempt = 0): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (attempt < cfg.maxRetries && RETRYABLE.test(message)) {
+      await cfg.sleep(Math.min(2 ** attempt, cfg.maxBackoff) * 1000);
+      return withRetry(cfg, fn, attempt + 1);
+    }
+    throw e;
+  }
+}
+
 // `onPage` fires after every threads.list page so the discovered-thread count
 // climbs as pagination proceeds instead of jumping once the window is fully
 // listed.
 async function listThreadIds(
   token: string,
   query: string,
-  fetchFn: FetchLike,
+  cfg: RetryConfig,
   onPage?: (added: number) => void,
 ): Promise<string[]> {
   const ids: string[] = [];
@@ -102,12 +136,16 @@ async function listThreadIds(
     url.searchParams.set("fields", "threads/id,nextPageToken");
     if (pageToken) url.searchParams.set("pageToken", pageToken);
 
-    const res = await fetchFn(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`threads.list ${res.status}`);
-    // Gmail returns 204 No Content (empty body) when a window matches no
-    // threads — common when scanning history — so there's nothing to parse.
-    if (res.status === 204) break;
-    const data = (await res.json()) as { threads?: { id: string }[]; nextPageToken?: string };
+    const data = await withRetry(cfg, async () => {
+      const res = await cfg.fetchFn(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw await apiError(res, "threads.list");
+      // Gmail returns 204 No Content (empty body) when a window matches no
+      // threads — common when scanning history — so there's nothing to parse.
+      if (res.status === 204) return null;
+      return (await res.json()) as { threads?: { id: string }[]; nextPageToken?: string };
+    });
+    if (!data) break;
+
     const page = data.threads ?? [];
     for (const t of page) ids.push(t.id);
     if (page.length > 0) onPage?.(page.length);
@@ -116,32 +154,18 @@ async function listThreadIds(
   return ids;
 }
 
-async function fetchBatchWithRetry(
-  token: string,
-  chunk: string[],
-  cfg: RetryConfig,
-  attempt = 0,
-): Promise<GmailThread[]> {
-  try {
-    const res = await cfg.fetchFn(BATCH_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": `multipart/mixed; boundary=${BATCH_BOUNDARY}`,
-      },
-      body: buildBatchBody(chunk),
-    });
-    if (!res.ok) throw new Error(`batch ${res.status}`);
-    const parsed = parseBatchResponse(await res.text(), res.headers.get("Content-Type") ?? "");
-    return parsed.filter((t): t is GmailThread => t !== undefined);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    if (attempt < cfg.maxRetries && RETRYABLE.test(message)) {
-      await cfg.sleep(Math.min(2 ** attempt, cfg.maxBackoff) * 1000);
-      return fetchBatchWithRetry(token, chunk, cfg, attempt + 1);
-    }
-    throw e;
-  }
+async function fetchBatch(token: string, chunk: string[], cfg: RetryConfig): Promise<GmailThread[]> {
+  const res = await cfg.fetchFn(BATCH_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": `multipart/mixed; boundary=${BATCH_BOUNDARY}`,
+    },
+    body: buildBatchBody(chunk),
+  });
+  if (!res.ok) throw await apiError(res, "batch");
+  const parsed = parseBatchResponse(await res.text(), res.headers.get("Content-Type") ?? "");
+  return parsed.filter((t): t is GmailThread => t !== undefined);
 }
 
 // `onBatch` fires after each threads.get batch resolves (with how many thread
@@ -157,7 +181,7 @@ async function batchGetThreads(
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
     if (i > 0) await cfg.sleep(INTER_BATCH_SLEEP_MS); // pace batches to stay under the concurrency limit
     const chunk = ids.slice(i, i + BATCH_SIZE);
-    threads.push(...(await fetchBatchWithRetry(token, chunk, cfg)));
+    threads.push(...(await withRetry(cfg, () => fetchBatch(token, chunk, cfg))));
     onBatch?.(chunk.length);
   }
   return threads;
@@ -204,7 +228,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     const ids = await listThreadIds(
       options.accessToken,
       buildQuery(current, before),
-      fetchFn,
+      cfg,
       (added) => {
         threadsFound += added;
         emit("list");
