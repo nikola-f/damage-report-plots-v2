@@ -38,6 +38,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Runs before the build so a test failure is not hidden behind a type
+      # error. The sync engine is only covered here — nothing else in CI
+      # exercises it, and jsdom (the decoder's DOMParser/XPath host) is a
+      # test-only dependency the build cannot reach.
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
 
