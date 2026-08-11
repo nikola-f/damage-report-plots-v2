@@ -33,23 +33,6 @@ variable "app_name" {
   default     = "drp"
 }
 
-variable "api_domain_name" {
-  description = "Domain name for ACM certificate (e.g. api.example.com)"
-  type        = string
-}
-
-variable "rails_master_key_placeholder" {
-  description = "Initial placeholder for RAILS_MASTER_KEY in Secrets Manager. Replace manually after first apply."
-  type        = string
-  sensitive   = true
-  default     = "PLACEHOLDER"
-}
-
-variable "api_allowed_origins" {
-  description = "Comma-separated CORS allowed origins (e.g. https://app.example.com)"
-  type        = string
-}
-
 variable "frontend_domain_name" {
   description = "Custom domain for the CloudFront frontend distribution"
   type        = string

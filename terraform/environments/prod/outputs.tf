@@ -10,14 +10,6 @@ output "gcp_service_account" {
   sensitive   = true
 }
 
-output "allowed_origins" {
-  value = module.app_infra.allowed_origins
-}
-
-output "aws_region" {
-  value = module.app_infra.aws_region
-}
-
 output "frontend_bucket_name" {
   value     = module.app_infra.frontend_bucket_name
   sensitive = true

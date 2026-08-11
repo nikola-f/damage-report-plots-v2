@@ -1,13 +1,3 @@
-output "allowed_origins" {
-  description = "CORS allowed origins"
-  value       = var.allowed_origins
-}
-
-output "aws_region" {
-  description = "AWS region"
-  value       = var.aws_region
-}
-
 output "frontend_bucket_name" {
   description = "S3 bucket name for frontend static files"
   value       = aws_s3_bucket.frontend.bucket
