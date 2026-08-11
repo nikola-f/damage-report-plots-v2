@@ -83,7 +83,10 @@ export interface SyncProgress {
   windowStart: number; // epoch seconds of the window currently being scanned
   threadsFound: number;
   threadsProcessed: number;
-  portalsFound: number;
+  // Report rows persisted so far — the same quantity runFullSync returns as
+  // `appended`, not a count of distinct portals (a portal accumulates many
+  // reports, so the two differ by orders of magnitude).
+  reportsFound: number;
 }
 
 export interface SyncResult {
@@ -297,14 +300,14 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
   // Single snapshot of the live counters, so every call site reports the same
   // numbers and each counter can be published the moment it changes:
   // threadsFound per threads.list page, threadsProcessed per threads.get batch,
-  // portalsFound once the window's records are persisted by onWindow.
+  // reportsFound once the window's records are persisted by onWindow.
   const emit = (phase: SyncProgress["phase"], windowStart = current) =>
     options.onProgress?.({
       phase,
       windowStart,
       threadsFound,
       threadsProcessed,
-      portalsFound: collected.length,
+      reportsFound: collected.length,
     });
 
   while (current < until) {

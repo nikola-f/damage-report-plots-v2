@@ -414,6 +414,6 @@ describe("runSync", () => {
     // one per batch, then the window wrap-up
     expect(fetched.map((p) => p.threadsProcessed)).toEqual([BATCH_SIZE, BATCH_SIZE + 1, BATCH_SIZE + 1]);
     // portals stay at 0 until onWindow has persisted the window's records
-    expect(fetched.map((p) => p.portalsFound)).toEqual([0, 0, BATCH_SIZE + 1]);
+    expect(fetched.map((p) => p.reportsFound)).toEqual([0, 0, BATCH_SIZE + 1]);
   });
 });

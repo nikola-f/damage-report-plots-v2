@@ -238,7 +238,7 @@ export default function App() {
               <span className="summary-value">{stats.portals.toLocaleString()}</span>
               <span className="summary-label">
                 portals tracked
-                {stats.ownedPortals > 0 && ` · ${stats.ownedPortals.toLocaleString()} owned`}
+                {stats.ownedPortals > 0 && ` - ${stats.ownedPortals.toLocaleString()} captured`}
               </span>
             </div>
           )}
@@ -254,7 +254,7 @@ export default function App() {
             <div className="summary-row">
               <span className="summary-label">
                 Last synced on this device {fmtWhen(lastSync.at)}
-                {lastSync.appended > 0 && ` · +${lastSync.appended.toLocaleString()} reports`}
+                {lastSync.appended > 0 && ` - ${lastSync.appended.toLocaleString()} reports`}
               </span>
             </div>
           )}
@@ -271,7 +271,7 @@ export default function App() {
           ? syncError
           : phase === "done"
             ? `Synced in ${fmtDuration(elapsedMs)}. ${result?.appended ?? 0} new report${result?.appended === 1 ? "" : "s"}.` +
-              (result?.truncated ? " More history remains — Sync again to continue." : "")
+              (result?.truncated ? " More reports remain — Sync again to continue." : "")
             : ""}
       </p>
 
@@ -280,12 +280,13 @@ export default function App() {
       {progress && (
         <div className="status-card">
           <p className="status-label">
-            {progress.phase === "list" ? "Listing threads" : "Fetching threads"} · window{" "}
+            {progress.phase === "list" ? "Listing threads" : "Fetching threads"} - window{" "}
             {new Date(progress.windowStart * 1000).toLocaleDateString()}
           </p>
           <p className="status-label">
-            threads {progress.threadsProcessed} / {progress.threadsFound} · portals{" "}
-            {progress.portalsFound}
+            threads {progress.threadsProcessed.toLocaleString()} /{" "}
+            {progress.threadsFound.toLocaleString()} - reports{" "}
+            {progress.reportsFound.toLocaleString()}
           </p>
         </div>
       )}
