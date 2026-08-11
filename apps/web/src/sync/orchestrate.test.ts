@@ -20,13 +20,13 @@ function portalHtml(): string {
   );
 }
 
-function batchResponse(): Response {
+function batchResponse(internalDateMs = 1_700_000_000_000): Response {
   const boundary = "batchX";
   const thread = {
     messages: [
       {
         id: "m1",
-        internalDate: "1700000000000",
+        internalDate: String(internalDateMs),
         payload: { parts: [{ mimeType: "text/html", body: { data: b64url(portalHtml()) } }] },
       },
     ],
@@ -76,6 +76,32 @@ function fakeSheets(pointer?: number) {
   return { fetchFn, appendBodies, pointerWrites };
 }
 
+// Same sheet fake, but each threads.get batch returns a message with the next
+// queued internalDate — so successive windows can be given out-of-order dates.
+function fakeSheetsWithDates(dates: number[]) {
+  const pointerWrites: number[] = [];
+  let batch = 0;
+
+  const fetchFn = vi.fn(async (input: string, init?: RequestInit) => {
+    const url = String(input);
+    if (url.startsWith(BATCH_URL)) return batchResponse(dates[batch++]);
+    if (url.includes("/drive/v3/files")) return json({ files: [{ id: "SHEET" }] });
+    if (url.includes("gmail.googleapis.com")) return json({ threads: [{ id: "t1" }] });
+    if (url.includes("/values/lastReportTime")) return json({ values: [[SINCE_UNITS]] });
+    if (url.includes("/values/stats")) {
+      if (init?.method === "PUT") {
+        pointerWrites.push((JSON.parse(init.body as string) as { values: number[][] }).values[0][0]);
+        return json({});
+      }
+      return json({});
+    }
+    if (url.includes(":append")) return json({});
+    throw new Error(`unexpected ${init?.method ?? "GET"} ${url}`);
+  });
+
+  return { fetchFn, pointerWrites };
+}
+
 function run(fetchFn: unknown) {
   return runFullSync({
     accessToken: "tok",
@@ -115,6 +141,24 @@ describe("runFullSync", () => {
     expect(result.appended).toBe(0);
     expect(appendBodies).toEqual([]);
     expect(pointerWrites).toEqual([]);
+  });
+
+  it("never moves the pointer backwards when a later window carries older mail", async () => {
+    // threads.get returns a thread's whole history regardless of the queried
+    // window, so an early window can surface mail newer than a later window's.
+    // Writing each window's max unconditionally used to rewind the pointer and
+    // let the next sync re-append rows already in the sheet.
+    const older = MESSAGE_MS - 30 * 86_400_000;
+    const { fetchFn, pointerWrites } = fakeSheetsWithDates([MESSAGE_MS, older]);
+
+    await runFullSync({
+      accessToken: "tok",
+      fetchFn: fetchFn as unknown as FetchLike,
+      until: SINCE + 60 * 86_400, // two 30-day windows
+      now: new Date(Date.UTC(2024, 0, 1)),
+    });
+
+    expect(pointerWrites).toEqual([MESSAGE_MS]); // second window writes nothing
   });
 
   it("still appends messages newer than the pointer within the same day", async () => {
