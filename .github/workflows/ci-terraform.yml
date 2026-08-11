@@ -47,8 +47,6 @@ jobs:
     env:
       TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
-      TF_VAR_api_domain_name: ${{ secrets.API_DOMAIN_NAME }}
-      TF_VAR_api_allowed_origins: ${{ secrets.API_ALLOWED_ORIGINS }}
       TF_VAR_frontend_domain_name: ${{ secrets.FRONTEND_DOMAIN_NAME }}
 
     steps:
@@ -118,8 +116,6 @@ jobs:
     env:
       TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
-      TF_VAR_api_domain_name: ${{ secrets.API_DOMAIN_NAME }}
-      TF_VAR_api_allowed_origins: ${{ secrets.API_ALLOWED_ORIGINS }}
       TF_VAR_frontend_domain_name: ${{ secrets.FRONTEND_DOMAIN_NAME }}
 
     steps:
@@ -156,8 +152,6 @@ jobs:
     env:
       TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
-      TF_VAR_api_domain_name: ${{ secrets.API_DOMAIN_NAME }}
-      TF_VAR_api_allowed_origins: ${{ secrets.API_ALLOWED_ORIGINS }}
       TF_VAR_frontend_domain_name: ${{ secrets.FRONTEND_DOMAIN_NAME }}
 
     steps:
