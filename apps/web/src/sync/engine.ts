@@ -40,10 +40,16 @@ export const THREADS_GET_UNITS = 10;
 const QUOTA_UTILISATION = 0.8;
 
 // Each batched threads.get sub-request runs concurrently server-side, so the
-// batch size is Gmail's per-user concurrency budget — not the API's 100 cap
-// (the server used 20; 40 is a tuned throughput bump — lower it again if
-// "Too many concurrent requests for user" 429s reappear).
-export const BATCH_SIZE = 40;
+// batch size is Gmail's per-user *concurrency* budget — a limit separate from
+// the per-minute quota above, and one that pacing between batches cannot
+// relieve. Exceeding it returns "Too many concurrent requests for user" 429s,
+// which is what the console still reported at 40 (the retired server ran 20).
+//
+// Halving it costs nothing: MIN_BATCH_INTERVAL_MS is derived from BATCH_SIZE,
+// so throughput is BATCH_SIZE / interval — identical either way (1,200
+// threads/min). It only halves how many sub-requests fly at once, and how much
+// work a 429 retry throws away, since a rejected part re-runs the whole batch.
+export const BATCH_SIZE = 20;
 // Minimum time between the *starts* of consecutive batches, derived from the
 // budget rather than hand-tuned — a batch costs BATCH_SIZE × THREADS_GET_UNITS,
 // so picking the size and the pause independently is how this app came to run
@@ -51,7 +57,7 @@ export const BATCH_SIZE = 40;
 //
 // Pacing on the interval, not on a fixed gap after each batch, because the
 // request's own duration counts against the same window: threads.get for 40 ids
-// measures ~400ms, so a fixed 500ms gap actually cycles every ~900ms — 1.8x the
+// measured ~400ms, so a fixed 500ms gap actually cycled every ~900ms — 1.8x the
 // budget. Subtracting the elapsed time also stops a slow connection from being
 // throttled twice over.
 export const MIN_BATCH_INTERVAL_MS = Math.ceil(
