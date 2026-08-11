@@ -1,33 +1,3 @@
-resource "google_project_service" "gmail" {
-  service            = "gmail.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "sheets" {
-  service            = "sheets.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "cloudresourcemanager" {
-  service            = "cloudresourcemanager.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "iam" {
-  service            = "iam.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "sts" {
-  service            = "sts.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "iamcredentials" {
-  service            = "iamcredentials.googleapis.com"
-  disable_on_destroy = false
-}
-
 resource "google_iam_workload_identity_pool" "github_actions" {
   workload_identity_pool_id = "github-actions"
   display_name              = "GitHub Actions"

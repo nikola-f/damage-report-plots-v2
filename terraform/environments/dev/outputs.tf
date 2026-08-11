@@ -32,3 +32,12 @@ output "frontend_cloudfront_distribution_id" {
   value     = module.app_infra.frontend_cloudfront_distribution_id
   sensitive = true
 }
+
+# DNS records to create when the frontend ACM certificate is first issued;
+# without them the certificate never validates and CloudFront cannot serve the
+# custom domain. Re-exported because module outputs are not reachable from the
+# root otherwise.
+output "frontend_acm_validation_records" {
+  value     = module.app_infra.frontend_acm_validation_records
+  sensitive = true
+}
