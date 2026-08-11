@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { runSync, type FetchLike, type SyncProgress } from "./engine";
+import {
+  runSync,
+  BATCH_SIZE,
+  MIN_BATCH_INTERVAL_MS,
+  QUOTA_UNITS_PER_MINUTE,
+  THREADS_GET_UNITS,
+  type FetchLike,
+  type SyncProgress,
+} from "./engine";
 import { BATCH_URL } from "./gmail";
 
 // --- fixtures -------------------------------------------------------------
@@ -110,26 +118,65 @@ describe("runSync", () => {
     expect(records.map((r) => r.name).sort()).toEqual(["A", "B"]);
   });
 
-  it("splits into 40-id batches and pauses between them (concurrency guard)", async () => {
-    const sleep = vi.fn(async () => {});
+  // Two batches (41 ids, BATCH_SIZE 40) driven by a fake clock that only the
+  // fake sleep and `batchMs` advance, so the pacing maths is exact.
+  function pacedRun(batchMs: number) {
+    let t = 0;
+    const sleep = vi.fn(async (ms: number) => {
+      t += ms;
+    });
     const ids = Array.from({ length: 41 }, (_, i) => `t${i}`);
     const mkThreads = (chunk: string[], base: number) =>
       chunk.map((id, i) => thread(id, base + i + 1, html(`P${base + i}`, `${base + i}.0,1.0`, "Me", "Me")));
-    const fetchFn = router(
+    const responses = router(
       [listResponse(ids)],
       [batchResponse(mkThreads(ids.slice(0, 40), 0)), batchResponse(mkThreads(ids.slice(40), 40))],
     );
+    const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith(BATCH_URL)) t += batchMs; // the request's own duration
+      return responses(input, init);
+    }) as FetchLike;
 
-    const { records } = await runSync({
-      accessToken: "tok",
-      fetchFn,
-      since: T0,
-      until: T0 + 5 * DAY,
+    return {
       sleep,
-    });
+      result: runSync({
+        accessToken: "tok",
+        fetchFn,
+        since: T0,
+        until: T0 + 5 * DAY,
+        sleep,
+        clock: () => t,
+      }),
+    };
+  }
+
+  it("subtracts a batch's own duration from the pace interval", async () => {
+    const batchMs = 400; // measured: threads.get for 40 ids takes ~400ms
+    const { sleep, result } = pacedRun(batchMs);
+
+    const { records } = await result;
 
     expect(records).toHaveLength(41); // both batches processed (40 + 1)
-    expect(sleep).toHaveBeenCalledTimes(1); // exactly one pause between the two batches
+    expect(sleep).toHaveBeenCalledTimes(1); // one pause, between the two batches
+    expect(sleep).toHaveBeenCalledWith(MIN_BATCH_INTERVAL_MS - batchMs);
+  });
+
+  it("does not pause at all when the batch outran the interval by itself", async () => {
+    const { sleep, result } = pacedRun(MIN_BATCH_INTERVAL_MS + 100);
+
+    const { records } = await result;
+
+    expect(records).toHaveLength(41);
+    expect(sleep).not.toHaveBeenCalled(); // already slower than the quota allows
+  });
+
+  it("paces threads.get inside the Gmail per-user quota budget", () => {
+    // Guards the pair (BATCH_SIZE, MIN_BATCH_INTERVAL_MS): raising the batch
+    // size or shortening the interval in isolation is exactly how this app came
+    // to run over quota and get 403s back from Gmail.
+    const unitsPerBatch = BATCH_SIZE * THREADS_GET_UNITS;
+    const batchesPerMinute = 60_000 / MIN_BATCH_INTERVAL_MS;
+    expect(unitsPerBatch * batchesPerMinute).toBeLessThanOrEqual(QUOTA_UNITS_PER_MINUTE);
   });
 
   it("retries the batch request on a 429 with backoff", async () => {
