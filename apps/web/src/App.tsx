@@ -254,7 +254,7 @@ export default function App() {
             <div className="summary-row">
               <span className="summary-label">
                 Last synced on this device {fmtWhen(lastSync.at)}
-                {lastSync.appended > 0 && ` · +${lastSync.appended.toLocaleString()} reports`}
+                {lastSync.appended > 0 && ` - ${lastSync.appended.toLocaleString()} reports`}
               </span>
             </div>
           )}
@@ -280,11 +280,11 @@ export default function App() {
       {progress && (
         <div className="status-card">
           <p className="status-label">
-            {progress.phase === "list" ? "Listing threads" : "Fetching threads"} · window{" "}
+            {progress.phase === "list" ? "Listing threads" : "Fetching threads"} - window{" "}
             {new Date(progress.windowStart * 1000).toLocaleDateString()}
           </p>
           <p className="status-label">
-            threads {progress.threadsProcessed} / {progress.threadsFound} · portals{" "}
+            threads {progress.threadsProcessed} / {progress.threadsFound} - reports{" "}
             {progress.portalsFound}
           </p>
         </div>
