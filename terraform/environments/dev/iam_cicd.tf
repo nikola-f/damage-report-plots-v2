@@ -74,17 +74,19 @@ resource "aws_iam_role_policy" "terraform_app_infra" {
       },
       {
         Effect = "Allow"
+        # Only what the frontend bucket needs: aws_s3_bucket (+ tags),
+        # aws_s3_bucket_public_access_block and aws_s3_bucket_policy, plus the
+        # object writes ci-web's `aws s3 sync --delete` performs with this same
+        # role. Acl/Cors/Lifecycle/Encryption were granted for the CloudTrail
+        # bucket, which lives in the management account — no resource here sets
+        # them. Reads stay broad because refresh calls Get* on all of them.
         Action = [
           "s3:CreateBucket", "s3:DeleteBucket",
           "s3:Get*", "s3:List*",
-          "s3:PutBucketAcl",
           "s3:PutBucketPolicy", "s3:DeleteBucketPolicy",
           "s3:PutBucketPublicAccessBlock",
-          "s3:PutLifecycleConfiguration",
           "s3:PutBucketTagging",
-          "s3:PutEncryptionConfiguration",
           "s3:PutObject", "s3:DeleteObject",
-          "s3:PutBucketCORS",
         ]
         Resource = "*"
       },
