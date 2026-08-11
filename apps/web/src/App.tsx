@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { requestAccessToken, LOGIN_SCOPE, SYNC_SCOPE } from "./sync/auth.ts";
+import { requestAccessToken, revokeAccessToken, LOGIN_SCOPE, SYNC_SCOPE } from "./sync/auth.ts";
 import type { SyncProgress } from "./sync/engine.ts";
 import { runFullSync, readPlots, findSpreadsheet, type FullSyncResult } from "./sync/orchestrate.ts";
 import type { Plot } from "./sync/mapping.ts";
@@ -139,6 +139,11 @@ export default function App() {
   }
 
   function handleLogout() {
+    // Hand the token back to Google before dropping it, so signing out actually
+    // ends the grant instead of only hiding it (see revokeAccessToken). Fired
+    // and forgotten: the UI signs out either way, and there is nothing useful
+    // to tell the user if Google refuses.
+    if (token) void revokeAccessToken(token.value).catch(() => {});
     setToken(null);
     setProfile(null);
     setResult(null);
