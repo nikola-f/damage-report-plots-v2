@@ -28,6 +28,11 @@ const SECONDS_PER_DAY = 86_400;
 // 10 units. Projects on the post-May-2026 set instead get 6,000 units/min with
 // threads.get at 40; if this app is ever pointed at such a project, these two
 // numbers are what change. https://developers.google.com/workspace/gmail/api/reference/quota
+//
+// The 10 is corroborated by the console's usage graph: a day of syncing peaked
+// at 18,000 units/min, which the 40-unit cost could not produce from the same
+// traffic (it would be ~107,000). The pre-May-2026 cost table is not published,
+// so the graph is the only check available.
 export const QUOTA_UNITS_PER_MINUTE = 15_000;
 export const THREADS_GET_UNITS = 10;
 // Headroom for threads.list (10 units per page, and history scans sweep many
