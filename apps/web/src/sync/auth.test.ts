@@ -3,6 +3,7 @@ import {
   LOGIN_SCOPE,
   SYNC_SCOPE,
   missingScopes,
+  REVOKE_TIMEOUT_MS,
   requestAccessToken,
   revokeAccessToken,
   type GisOAuth2,
@@ -113,5 +114,36 @@ describe("revokeAccessToken", () => {
     const revoke = vi.fn((_token: string, done?: () => void) => done?.());
     await revokeAccessToken("tok", fakeOAuth2({}, revoke));
     expect(revoke).toHaveBeenCalledWith("tok", expect.any(Function));
+  });
+
+  // A blocked request (CSP, offline) leaves the GIS callback unfired. Signing
+  // out must still finish, and the failure must not be silent.
+  it("gives up with a warning when GIS never calls back", async () => {
+    vi.useFakeTimers();
+    try {
+      const onTimeout = vi.fn();
+      const settled = vi.fn();
+      const pending = revokeAccessToken("tok", fakeOAuth2({}, () => {}), onTimeout).then(settled);
+
+      await vi.advanceTimersByTimeAsync(REVOKE_TIMEOUT_MS);
+      await pending;
+
+      expect(onTimeout).toHaveBeenCalledOnce();
+      expect(settled).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not warn when GIS answers in time", async () => {
+    vi.useFakeTimers();
+    try {
+      const onTimeout = vi.fn();
+      await revokeAccessToken("tok", fakeOAuth2({}, (_t, done) => done?.()), onTimeout);
+      await vi.advanceTimersByTimeAsync(REVOKE_TIMEOUT_MS * 2);
+      expect(onTimeout).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

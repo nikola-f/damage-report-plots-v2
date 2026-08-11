@@ -165,7 +165,30 @@ export async function requestAccessToken(
 //
 // Best-effort by design: the caller signs out regardless of the outcome, since
 // a failed revoke must not strand the user in a signed-in UI.
-export async function revokeAccessToken(accessToken: string, oauth2?: GisOAuth2): Promise<void> {
+//
+// Bounded because "best-effort" must not mean "silent". GIS reaches
+// oauth2.googleapis.com itself, so anything that stops that request — a CSP
+// that omits the host, an offline browser — leaves its callback unfired and the
+// promise pending forever, which is how the first version of this failed with
+// nothing but a console entry from the CSP to show for it. On timeout the
+// warning is the signal that the grant is still standing.
+export const REVOKE_TIMEOUT_MS = 5_000;
+
+export async function revokeAccessToken(
+  accessToken: string,
+  oauth2?: GisOAuth2,
+  onTimeout: () => void = () =>
+    console.warn("[auth] revoke did not complete; the Google grant may still be active"),
+): Promise<void> {
   const gis = oauth2 ?? (await loadGis());
-  await new Promise<void>((resolve) => gis.revoke(accessToken, resolve));
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(() => {
+      onTimeout();
+      resolve();
+    }, REVOKE_TIMEOUT_MS);
+    gis.revoke(accessToken, () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }

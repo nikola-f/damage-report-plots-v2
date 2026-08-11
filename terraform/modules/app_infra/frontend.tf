@@ -66,15 +66,22 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 # 'unsafe-inline' and no hashes. Sources, all of them load-bearing:
 #   script-src  accounts.google.com/gsi/client — GIS, injected by sync/auth.ts
 #   connect-src accounts.google.com (GIS status), www.googleapis.com (Drive,
-#               userinfo, the Gmail batch endpoint), gmail/sheets.googleapis.com
+#               userinfo, the Gmail batch endpoint), gmail/sheets.googleapis.com,
+#               oauth2.googleapis.com (GIS revoke — see below)
 #   img-src     *.googleusercontent.com — the signed-in user's profile picture
 #   frame-src   accounts.google.com — GIS iframes
-# 'unsafe-inline' survives only in style-src, for two style="margin: 0"
-# attributes in public/*.html and whatever GIS injects.
+# 'unsafe-inline' survives only in style-src, for whatever GIS injects; the app's
+# own pages carry no inline styles.
 #
 # Enforced (it shipped Report-Only first): a sign-in → full sync → copy run on
-# dev with the console open produced no violations, so the policy is now known
-# to cover the app's real request set rather than only its readable one.
+# dev with the console open produced no violations.
+#
+# That run is the whole basis for this policy, so it only covers the code paths
+# it exercised. oauth2.googleapis.com was left out on the reasoning that GIS
+# returns tokens through a popup and postMessage rather than a request from the
+# page — true of the token flow, but google.accounts.oauth2.revoke calls that
+# endpoint directly, and logout was added after the verification run. Any new
+# call to a Google host has to be checked against this list.
 locals {
   frontend_csp = join("; ", [
     "default-src 'none'",
@@ -82,6 +89,7 @@ locals {
     join(" ", [
       "connect-src 'self'",
       "https://accounts.google.com",
+      "https://oauth2.googleapis.com",
       "https://www.googleapis.com",
       "https://gmail.googleapis.com",
       "https://sheets.googleapis.com",
