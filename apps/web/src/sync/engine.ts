@@ -19,15 +19,33 @@ import { defaultFetch, type FetchLike } from "./http";
 export type { FetchLike };
 
 const SECONDS_PER_DAY = 86_400;
+
+// Gmail meters each account against a per-user, per-project budget expressed in
+// "quota units"; exceeding it fails requests with a 403 whose body reads
+// "Quota exceeded for quota metric 'Queries'". This project is still on the
+// pre-May-2026 quota set — the Cloud console reports its limit as
+// "Previous quota: Units per minute per user" = 15,000, where threads.get costs
+// 10 units. Projects on the post-May-2026 set instead get 6,000 units/min with
+// threads.get at 40; if this app is ever pointed at such a project, these two
+// numbers are what change. https://developers.google.com/workspace/gmail/api/reference/quota
+export const QUOTA_UNITS_PER_MINUTE = 15_000;
+export const THREADS_GET_UNITS = 10;
+// Headroom for threads.list (10 units per page, and history scans sweep many
+// empty windows in a burst) plus anything else using the same account.
+const QUOTA_UTILISATION = 0.8;
+
 // Each batched threads.get sub-request runs concurrently server-side, so the
-// batch size is Gmail's per-user concurrency budget — not the API's 100 cap.
-// Paired with an inter-batch pause to stay under the "Too many concurrent
-// requests for user" 429 limit (the server used 20; 40 is a tuned throughput
-// bump — lower it again if concurrency 429s reappear). The pause was likewise
-// tuned down from 1s to 500ms; concurrency 429s that slip through are still
-// absorbed by the exponential backoff in fetchBatchWithRetry.
-const BATCH_SIZE = 40;
-const INTER_BATCH_SLEEP_MS = 500;
+// batch size is Gmail's per-user concurrency budget — not the API's 100 cap
+// (the server used 20; 40 is a tuned throughput bump — lower it again if
+// "Too many concurrent requests for user" 429s reappear).
+export const BATCH_SIZE = 40;
+// The pause between batches is what keeps the *sustained* request rate inside
+// the quota budget above; it is derived rather than hand-tuned, because a batch
+// costs BATCH_SIZE × THREADS_GET_UNITS and picking the two independently is how
+// this app ended up running 3× over quota. engine.test.ts guards the arithmetic.
+export const INTER_BATCH_SLEEP_MS = Math.ceil(
+  (BATCH_SIZE * THREADS_GET_UNITS * 60_000) / (QUOTA_UNITS_PER_MINUTE * QUOTA_UTILISATION),
+);
 const HTML_MIME = "text/html";
 const DEFAULT_MAX_RETRIES = 6; // 1+2+4+8+16+32 = 63s, covers one quota window
 const DEFAULT_MAX_BACKOFF = 32; // seconds

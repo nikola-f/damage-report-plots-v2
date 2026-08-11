@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { runSync, type FetchLike, type SyncProgress } from "./engine";
+import {
+  runSync,
+  BATCH_SIZE,
+  INTER_BATCH_SLEEP_MS,
+  QUOTA_UNITS_PER_MINUTE,
+  THREADS_GET_UNITS,
+  type FetchLike,
+  type SyncProgress,
+} from "./engine";
 import { BATCH_URL } from "./gmail";
 
 // --- fixtures -------------------------------------------------------------
@@ -130,6 +138,16 @@ describe("runSync", () => {
 
     expect(records).toHaveLength(41); // both batches processed (40 + 1)
     expect(sleep).toHaveBeenCalledTimes(1); // exactly one pause between the two batches
+    expect(sleep).toHaveBeenCalledWith(INTER_BATCH_SLEEP_MS); // paced, not hand-tuned
+  });
+
+  it("paces threads.get inside the Gmail per-user quota budget", () => {
+    // Guards the pair (BATCH_SIZE, INTER_BATCH_SLEEP_MS): raising the batch size
+    // or shortening the pause in isolation is exactly how this app came to run
+    // over quota and get 403s back from Gmail.
+    const unitsPerBatch = BATCH_SIZE * THREADS_GET_UNITS;
+    const batchesPerMinute = 60_000 / INTER_BATCH_SLEEP_MS;
+    expect(unitsPerBatch * batchesPerMinute).toBeLessThanOrEqual(QUOTA_UNITS_PER_MINUTE);
   });
 
   it("retries the batch request on a 429 with backoff", async () => {
