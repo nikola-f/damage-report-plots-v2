@@ -39,11 +39,17 @@ const QUOTA_UTILISATION = 0.8;
 // (the server used 20; 40 is a tuned throughput bump — lower it again if
 // "Too many concurrent requests for user" 429s reappear).
 export const BATCH_SIZE = 40;
-// The pause between batches is what keeps the *sustained* request rate inside
-// the quota budget above; it is derived rather than hand-tuned, because a batch
-// costs BATCH_SIZE × THREADS_GET_UNITS and picking the two independently is how
-// this app ended up running 3× over quota. engine.test.ts guards the arithmetic.
-export const INTER_BATCH_SLEEP_MS = Math.ceil(
+// Minimum time between the *starts* of consecutive batches, derived from the
+// budget rather than hand-tuned — a batch costs BATCH_SIZE × THREADS_GET_UNITS,
+// so picking the size and the pause independently is how this app came to run
+// over quota. engine.test.ts guards the arithmetic.
+//
+// Pacing on the interval, not on a fixed gap after each batch, because the
+// request's own duration counts against the same window: threads.get for 40 ids
+// measures ~400ms, so a fixed 500ms gap actually cycles every ~900ms — 1.8x the
+// budget. Subtracting the elapsed time also stops a slow connection from being
+// throttled twice over.
+export const MIN_BATCH_INTERVAL_MS = Math.ceil(
   (BATCH_SIZE * THREADS_GET_UNITS * 60_000) / (QUOTA_UNITS_PER_MINUTE * QUOTA_UTILISATION),
 );
 const HTML_MIME = "text/html";
@@ -95,14 +101,16 @@ export interface SyncOptions {
   // aborts the run (earlier windows stay persisted).
   onWindow?: (records: DamageReportRecord[], maxInternalDate: number) => Promise<void>;
   sleep?: (ms: number) => Promise<void>;
+  clock?: () => number; // epoch ms, for batch pacing; injectable for tests
   maxRetries?: number;
   maxBackoff?: number; // seconds
   maxThreads?: number; // cap threads discovered per run; default DEFAULT_THREAD_LIMIT
 }
 
-interface RetryConfig {
+interface RequestConfig {
   fetchFn: FetchLike;
   sleep: (ms: number) => Promise<void>;
+  clock: () => number;
   maxRetries: number;
   maxBackoff: number;
 }
@@ -124,7 +132,7 @@ async function apiError(res: Response, label: string): Promise<Error> {
 // Retry `fn` with exponential backoff while its error looks rate-related.
 // Shared by threads.list and threads.get: both draw on the same per-user quota,
 // so either can be the one that trips it.
-async function withRetry<T>(cfg: RetryConfig, fn: () => Promise<T>, attempt = 0): Promise<T> {
+async function withRetry<T>(cfg: RequestConfig, fn: () => Promise<T>, attempt = 0): Promise<T> {
   try {
     return await fn();
   } catch (e) {
@@ -143,7 +151,7 @@ async function withRetry<T>(cfg: RetryConfig, fn: () => Promise<T>, attempt = 0)
 async function listThreadIds(
   token: string,
   query: string,
-  cfg: RetryConfig,
+  cfg: RequestConfig,
   onPage?: (added: number) => void,
 ): Promise<string[]> {
   const ids: string[] = [];
@@ -172,7 +180,7 @@ async function listThreadIds(
   return ids;
 }
 
-async function fetchBatch(token: string, chunk: string[], cfg: RetryConfig): Promise<GmailThread[]> {
+async function fetchBatch(token: string, chunk: string[], cfg: RequestConfig): Promise<GmailThread[]> {
   const res = await cfg.fetchFn(BATCH_URL, {
     method: "POST",
     headers: {
@@ -186,18 +194,35 @@ async function fetchBatch(token: string, chunk: string[], cfg: RetryConfig): Pro
   return parsed.filter((t): t is GmailThread => t !== undefined);
 }
 
+// Rate limiter holding the start of consecutive batches at least `intervalMs`
+// apart. Awaiting it yields only the shortfall, so a batch that already took
+// longer than the interval proceeds immediately.
+//
+// One pacer spans the whole run rather than one per window: windows are only
+// separated by a threads.list call (~300ms measured), which is not enough to
+// cover a batch on its own.
+function createPacer(cfg: RequestConfig, intervalMs: number): () => Promise<void> {
+  let nextAllowedAt = 0; // 0 lets the first batch of the run start immediately
+  return async () => {
+    const wait = nextAllowedAt - cfg.clock();
+    if (wait > 0) await cfg.sleep(wait);
+    nextAllowedAt = cfg.clock() + intervalMs;
+  };
+}
+
 // `onBatch` fires after each threads.get batch resolves (with how many thread
 // ids that batch covered) so the processed count advances every ~40 threads
 // rather than once per 30-day window.
 async function batchGetThreads(
   token: string,
   ids: string[],
-  cfg: RetryConfig,
+  cfg: RequestConfig,
+  pace: () => Promise<void>,
   onBatch?: (processed: number) => void,
 ): Promise<GmailThread[]> {
   const threads: GmailThread[] = [];
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-    if (i > 0) await cfg.sleep(INTER_BATCH_SLEEP_MS); // pace batches to stay under the concurrency limit
+    await pace();
     const chunk = ids.slice(i, i + BATCH_SIZE);
     threads.push(...(await withRetry(cfg, () => fetchBatch(token, chunk, cfg))));
     onBatch?.(chunk.length);
@@ -207,12 +232,17 @@ async function batchGetThreads(
 
 export async function runSync(options: SyncOptions): Promise<SyncResult> {
   const fetchFn = options.fetchFn ?? defaultFetch;
-  const cfg: RetryConfig = {
+  const cfg: RequestConfig = {
     fetchFn,
     sleep: options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
+    clock: options.clock ?? (() => Date.now()),
     maxRetries: options.maxRetries ?? DEFAULT_MAX_RETRIES,
     maxBackoff: options.maxBackoff ?? DEFAULT_MAX_BACKOFF,
   };
+  // threads.list is deliberately not paced: at 10 units a page it is what the
+  // QUOTA_UTILISATION headroom covers, and holding it back would stall the
+  // sweep across empty windows.
+  const pace = createPacer(cfg, MIN_BATCH_INTERVAL_MS);
   const until = options.until ?? Math.floor(Date.now() / 1000);
   const maxThreads = options.maxThreads ?? DEFAULT_THREAD_LIMIT;
   let current = options.since ?? DEFAULT_AFTER_DATE;
@@ -254,7 +284,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     );
 
     if (ids.length > 0) {
-      const threads = await batchGetThreads(options.accessToken, ids, cfg, (processed) => {
+      const threads = await batchGetThreads(options.accessToken, ids, cfg, pace, (processed) => {
         threadsProcessed += processed;
         emit("fetch");
       });
