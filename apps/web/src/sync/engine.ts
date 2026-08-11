@@ -111,11 +111,23 @@ export interface SyncOptions {
   // caller can persist progressively and advance the pointer in step. Throwing
   // aborts the run (earlier windows stay persisted).
   onWindow?: (records: DamageReportRecord[], maxInternalDate: number) => Promise<void>;
+  // Called before each backoff. Defaults to a console.warn so a rate-limited
+  // run is visible while debugging; override to silence or collect.
+  onRetry?: (info: RetryInfo) => void;
   sleep?: (ms: number) => Promise<void>;
   clock?: () => number; // epoch ms, for batch pacing; injectable for tests
   maxRetries?: number;
   maxBackoff?: number; // seconds
   maxThreads?: number; // cap threads discovered per run; default DEFAULT_THREAD_LIMIT
+}
+
+export interface RetryInfo {
+  attempt: number; // 1-based
+  maxRetries: number;
+  waitMs: number;
+  // Status plus Google's error.message — no request body, no user data (see
+  // apiError). Safe to print.
+  reason: string;
 }
 
 interface RequestConfig {
@@ -124,6 +136,7 @@ interface RequestConfig {
   clock: () => number;
   maxRetries: number;
   maxBackoff: number;
+  onRetry: (info: RetryInfo) => void;
 }
 
 // Build the error for a non-2xx Google response. Google's reason lives in the
@@ -143,13 +156,20 @@ async function apiError(res: Response, label: string): Promise<Error> {
 // Retry `fn` with exponential backoff while its error looks rate-related.
 // Shared by threads.list and threads.get: both draw on the same per-user quota,
 // so either can be the one that trips it.
+//
+// Each backoff is reported through cfg.onRetry. Without it a rate-limited run
+// is invisible from the browser: a rejected batch sub-request rides inside a
+// 200 multipart response, so the network panel shows only the outer 200 and
+// the retry looks like an ordinary duplicate request.
 async function withRetry<T>(cfg: RequestConfig, fn: () => Promise<T>, attempt = 0): Promise<T> {
   try {
     return await fn();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (attempt < cfg.maxRetries && RETRYABLE.test(message)) {
-      await cfg.sleep(Math.min(2 ** attempt, cfg.maxBackoff) * 1000);
+      const waitMs = Math.min(2 ** attempt, cfg.maxBackoff) * 1000;
+      cfg.onRetry({ attempt: attempt + 1, maxRetries: cfg.maxRetries, waitMs, reason: message });
+      await cfg.sleep(waitMs);
       return withRetry(cfg, fn, attempt + 1);
     }
     throw e;
@@ -249,6 +269,13 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     clock: options.clock ?? (() => Date.now()),
     maxRetries: options.maxRetries ?? DEFAULT_MAX_RETRIES,
     maxBackoff: options.maxBackoff ?? DEFAULT_MAX_BACKOFF,
+    onRetry:
+      options.onRetry ??
+      ((info) =>
+        console.warn(
+          `[sync] rate limited, backing off ${info.waitMs}ms ` +
+            `(attempt ${info.attempt}/${info.maxRetries}): ${info.reason}`,
+        )),
   };
   // threads.list is deliberately not paced: at 10 units a page it is what the
   // QUOTA_UTILISATION headroom covers, and holding it back would stall the
