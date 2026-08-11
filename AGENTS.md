@@ -190,7 +190,12 @@ D2, D5, D6 can be produced in parallel now (recorded/written against dev).
   client-side-only statements. *Drafted in-repo.*
 - **D6 — Demo video** (unlisted YouTube): the OAuth consent flow then the
   gmail.readonly usage (sync → Sheet → Copy → IITC), noting restricted data never
-  leaves the browser. *User records; storyboard drafted in-repo.*
+  leaves the browser. Shot list, narration and setup checklist in
+  `docs/oauth-demo-video.md`. *User records, after prod cutover* — the consent
+  screen must be the prod client on the verified domain. Note that incremental
+  auth puts `gmail.readonly` on a **second** consent screen reached only by
+  clicking Sync, and that the recording account's grant must be revoked first or
+  neither screen appears.
 - **D7 — Submit for verification** and set Publishing status to In production.
   *User (Google Console).*
 
