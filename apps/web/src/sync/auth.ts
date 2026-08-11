@@ -19,6 +19,48 @@ const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
 export const LOGIN_SCOPE = ["email", "profile", DRIVE_FILE].join(" ");
 export const SYNC_SCOPE = [GMAIL_READONLY, DRIVE_FILE].join(" ");
 
+// Google expands the `email`/`profile` shorthand to these URLs in the granted
+// scope string and adds `openid`, so a requested scope never comes back
+// verbatim. Comparing the two lists without this mapping would report every
+// login as partially granted.
+const SCOPE_ALIASES: Record<string, string> = {
+  email: "https://www.googleapis.com/auth/userinfo.email",
+  profile: "https://www.googleapis.com/auth/userinfo.profile",
+};
+
+// What the user sees on the consent screen, for the error message below. Only
+// the scopes this app can actually be refused are worth naming.
+const SCOPE_LABELS: Record<string, string> = {
+  [GMAIL_READONLY]: "read Gmail messages",
+  [DRIVE_FILE]: "create and edit its own Google Sheet",
+};
+
+function canonical(scope: string): string {
+  return SCOPE_ALIASES[scope] ?? scope;
+}
+
+function split(scopes: string): string[] {
+  return scopes.split(/\s+/).filter(Boolean);
+}
+
+// Scopes that were asked for but not granted. Google's granular consent screen
+// lets the user clear individual checkboxes and still issues a token — just a
+// narrower one — so a successful callback is not evidence that the app can do
+// its job. Without this check the app takes a Gmail-less token, caches it for
+// its full hour, and every sync fails with an opaque `threads.list 403`.
+export function missingScopes(requested: string, granted: string): string[] {
+  const have = new Set(split(granted).map(canonical));
+  return split(requested).filter((s) => !have.has(canonical(s)));
+}
+
+function describeMissing(missing: string[]): string {
+  const parts = missing.map((s) => SCOPE_LABELS[s] ?? s);
+  return (
+    `Permission to ${parts.join(" and ")} was not granted. ` +
+    "Try again and leave every checkbox ticked on the Google consent screen."
+  );
+}
+
 export interface TokenResult {
   accessToken: string;
   expiresIn: number; // seconds (typically 3599); no refresh token in this model
@@ -41,6 +83,7 @@ export interface GisOAuth2 {
     callback: (response: GisTokenResponse) => void;
     error_callback?: (error: { type?: string; message?: string }) => void;
   }): GisTokenClient;
+  revoke(accessToken: string, done?: () => void): void;
 }
 
 declare global {
@@ -89,13 +132,22 @@ export async function requestAccessToken(
   oauth2?: GisOAuth2,
 ): Promise<TokenResult> {
   const gis = oauth2 ?? (await loadGis());
+  const scope = opts.scope ?? LOGIN_SCOPE;
   return new Promise<TokenResult>((resolve, reject) => {
     const client = gis.initTokenClient({
       client_id: clientId,
-      scope: opts.scope ?? LOGIN_SCOPE,
+      scope,
       callback: (r) => {
         if (r.error || !r.access_token) {
           reject(new Error(r.error ?? "no access_token returned"));
+          return;
+        }
+        // Reject rather than hand back a partial token: the caller caches by the
+        // scope it asked for, so accepting one would pin the shortfall for the
+        // token's whole lifetime.
+        const missing = missingScopes(scope, r.scope ?? "");
+        if (missing.length > 0) {
+          reject(new Error(describeMissing(missing)));
           return;
         }
         resolve({ accessToken: r.access_token, expiresIn: r.expires_in ?? 0, scope: r.scope ?? "" });
@@ -104,4 +156,16 @@ export async function requestAccessToken(
     });
     client.requestAccessToken(opts.prompt ? { prompt: opts.prompt } : undefined);
   });
+}
+
+// Revoke the token at Google, which drops the whole grant for this client — the
+// next sign-in shows the consent screen again. Clearing local state alone would
+// leave the token usable until it expires (~1h) and the grant standing, which
+// is not what someone signing out of a shared browser is asking for.
+//
+// Best-effort by design: the caller signs out regardless of the outcome, since
+// a failed revoke must not strand the user in a signed-in UI.
+export async function revokeAccessToken(accessToken: string, oauth2?: GisOAuth2): Promise<void> {
+  const gis = oauth2 ?? (await loadGis());
+  await new Promise<void>((resolve) => gis.revoke(accessToken, resolve));
 }
