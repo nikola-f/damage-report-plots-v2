@@ -271,7 +271,7 @@ export default function App() {
           ? syncError
           : phase === "done"
             ? `Synced in ${fmtDuration(elapsedMs)}. ${result?.appended ?? 0} new report${result?.appended === 1 ? "" : "s"}.` +
-              (result?.truncated ? " More history remains — Sync again to continue." : "")
+              (result?.truncated ? " More reports remain — Sync again to continue." : "")
             : ""}
       </p>
 
