@@ -1,3 +1,7 @@
 node_modules/
 dist/
-.env.local
+# Every .env variant, not just .env.local: the only value here is the public
+# OAuth client id, but a file named for secrets should never depend on which
+# suffix was used.
+.env
+.env.*

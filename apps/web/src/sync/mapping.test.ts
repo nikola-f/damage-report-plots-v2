@@ -46,4 +46,18 @@ describe("rowsToPlots", () => {
       { lat: 10, lng: 20, owned: 0, count: 1, latest: 16_999_200 },
     ]);
   });
+
+  // The sheet is the user's to edit, so a numeric column can come back holding
+  // text. Emit the defaults apps/iitc's parsePlots uses rather than a value that
+  // fails its Plot type.
+  it("substitutes defaults for hand-edited non-numeric cells", () => {
+    expect(rowsToPlots([[35.1, 139.2, "yes", "many", "recently", "old"]])).toEqual([
+      { lat: 35.1, lng: 139.2, owned: 0, count: 1, latest: 0 },
+    ]);
+  });
+
+  it("drops rows whose coordinates are not finite", () => {
+    expect(rowsToPlots([[NaN, 139.2, 1, 1, 0, ""]])).toEqual([]);
+    expect(rowsToPlots([[35.1, Infinity, 1, 1, 0, ""]])).toEqual([]);
+  });
 });
