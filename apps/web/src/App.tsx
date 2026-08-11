@@ -238,7 +238,7 @@ export default function App() {
               <span className="summary-value">{stats.portals.toLocaleString()}</span>
               <span className="summary-label">
                 portals tracked
-                {stats.ownedPortals > 0 && ` · ${stats.ownedPortals.toLocaleString()} owned`}
+                {stats.ownedPortals > 0 && ` - ${stats.ownedPortals.toLocaleString()} captured`}
               </span>
             </div>
           )}
