@@ -222,4 +222,35 @@ describe("runSync", () => {
     expect(phases).not.toContain("fetch"); // no threads → no fetch phase
     expect(phases[phases.length - 1]).toBe("done");
   });
+
+  it("publishes each counter as soon as it advances", async () => {
+    // 41 threads over two list pages → two threads.get batches (BATCH_SIZE 40).
+    const ids = Array.from({ length: 41 }, (_, i) => `t${i}`);
+    const fetchFn = router(
+      [listResponse(ids.slice(0, 40), "page2"), listResponse(ids.slice(40))],
+      [
+        batchResponse(ids.slice(0, 40).map((id, i) => thread(id, 1_000 + i, html(id, `1,${i}`, "Me", "Me")))),
+        batchResponse([thread("t40", 2_000, html("t40", "9,9", "Me", "Me"))]),
+      ],
+    );
+
+    const seen: SyncProgress[] = [];
+    await runSync({
+      accessToken: "tok",
+      fetchFn,
+      since: T0,
+      until: T0 + 5 * DAY,
+      sleep: async () => {},
+      onWindow: async () => {},
+      onProgress: (p) => seen.push({ ...p }),
+    });
+
+    const listed = seen.filter((p) => p.phase === "list");
+    expect(listed.map((p) => p.threadsFound)).toEqual([0, 40, 41]); // one emission per list page
+
+    const fetched = seen.filter((p) => p.phase === "fetch");
+    expect(fetched.map((p) => p.threadsProcessed)).toEqual([40, 41, 41]); // one per batch, then the window wrap-up
+    // portals stay at 0 until onWindow has persisted the window's records
+    expect(fetched.map((p) => p.portalsFound)).toEqual([0, 0, 41]);
+  });
 });
