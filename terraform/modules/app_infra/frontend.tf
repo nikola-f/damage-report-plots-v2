@@ -54,6 +54,44 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+# Content-Security-Policy for the SPA. This is the app's main defence in depth:
+# the browser holds a gmail.readonly bearer token in JS memory for ~1h, so a
+# single XSS would mean full mailbox read plus exfiltration — which would also
+# void the Limited Use claim the OAuth verification rests on. React escaping and
+# the absence of innerHTML are the only other barriers, and neither is a
+# boundary.
+#
+# The Vite build emits no inline script (see apps/web/dist/index.html: one
+# external module + one external stylesheet), so script-src needs no
+# 'unsafe-inline' and no hashes. Sources, all of them load-bearing:
+#   script-src  accounts.google.com/gsi/client — GIS, injected by sync/auth.ts
+#   connect-src accounts.google.com (GIS status), www.googleapis.com (Drive,
+#               userinfo, the Gmail batch endpoint), gmail/sheets.googleapis.com
+#   img-src     *.googleusercontent.com — the signed-in user's profile picture
+#   frame-src   accounts.google.com — GIS iframes
+# 'unsafe-inline' survives only in style-src, for two style="margin: 0"
+# attributes in public/*.html and whatever GIS injects.
+locals {
+  frontend_csp = join("; ", [
+    "default-src 'none'",
+    "script-src 'self' https://accounts.google.com/gsi/client",
+    join(" ", [
+      "connect-src 'self'",
+      "https://accounts.google.com",
+      "https://www.googleapis.com",
+      "https://gmail.googleapis.com",
+      "https://sheets.googleapis.com",
+    ]),
+    "img-src 'self' data: https://*.googleusercontent.com",
+    "style-src 'self' 'unsafe-inline'",
+    "frame-src https://accounts.google.com",
+    "base-uri 'none'",
+    "object-src 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+  ])
+}
+
 resource "aws_cloudfront_response_headers_policy" "frontend_security" {
   name = "${local.name_prefix}-frontend-security-headers"
 
@@ -74,6 +112,41 @@ resource "aws_cloudfront_response_headers_policy" "frontend_security" {
     referrer_policy {
       referrer_policy = "strict-origin-when-cross-origin"
       override        = true
+    }
+  }
+
+  custom_headers_config {
+    # Report-Only first: the policy above is derived from reading the code, not
+    # from observing the app, and GIS is a third-party script whose exact
+    # request set is not contractual. Enforcing it blind risks breaking sign-in
+    # on the very domain the OAuth reviewer visits.
+    #
+    # There is no report collector (no server, by design), so violations surface
+    # in the browser console only — run a full sync on dev with the console open
+    # and no CSP violations should appear. To enforce afterwards, move the value
+    # into security_headers_config as a content_security_policy block; the same
+    # header cannot be set in both places.
+    items {
+      header   = "Content-Security-Policy-Report-Only"
+      value    = local.frontend_csp
+      override = true
+    }
+
+    # GIS delivers the access token through a popup it opens and then talks to
+    # via postMessage, so the popup must keep its opener reference: this must be
+    # same-origin-allow-popups, never same-origin, which would break sign-in.
+    items {
+      header   = "Cross-Origin-Opener-Policy"
+      value    = "same-origin-allow-popups"
+      override = true
+    }
+
+    # The app uses none of these; denying them costs nothing and shrinks what a
+    # successful injection could reach for.
+    items {
+      header   = "Permissions-Policy"
+      value    = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+      override = true
     }
   }
 }
