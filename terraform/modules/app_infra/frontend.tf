@@ -71,6 +71,10 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 #   frame-src   accounts.google.com — GIS iframes
 # 'unsafe-inline' survives only in style-src, for two style="margin: 0"
 # attributes in public/*.html and whatever GIS injects.
+#
+# Enforced (it shipped Report-Only first): a sign-in → full sync → copy run on
+# dev with the console open produced no violations, so the policy is now known
+# to cover the app's real request set rather than only its readable one.
 locals {
   frontend_csp = join("; ", [
     "default-src 'none'",
@@ -113,25 +117,13 @@ resource "aws_cloudfront_response_headers_policy" "frontend_security" {
       referrer_policy = "strict-origin-when-cross-origin"
       override        = true
     }
+    content_security_policy {
+      content_security_policy = local.frontend_csp
+      override                = true
+    }
   }
 
   custom_headers_config {
-    # Report-Only first: the policy above is derived from reading the code, not
-    # from observing the app, and GIS is a third-party script whose exact
-    # request set is not contractual. Enforcing it blind risks breaking sign-in
-    # on the very domain the OAuth reviewer visits.
-    #
-    # There is no report collector (no server, by design), so violations surface
-    # in the browser console only — run a full sync on dev with the console open
-    # and no CSP violations should appear. To enforce afterwards, move the value
-    # into security_headers_config as a content_security_policy block; the same
-    # header cannot be set in both places.
-    items {
-      header   = "Content-Security-Policy-Report-Only"
-      value    = local.frontend_csp
-      override = true
-    }
-
     # GIS delivers the access token through a popup it opens and then talks to
     # via postMessage, so the popup must keep its opener reference: this must be
     # same-origin-allow-popups, never same-origin, which would break sign-in.
