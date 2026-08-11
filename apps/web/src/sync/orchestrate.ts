@@ -69,6 +69,15 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
   // every sync. Absent on sheets created before the pointer existed.
   const sinceInternalDateMs = await readSyncPointer(accessToken, spreadsheetId, fetchFn);
 
+  // Run-scoped high-water mark, seeded from the stored pointer. threads.get
+  // returns every message in a thread regardless of the queried window, so an
+  // early window can surface a message newer than anything in a later window;
+  // writing each window's max unconditionally would then move the pointer
+  // *backwards* mid-run and let the next sync re-append what is already in the
+  // sheet. Advancing only forward mirrors the retired server's
+  // GmailThreadBatchWorker#advance_resume_point guard.
+  let pointer = sinceInternalDateMs ?? 0;
+
   // Append each window's reports as they're scanned, so an interrupted run keeps
   // its progress (and the sheet's resume point advances) instead of losing
   // everything.
@@ -86,8 +95,9 @@ export async function runFullSync(options: FullSyncOptions): Promise<FullSyncRes
       appended += windowRecords.length;
       // Advance the pointer only after the rows are persisted, so an interrupted
       // run resumes from what actually landed in the sheet.
-      if (windowMaxInternalDate > 0) {
-        await writeSyncPointer(accessToken, spreadsheetId, windowMaxInternalDate, fetchFn);
+      if (windowMaxInternalDate > pointer) {
+        pointer = windowMaxInternalDate;
+        await writeSyncPointer(accessToken, spreadsheetId, pointer, fetchFn);
       }
     },
   });
