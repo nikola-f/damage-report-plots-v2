@@ -110,7 +110,7 @@ injects the per-environment value from the GitHub `vars.VITE_GOOGLE_CLIENT_ID`.
 ```bash
 cd apps/iitc
 npm install
-npm test
+npm run typecheck    # no test suite here; this and the build are what CI runs
 npm run build        # produces the userscript
 ```
 
