@@ -40,21 +40,31 @@ export interface Plot {
   oldest?: number; // omitted when count === 1 (blank in the sheet)
 }
 
+// The sheet belongs to the user and is theirs to edit, so a cell that should
+// hold a number can hold anything. Non-numeric values are replaced with the
+// same defaults apps/iitc's parsePlots would substitute (count 1, latest 0),
+// which keeps the clipboard payload well-formed instead of shipping a `""`
+// where the plugin's Plot type promises a number.
+function cell(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 // Convert `plots!A:F` rows into Plot objects. Rows without numeric lat/lng are
 // dropped — this also removes the QUERY's leading aggregate-label row and any
 // trailing blanks, so the caller gets clean coordinate data.
 export function rowsToPlots(rows: unknown[][]): Plot[] {
   return rows.flatMap((row) => {
     if (typeof row[0] !== "number" || typeof row[1] !== "number") return [];
+    if (!Number.isFinite(row[0]) || !Number.isFinite(row[1])) return [];
     const plot: Plot = {
       lat: row[0],
       lng: row[1],
-      owned: row[2] as number,
-      count: row[3] as number,
-      latest: row[4] as number,
+      owned: cell(row[2], 0),
+      count: cell(row[3], 1),
+      latest: cell(row[4], 0),
     };
-    const oldest = row[5];
-    if (oldest !== undefined && oldest !== null && oldest !== "") plot.oldest = oldest as number;
+    // Blank for single-report portals, so absence is normal rather than a fault.
+    if (typeof row[5] === "number" && Number.isFinite(row[5])) plot.oldest = row[5];
     return [plot];
   });
 }

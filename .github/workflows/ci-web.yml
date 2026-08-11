@@ -17,8 +17,10 @@ permissions:
   contents: read
 
 jobs:
-  # Validation gate (PRs + pushes). No client id needed — the app falls back to
-  # a client-id input when VITE_GOOGLE_CLIENT_ID is unset.
+  # Validation gate (PRs + pushes). No client id needed: it is only read to
+  # populate a build-time constant, and an unset one just leaves the sign-in
+  # button disabled — nothing this job exercises. The deploy jobs below rebuild
+  # with their environment's value.
   build:
     runs-on: ubuntu-latest
 
