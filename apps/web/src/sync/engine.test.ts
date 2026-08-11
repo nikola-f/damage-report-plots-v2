@@ -118,19 +118,22 @@ describe("runSync", () => {
     expect(records.map((r) => r.name).sort()).toEqual(["A", "B"]);
   });
 
-  // Two batches (41 ids, BATCH_SIZE 40) driven by a fake clock that only the
-  // fake sleep and `batchMs` advance, so the pacing maths is exact.
+  // Exactly two batches (BATCH_SIZE + 1 ids) driven by a fake clock that only
+  // the fake sleep and `batchMs` advance, so the pacing maths is exact.
   function pacedRun(batchMs: number) {
     let t = 0;
     const sleep = vi.fn(async (ms: number) => {
       t += ms;
     });
-    const ids = Array.from({ length: 41 }, (_, i) => `t${i}`);
+    const ids = Array.from({ length: BATCH_SIZE + 1 }, (_, i) => `t${i}`);
     const mkThreads = (chunk: string[], base: number) =>
       chunk.map((id, i) => thread(id, base + i + 1, html(`P${base + i}`, `${base + i}.0,1.0`, "Me", "Me")));
     const responses = router(
       [listResponse(ids)],
-      [batchResponse(mkThreads(ids.slice(0, 40), 0)), batchResponse(mkThreads(ids.slice(40), 40))],
+      [
+        batchResponse(mkThreads(ids.slice(0, BATCH_SIZE), 0)),
+        batchResponse(mkThreads(ids.slice(BATCH_SIZE), BATCH_SIZE)),
+      ],
     );
     const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).startsWith(BATCH_URL)) t += batchMs; // the request's own duration
@@ -151,12 +154,12 @@ describe("runSync", () => {
   }
 
   it("subtracts a batch's own duration from the pace interval", async () => {
-    const batchMs = 400; // measured: threads.get for 40 ids takes ~400ms
+    const batchMs = 400; // measured: a threads.get batch takes ~400ms
     const { sleep, result } = pacedRun(batchMs);
 
     const { records } = await result;
 
-    expect(records).toHaveLength(41); // both batches processed (40 + 1)
+    expect(records).toHaveLength(BATCH_SIZE + 1); // both batches processed
     expect(sleep).toHaveBeenCalledTimes(1); // one pause, between the two batches
     expect(sleep).toHaveBeenCalledWith(MIN_BATCH_INTERVAL_MS - batchMs);
   });
@@ -166,7 +169,7 @@ describe("runSync", () => {
 
     const { records } = await result;
 
-    expect(records).toHaveLength(41);
+    expect(records).toHaveLength(BATCH_SIZE + 1);
     expect(sleep).not.toHaveBeenCalled(); // already slower than the quota allows
   });
 
@@ -196,6 +199,36 @@ describe("runSync", () => {
 
     expect(records).toHaveLength(1);
     expect(sleep).toHaveBeenCalledOnce();
+  });
+
+  it("retries a 429 that is inside an otherwise-200 batch response", async () => {
+    // A rate-limited sub-request rides inside a 200 multipart body, so the
+    // browser's network panel shows the batch as a plain 200 — the status only
+    // exists on the inner part, which is where parseBatchResponse reads it.
+    const boundary = "batchX";
+    const ok = thread("a", 5, html("A", "1,2", "Me", "Me"));
+    const mixed = new Response(
+      `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <response-0>\r\n\r\n` +
+        `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(ok)}\r\n` +
+        `--${boundary}\r\nContent-Type: application/http\r\nContent-ID: <response-1>\r\n\r\n` +
+        `HTTP/1.1 429 Too Many Requests\r\nContent-Type: application/json\r\n\r\n` +
+        `${JSON.stringify({ error: { message: "Too many concurrent requests for user" } })}\r\n` +
+        `--${boundary}--\r\n`,
+      { status: 200, headers: { "Content-Type": `multipart/mixed; boundary=${boundary}` } },
+    );
+    const sleep = vi.fn(async () => {});
+    const fetchFn = router([listResponse(["a", "b"])], [mixed, batchResponse([ok])]);
+
+    const { records } = await runSync({
+      accessToken: "tok",
+      fetchFn,
+      since: T0,
+      until: T0 + 5 * DAY,
+      sleep,
+    });
+
+    expect(sleep).toHaveBeenCalledOnce(); // backed off rather than losing the thread
+    expect(records).toHaveLength(1);
   });
 
   // Gmail returns the per-user quota as a 403, not a 429, so the status alone
@@ -318,13 +351,16 @@ describe("runSync", () => {
   });
 
   it("publishes each counter as soon as it advances", async () => {
-    // 41 threads over two list pages → two threads.get batches (BATCH_SIZE 40).
-    const ids = Array.from({ length: 41 }, (_, i) => `t${i}`);
+    // BATCH_SIZE + 1 threads over two list pages → two threads.get batches.
+    const ids = Array.from({ length: BATCH_SIZE + 1 }, (_, i) => `t${i}`);
+    const last = ids[BATCH_SIZE];
     const fetchFn = router(
-      [listResponse(ids.slice(0, 40), "page2"), listResponse(ids.slice(40))],
+      [listResponse(ids.slice(0, BATCH_SIZE), "page2"), listResponse(ids.slice(BATCH_SIZE))],
       [
-        batchResponse(ids.slice(0, 40).map((id, i) => thread(id, 1_000 + i, html(id, `1,${i}`, "Me", "Me")))),
-        batchResponse([thread("t40", 2_000, html("t40", "9,9", "Me", "Me"))]),
+        batchResponse(
+          ids.slice(0, BATCH_SIZE).map((id, i) => thread(id, 1_000 + i, html(id, `1,${i}`, "Me", "Me"))),
+        ),
+        batchResponse([thread(last, 2_000, html(last, "9,9", "Me", "Me"))]),
       ],
     );
 
@@ -340,11 +376,13 @@ describe("runSync", () => {
     });
 
     const listed = seen.filter((p) => p.phase === "list");
-    expect(listed.map((p) => p.threadsFound)).toEqual([0, 40, 41]); // one emission per list page
+    // one emission per list page
+    expect(listed.map((p) => p.threadsFound)).toEqual([0, BATCH_SIZE, BATCH_SIZE + 1]);
 
     const fetched = seen.filter((p) => p.phase === "fetch");
-    expect(fetched.map((p) => p.threadsProcessed)).toEqual([40, 41, 41]); // one per batch, then the window wrap-up
+    // one per batch, then the window wrap-up
+    expect(fetched.map((p) => p.threadsProcessed)).toEqual([BATCH_SIZE, BATCH_SIZE + 1, BATCH_SIZE + 1]);
     // portals stay at 0 until onWindow has persisted the window's records
-    expect(fetched.map((p) => p.portalsFound)).toEqual([0, 0, 41]);
+    expect(fetched.map((p) => p.portalsFound)).toEqual([0, 0, BATCH_SIZE + 1]);
   });
 });
