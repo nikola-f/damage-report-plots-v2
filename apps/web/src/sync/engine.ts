@@ -21,11 +21,13 @@ export type { FetchLike };
 const SECONDS_PER_DAY = 86_400;
 // Each batched threads.get sub-request runs concurrently server-side, so the
 // batch size is Gmail's per-user concurrency budget — not the API's 100 cap.
-// Paired with a 1s inter-batch pause to stay under the "Too many concurrent
+// Paired with an inter-batch pause to stay under the "Too many concurrent
 // requests for user" 429 limit (the server used 20; 40 is a tuned throughput
-// bump — lower it again if concurrency 429s reappear).
+// bump — lower it again if concurrency 429s reappear). The pause was likewise
+// tuned down from 1s to 500ms; concurrency 429s that slip through are still
+// absorbed by the exponential backoff in fetchBatchWithRetry.
 const BATCH_SIZE = 40;
-const INTER_BATCH_SLEEP_MS = 1000;
+const INTER_BATCH_SLEEP_MS = 500;
 const HTML_MIME = "text/html";
 const DEFAULT_MAX_RETRIES = 6; // 1+2+4+8+16+32 = 63s, covers one quota window
 const DEFAULT_MAX_BACKOFF = 32; // seconds
