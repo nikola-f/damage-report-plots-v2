@@ -99,7 +99,7 @@ jobs:
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.FRONTEND_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --distribution-id ${{ vars.FRONTEND_CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
 
   deploy-prod:
@@ -148,5 +148,5 @@ jobs:
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.FRONTEND_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --distribution-id ${{ vars.FRONTEND_CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"

@@ -10,19 +10,18 @@ output "gcp_service_account" {
   sensitive   = true
 }
 
+# Keeps `sensitive`: the bucket name embeds the AWS account id.
 output "frontend_bucket_name" {
   value     = module.app_infra.frontend_bucket_name
   sensitive = true
 }
 
 output "frontend_cloudfront_domain" {
-  value     = module.app_infra.frontend_cloudfront_domain
-  sensitive = true
+  value = module.app_infra.frontend_cloudfront_domain
 }
 
 output "frontend_cloudfront_distribution_id" {
-  value     = module.app_infra.frontend_cloudfront_distribution_id
-  sensitive = true
+  value = module.app_infra.frontend_cloudfront_distribution_id
 }
 
 # DNS records to create when the frontend ACM certificate is first issued;
@@ -30,6 +29,5 @@ output "frontend_cloudfront_distribution_id" {
 # custom domain. Re-exported because module outputs are not reachable from the
 # root otherwise.
 output "frontend_acm_validation_records" {
-  value     = module.app_infra.frontend_acm_validation_records
-  sensitive = true
+  value = module.app_infra.frontend_acm_validation_records
 }

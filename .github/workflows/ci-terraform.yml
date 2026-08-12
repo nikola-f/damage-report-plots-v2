@@ -63,7 +63,7 @@ jobs:
     env:
       TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
-      TF_VAR_frontend_domain_name: ${{ secrets.FRONTEND_DOMAIN_NAME }}
+      TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -144,7 +144,7 @@ jobs:
     env:
       TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
-      TF_VAR_frontend_domain_name: ${{ secrets.FRONTEND_DOMAIN_NAME }}
+      TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -192,7 +192,7 @@ jobs:
     env:
       TF_VAR_management_account_id: ${{ secrets.MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_aws_assume_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
-      TF_VAR_frontend_domain_name: ${{ secrets.FRONTEND_DOMAIN_NAME }}
+      TF_VAR_frontend_domain_name: ${{ vars.FRONTEND_DOMAIN_NAME }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
