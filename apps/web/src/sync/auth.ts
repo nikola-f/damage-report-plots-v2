@@ -16,13 +16,23 @@ const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
 // In the GIS token model each token is valid only for the scopes requested, so
 // SYNC_SCOPE also includes drive.file — a sync both reads Gmail and writes the
 // spreadsheet.
-export const LOGIN_SCOPE = ["email", "profile", DRIVE_FILE].join(" ");
+// `email` is not requested: the UI shows the signed-in user's name and picture,
+// both of which come from `profile`, and the address was never displayed.
+//
+// drive.file stays even though login only reads (find the spreadsheet, read the
+// plots): Drive has no read-only equivalent scoped to the app's own files. The
+// read-only alternatives — drive.readonly, drive.metadata.readonly — cover the
+// user's entire Drive and are *restricted* scopes, so swapping one in would
+// both widen the access and pull the app into the CASA assessment this design
+// exists to avoid.
+export const LOGIN_SCOPE = ["profile", DRIVE_FILE].join(" ");
 export const SYNC_SCOPE = [GMAIL_READONLY, DRIVE_FILE].join(" ");
 
 // Google expands the `email`/`profile` shorthand to these URLs in the granted
 // scope string and adds `openid`, so a requested scope never comes back
 // verbatim. Comparing the two lists without this mapping would report every
-// login as partially granted.
+// login as partially granted. `email` is kept here because a returning user's
+// grant may still carry it from before it was dropped.
 const SCOPE_ALIASES: Record<string, string> = {
   email: "https://www.googleapis.com/auth/userinfo.email",
   profile: "https://www.googleapis.com/auth/userinfo.profile",

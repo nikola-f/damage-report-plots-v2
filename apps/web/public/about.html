@@ -98,7 +98,7 @@
           Services (the browser token model, with PKCE and no client secret), so
           there is no password to give the app and no long-lived credential: it
           receives a temporary access token that lasts about an hour and is never
-          refreshed silently. You grant four scopes:
+          refreshed silently. You grant three scopes:
         </p>
         <ul>
           <li><code>gmail.readonly</code> — to read your damage report emails.</li>
@@ -106,7 +106,10 @@
             <code>drive.file</code> — access limited to the one spreadsheet the
             app creates; it can't see your other Drive files.
           </li>
-          <li><code>email</code> and <code>profile</code> — to show who is signed in.</li>
+          <li>
+            <code>profile</code> — your name and picture, to show who is signed
+            in. Not your email address.
+          </li>
         </ul>
       </div>
 

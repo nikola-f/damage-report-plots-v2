@@ -13,9 +13,15 @@ import {
 // URLs, plus openid.
 const GRANTED_LOGIN_SCOPE = [
   "openid",
-  "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/drive.file",
+].join(" ");
+
+// A user who signed in before `email` was dropped keeps it in their grant, so
+// Google keeps returning it. Extra scopes must not be mistaken for a problem.
+const GRANTED_WITH_STALE_EMAIL = [
+  GRANTED_LOGIN_SCOPE,
+  "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
 function fakeOAuth2(
@@ -35,10 +41,23 @@ function fakeOAuth2(
 
 describe("scopes (incremental authorization)", () => {
   it("login asks for identity + drive.file but not the restricted gmail scope", () => {
-    expect(LOGIN_SCOPE).toContain("email");
     expect(LOGIN_SCOPE).toContain("profile");
     expect(LOGIN_SCOPE).toContain("drive.file");
     expect(LOGIN_SCOPE).not.toContain("gmail.readonly");
+  });
+
+  it("login does not ask for the address: the UI shows only a name and picture", () => {
+    expect(LOGIN_SCOPE).not.toContain("email");
+  });
+
+  // Every read-only Drive scope covers the whole of a user's Drive and is
+  // restricted, which would trigger the CASA assessment this design avoids.
+  // drive.file is the narrowest scope that reaches the app's own spreadsheet.
+  it("uses no restricted Drive scope in place of drive.file", () => {
+    for (const scope of [LOGIN_SCOPE, SYNC_SCOPE]) {
+      expect(scope).not.toContain("auth/drive.readonly");
+      expect(scope).not.toContain("auth/drive.metadata");
+    }
   });
 
   it("sync adds gmail.readonly and keeps drive.file for writing the sheet", () => {
@@ -106,6 +125,10 @@ describe("missingScopes", () => {
 
   it("ignores extra scopes Google adds", () => {
     expect(missingScopes("profile", "openid profile")).toEqual([]);
+  });
+
+  it("accepts a returning user whose grant still carries the dropped email scope", () => {
+    expect(missingScopes(LOGIN_SCOPE, GRANTED_WITH_STALE_EMAIL)).toEqual([]);
   });
 });
 

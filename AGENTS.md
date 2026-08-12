@@ -35,10 +35,16 @@ verification is needed for production). Original PoC that proved feasibility:
 - `apps/web`'s clipboard output MUST stay the same `Plot[]` shape
   `{lat, lng, count, latest}` that `apps/iitc/src/plots.ts` expects.
 
-**Scopes**: `email profile https://www.googleapis.com/auth/gmail.readonly
+**Scopes**: `profile https://www.googleapis.com/auth/gmail.readonly
 https://www.googleapis.com/auth/drive.file`. `drive.file` (non-sensitive)
 replaces the sensitive `spreadsheets` scope and lets the app discover its **own**
-single spreadsheet across devices via a Drive `appProperties` marker.
+single spreadsheet across devices via a Drive `appProperties` marker. `email` is
+not requested — the UI shows a name and picture, both from `profile`.
+
+`drive.file` stays even on the login token, which only reads: Drive has **no
+read-only scope limited to the app's own files**. `drive.readonly` and
+`drive.metadata.readonly` cover the user's whole Drive and are **restricted**,
+so either would widen access *and* trigger CASA.
 
 ### apps/web sync engine (`apps/web/src/sync/`)
 
@@ -162,7 +168,7 @@ Google's OAuth verification so external users can use the app without the
 "unverified app" warning / 100-test-user cap.
 
 **What actually needs verification**: only **`gmail.readonly`** (restricted).
-`email`/`profile` (non-sensitive) and `drive.file` (non-sensitive, recommended)
+`profile` (non-sensitive) and `drive.file` (non-sensitive, recommended)
 don't drive verification. Client-side-only handling keeps us **exempt from the
 CASA security assessment**; standard OAuth verification (brand + scope review +
 demo video) still applies.

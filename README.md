@@ -46,7 +46,7 @@ graph TB
 
 ```mermaid
 graph TD
-    Login["GIS login (email profile gmail.readonly drive.file)"]
+    Login["GIS login (profile gmail.readonly drive.file)"]
     Discover["Discover own Sheet via Drive appProperties marker"]
     Scan["Windowed Gmail scan\n(threads.list + batch threads.get)"]
     Parse["Parse HTML (DOMParser + XPath)\ndedupe / aggregate"]
