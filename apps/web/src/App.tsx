@@ -24,8 +24,20 @@ import HowItWorks from "./HowItWorks.tsx";
 // disabled if it's missing.
 const CLIENT_ID =
   (import.meta.env as unknown as { VITE_GOOGLE_CLIENT_ID?: string }).VITE_GOOGLE_CLIENT_ID ?? "";
-// Re-request the token when under a minute of its ~1h life remains.
+// Re-request the token when under a minute of its ~1h life remains. Enough for
+// the one-shot calls behind sign-in and Copy.
 const TOKEN_MARGIN_MS = 60_000;
+// A sync is not a single call: it holds one token for the whole run, which the
+// engine's 5,000-thread cap bounds at roughly five minutes. A token with a
+// minute left therefore passes the check above and then dies mid-run — and a
+// 401 is deliberately not retryable (it is otherwise a permission error), so
+// the run stops. Already-appended windows survive and the next sync resumes,
+// but the user sees a failure that need not have happened.
+//
+// Twenty minutes is several times the worst-case run. It is free to be this
+// generous because a re-request is silent now (see PROMPT_IF_NEEDED); before
+// that it would have meant an account chooser.
+const SYNC_TOKEN_MARGIN_MS = 20 * 60_000;
 
 type Phase = "idle" | "syncing" | "done" | "error";
 
@@ -47,6 +59,18 @@ function fmtDay(epochSec?: number): string | null {
 
 function fmtWhen(ms: number): string {
   return new Date(ms).toLocaleString();
+}
+
+// The margin above makes a mid-run expiry unlikely, not impossible: a suspended
+// laptop or a stalled connection can still outlast the token. Google's wording
+// for that is "Invalid Credentials", which reads like the app is broken rather
+// than like a session that ran out.
+function syncErrorMessage(e: unknown): string {
+  const message = e instanceof Error ? e.message : "";
+  if (/\b401\b/.test(message)) {
+    return "Your Google session expired during the sync. Sync again to continue from where it stopped.";
+  }
+  return message || "Sync failed.";
 }
 
 function fmtDuration(ms: number): string {
@@ -122,15 +146,20 @@ export default function App() {
   // treated the sync token as useless for reading the sheet, sending Copy back
   // to GIS for a third token and an account chooser on every click. Both tokens
   // carry drive.file, which is all Copy asks for.
-  async function acquireToken(scope: string, prompt?: string): Promise<string> {
+  // `marginMs` is how much life the caller needs left on the token, which is a
+  // property of the work it is about to do rather than of the token.
+  async function acquireToken(
+    scope: string,
+    opts: { prompt?: string; marginMs?: number } = {},
+  ): Promise<string> {
     if (
       token &&
-      token.expiresAt - Date.now() > TOKEN_MARGIN_MS &&
+      token.expiresAt - Date.now() > (opts.marginMs ?? TOKEN_MARGIN_MS) &&
       missingScopes(scope, token.scope).length === 0
     ) {
       return token.value;
     }
-    const r = await requestAccessToken(CLIENT_ID, { scope, prompt });
+    const r = await requestAccessToken(CLIENT_ID, { scope, prompt: opts.prompt });
     setToken({
       value: r.accessToken,
       expiresAt: Date.now() + r.expiresIn * 1000,
@@ -190,7 +219,10 @@ export default function App() {
       // Sync needs gmail.readonly (read mail) + drive.file (write the sheet);
       // this is where the user is first prompted for Gmail access. Later syncs
       // reuse the grant without re-prompting.
-      const accessToken = await acquireToken(SYNC_SCOPE, PROMPT_IF_NEEDED);
+      const accessToken = await acquireToken(SYNC_SCOPE, {
+        prompt: PROMPT_IF_NEEDED,
+        marginMs: SYNC_TOKEN_MARGIN_MS,
+      });
       // Runs on the main thread: the HTML decoder needs DOMParser/document.evaluate,
       // which don't exist in a Web Worker. Work is network-bound and awaits between
       // batches, so progress renders and the UI stays responsive.
@@ -209,7 +241,7 @@ export default function App() {
       void refreshStatsAfterSync(accessToken, res.spreadsheetId, expectData);
     } catch (e) {
       setElapsedMs(Date.now() - startedAt);
-      setSyncError(e instanceof Error ? e.message : "Sync failed.");
+      setSyncError(syncErrorMessage(e));
       setPhase("error");
     }
   }
@@ -221,7 +253,7 @@ export default function App() {
       // Reading the sheet needs only drive.file, which both the login and the
       // sync token carry — so Copy reuses whichever is in hand and never
       // triggers a prompt of its own.
-      const accessToken = await acquireToken(SHEET_SCOPE, PROMPT_IF_NEEDED);
+      const accessToken = await acquireToken(SHEET_SCOPE, { prompt: PROMPT_IF_NEEDED });
       const plots = await readPlots(accessToken, spreadsheetId);
       await navigator.clipboard.writeText(plotsJson(plots));
       setCopyMessage(`Copied ${plots.length.toLocaleString()} plots to clipboard.`);
