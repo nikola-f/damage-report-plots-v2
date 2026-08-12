@@ -35,10 +35,16 @@ verification is needed for production). Original PoC that proved feasibility:
 - `apps/web`'s clipboard output MUST stay the same `Plot[]` shape
   `{lat, lng, count, latest}` that `apps/iitc/src/plots.ts` expects.
 
-**Scopes**: `email profile https://www.googleapis.com/auth/gmail.readonly
+**Scopes**: `profile https://www.googleapis.com/auth/gmail.readonly
 https://www.googleapis.com/auth/drive.file`. `drive.file` (non-sensitive)
 replaces the sensitive `spreadsheets` scope and lets the app discover its **own**
-single spreadsheet across devices via a Drive `appProperties` marker.
+single spreadsheet across devices via a Drive `appProperties` marker. `email` is
+not requested — the UI shows a name and picture, both from `profile`.
+
+`drive.file` stays even on the login token, which only reads: Drive has **no
+read-only scope limited to the app's own files**. `drive.readonly` and
+`drive.metadata.readonly` cover the user's whole Drive and are **restricted**,
+so either would widen access *and* trigger CASA.
 
 ### apps/web sync engine (`apps/web/src/sync/`)
 
@@ -46,7 +52,15 @@ Server Ruby logic ported to TypeScript, run on the **main thread** (a Web Worker
 can't be used — the HTML decoder needs `DOMParser` / `document.evaluate` XPath,
 which don't exist in worker scope):
 
-- `auth.ts` — GIS token-model auth (`loadGis`, `requestAccessToken`).
+- `auth.ts` — GIS token-model auth (`loadGis`, `requestAccessToken`), plus
+  `missingScopes` (the granular consent screen can withhold a scope and still
+  issue a token, so a partial grant is rejected rather than cached) and
+  `revokeAccessToken` (logout ends the grant; bounded because a blocked request
+  leaves the GIS callback unfired). `LOGIN_SCOPE` / `SYNC_SCOPE` / `SHEET_SCOPE`
+  are the three needs; `App.acquireToken` reuses one in-memory token whenever it
+  *covers* the need, so Copy never fetches a third. `PROMPT_IF_NEEDED` (empty
+  string) keeps the consent screen on first sign-in and first Gmail request only
+  — login keeps the GIS default so accounts can still be switched.
 - `query.ts` — `buildQuery` (Gmail search query; 30-day windows, day-aligned).
 - `gmail.ts` — batch `threads.get` body builder + multipart response parser.
 - `engine.ts` — `runSync`: windowed scan, quota-paced batches (see below),
@@ -162,7 +176,7 @@ Google's OAuth verification so external users can use the app without the
 "unverified app" warning / 100-test-user cap.
 
 **What actually needs verification**: only **`gmail.readonly`** (restricted).
-`email`/`profile` (non-sensitive) and `drive.file` (non-sensitive, recommended)
+`profile` (non-sensitive) and `drive.file` (non-sensitive, recommended)
 don't drive verification. Client-side-only handling keeps us **exempt from the
 CASA security assessment**; standard OAuth verification (brand + scope review +
 demo video) still applies.

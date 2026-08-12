@@ -3,6 +3,8 @@ import {
   LOGIN_SCOPE,
   SYNC_SCOPE,
   missingScopes,
+  SHEET_SCOPE,
+  PROMPT_IF_NEEDED,
   REVOKE_TIMEOUT_MS,
   requestAccessToken,
   revokeAccessToken,
@@ -13,9 +15,15 @@ import {
 // URLs, plus openid.
 const GRANTED_LOGIN_SCOPE = [
   "openid",
-  "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/drive.file",
+].join(" ");
+
+// A user who signed in before `email` was dropped keeps it in their grant, so
+// Google keeps returning it. Extra scopes must not be mistaken for a problem.
+const GRANTED_WITH_STALE_EMAIL = [
+  GRANTED_LOGIN_SCOPE,
+  "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
 function fakeOAuth2(
@@ -26,19 +34,45 @@ function fakeOAuth2(
     error?: string;
   },
   revoke: GisOAuth2["revoke"] = () => {},
+  onRequest?: (overrides?: { prompt?: string }) => void,
 ): GisOAuth2 {
   return {
-    initTokenClient: (cfg) => ({ requestAccessToken: () => cfg.callback(response) }),
+    initTokenClient: (cfg) => ({
+      requestAccessToken: (overrides) => {
+        onRequest?.(overrides);
+        cfg.callback(response);
+      },
+    }),
     revoke,
   };
 }
 
 describe("scopes (incremental authorization)", () => {
   it("login asks for identity + drive.file but not the restricted gmail scope", () => {
-    expect(LOGIN_SCOPE).toContain("email");
     expect(LOGIN_SCOPE).toContain("profile");
     expect(LOGIN_SCOPE).toContain("drive.file");
     expect(LOGIN_SCOPE).not.toContain("gmail.readonly");
+  });
+
+  it("login does not ask for the address: the UI shows only a name and picture", () => {
+    expect(LOGIN_SCOPE).not.toContain("email");
+  });
+
+  // Every read-only Drive scope covers the whole of a user's Drive and is
+  // restricted, which would trigger the CASA assessment this design avoids.
+  // drive.file is the narrowest scope that reaches the app's own spreadsheet.
+  it("uses no restricted Drive scope in place of drive.file", () => {
+    for (const scope of [LOGIN_SCOPE, SYNC_SCOPE]) {
+      expect(scope).not.toContain("auth/drive.readonly");
+      expect(scope).not.toContain("auth/drive.metadata");
+    }
+  });
+
+  // What lets App.acquireToken serve the Copy button from whichever token is
+  // already in hand, instead of sending the user to GIS for a third one.
+  it("covers the sheet scope from both the login and the sync token", () => {
+    expect(missingScopes(SHEET_SCOPE, LOGIN_SCOPE)).toEqual([]);
+    expect(missingScopes(SHEET_SCOPE, SYNC_SCOPE)).toEqual([]);
   });
 
   it("sync adds gmail.readonly and keeps drive.file for writing the sheet", () => {
@@ -78,6 +112,23 @@ describe("requestAccessToken", () => {
     });
   });
 
+  // PROMPT_IF_NEEDED is the empty string, so a truthiness check would drop it
+  // and leave GIS on its 'select_account' default — an account chooser in front
+  // of every Sync and Copy.
+  it("forwards an empty prompt instead of treating it as unset", async () => {
+    const onRequest = vi.fn();
+    const oauth2 = fakeOAuth2({ access_token: "tok", scope: SYNC_SCOPE }, () => {}, onRequest);
+    await requestAccessToken("cid", { scope: SYNC_SCOPE, prompt: PROMPT_IF_NEEDED }, oauth2);
+    expect(onRequest).toHaveBeenCalledWith({ prompt: "" });
+  });
+
+  it("leaves the GIS default in place when no prompt is given", async () => {
+    const onRequest = vi.fn();
+    const oauth2 = fakeOAuth2({ access_token: "tok", scope: GRANTED_LOGIN_SCOPE }, () => {}, onRequest);
+    await requestAccessToken("cid", { scope: LOGIN_SCOPE }, oauth2);
+    expect(onRequest).toHaveBeenCalledWith(undefined);
+  });
+
   it("rejects a token issued without the Gmail scope the user unchecked", async () => {
     const oauth2 = fakeOAuth2({
       access_token: "tok",
@@ -106,6 +157,10 @@ describe("missingScopes", () => {
 
   it("ignores extra scopes Google adds", () => {
     expect(missingScopes("profile", "openid profile")).toEqual([]);
+  });
+
+  it("accepts a returning user whose grant still carries the dropped email scope", () => {
+    expect(missingScopes(LOGIN_SCOPE, GRANTED_WITH_STALE_EMAIL)).toEqual([]);
   });
 });
 

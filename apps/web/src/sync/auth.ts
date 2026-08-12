@@ -16,13 +16,38 @@ const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
 // In the GIS token model each token is valid only for the scopes requested, so
 // SYNC_SCOPE also includes drive.file — a sync both reads Gmail and writes the
 // spreadsheet.
-export const LOGIN_SCOPE = ["email", "profile", DRIVE_FILE].join(" ");
+// `email` is not requested: the UI shows the signed-in user's name and picture,
+// both of which come from `profile`, and the address was never displayed.
+//
+// drive.file stays even though login only reads (find the spreadsheet, read the
+// plots): Drive has no read-only equivalent scoped to the app's own files. The
+// read-only alternatives — drive.readonly, drive.metadata.readonly — cover the
+// user's entire Drive and are *restricted* scopes, so swapping one in would
+// both widen the access and pull the app into the CASA assessment this design
+// exists to avoid.
+export const LOGIN_SCOPE = ["profile", DRIVE_FILE].join(" ");
 export const SYNC_SCOPE = [GMAIL_READONLY, DRIVE_FILE].join(" ");
+// Reading the spreadsheet back (the Copy button) needs nothing but the app's
+// own Drive file. Asking for exactly that — rather than reusing LOGIN_SCOPE —
+// is what lets the caller satisfy it from either of the tokens above instead of
+// fetching a third one.
+export const SHEET_SCOPE = DRIVE_FILE;
+
+// GIS defaults `prompt` to 'select_account', so every token request puts an
+// account chooser in front of the user, even when the scopes are already
+// granted. An empty string means "prompt only the first time this app asks for
+// access", which keeps the consent screen where it is needed — the first sign-in
+// and the first Gmail request — and drops it everywhere else.
+//
+// Login deliberately keeps the default: the chooser is the only way to sign in
+// as a different account.
+export const PROMPT_IF_NEEDED = "";
 
 // Google expands the `email`/`profile` shorthand to these URLs in the granted
 // scope string and adds `openid`, so a requested scope never comes back
 // verbatim. Comparing the two lists without this mapping would report every
-// login as partially granted.
+// login as partially granted. `email` is kept here because a returning user's
+// grant may still carry it from before it was dropped.
 const SCOPE_ALIASES: Record<string, string> = {
   email: "https://www.googleapis.com/auth/userinfo.email",
   profile: "https://www.googleapis.com/auth/userinfo.profile",
@@ -154,7 +179,10 @@ export async function requestAccessToken(
       },
       error_callback: (e) => reject(new Error(e.message ?? e.type ?? "GIS error")),
     });
-    client.requestAccessToken(opts.prompt ? { prompt: opts.prompt } : undefined);
+    // Compared against undefined, not for truthiness: PROMPT_IF_NEEDED is the
+    // empty string, and treating it as "unset" would silently restore the
+    // account chooser it exists to remove.
+    client.requestAccessToken(opts.prompt === undefined ? undefined : { prompt: opts.prompt });
   });
 }
 

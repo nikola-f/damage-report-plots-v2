@@ -11,7 +11,7 @@ truth for what we submit. Keep it in sync with the actual request in
 
 | Scope | Sensitivity | Needs justification |
 |-------|-------------|---------------------|
-| `openid` / `email` / `profile` | Non-sensitive | No |
+| `openid` / `profile` | Non-sensitive | No |
 | `https://www.googleapis.com/auth/drive.file` | Non-sensitive (recommended) | Light |
 | `https://www.googleapis.com/auth/gmail.readonly` | **Restricted** | **Yes — main review** |
 
@@ -72,10 +72,11 @@ constrain it further with a sender+subject query.
 > sheet again when the user signs in from another device, keeping one continuous
 > record. This replaces the broader, sensitive `spreadsheets` scope.
 
-### `email` / `profile` (non-sensitive)
+### `profile` (non-sensitive)
 
-> Used only to display the signed-in user's basic identity (name, email address,
-> profile picture) in the app UI.
+> Used only to display the signed-in user's name and profile picture in the app
+> UI, so they can see which account is connected. The app does not request the
+> `email` scope.
 
 ---
 

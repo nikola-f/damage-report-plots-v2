@@ -33,7 +33,7 @@ Authorization is incremental ([`auth.ts`](../apps/web/src/sync/auth.ts)):
 
 | When | Scopes |
 |------|--------|
-| Sign in | `email`, `profile`, `drive.file` |
+| Sign in | `profile`, `drive.file` |
 | First **Sync** click | `gmail.readonly`, `drive.file` |
 
 `gmail.readonly` — the only scope under restricted review — appears on the
