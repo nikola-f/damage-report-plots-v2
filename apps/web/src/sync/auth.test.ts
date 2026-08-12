@@ -3,6 +3,8 @@ import {
   LOGIN_SCOPE,
   SYNC_SCOPE,
   missingScopes,
+  SHEET_SCOPE,
+  PROMPT_IF_NEEDED,
   REVOKE_TIMEOUT_MS,
   requestAccessToken,
   revokeAccessToken,
@@ -32,9 +34,15 @@ function fakeOAuth2(
     error?: string;
   },
   revoke: GisOAuth2["revoke"] = () => {},
+  onRequest?: (overrides?: { prompt?: string }) => void,
 ): GisOAuth2 {
   return {
-    initTokenClient: (cfg) => ({ requestAccessToken: () => cfg.callback(response) }),
+    initTokenClient: (cfg) => ({
+      requestAccessToken: (overrides) => {
+        onRequest?.(overrides);
+        cfg.callback(response);
+      },
+    }),
     revoke,
   };
 }
@@ -58,6 +66,13 @@ describe("scopes (incremental authorization)", () => {
       expect(scope).not.toContain("auth/drive.readonly");
       expect(scope).not.toContain("auth/drive.metadata");
     }
+  });
+
+  // What lets App.acquireToken serve the Copy button from whichever token is
+  // already in hand, instead of sending the user to GIS for a third one.
+  it("covers the sheet scope from both the login and the sync token", () => {
+    expect(missingScopes(SHEET_SCOPE, LOGIN_SCOPE)).toEqual([]);
+    expect(missingScopes(SHEET_SCOPE, SYNC_SCOPE)).toEqual([]);
   });
 
   it("sync adds gmail.readonly and keeps drive.file for writing the sheet", () => {
@@ -95,6 +110,23 @@ describe("requestAccessToken", () => {
     await expect(requestAccessToken("cid", { scope: LOGIN_SCOPE }, oauth2)).resolves.toMatchObject({
       accessToken: "tok",
     });
+  });
+
+  // PROMPT_IF_NEEDED is the empty string, so a truthiness check would drop it
+  // and leave GIS on its 'select_account' default — an account chooser in front
+  // of every Sync and Copy.
+  it("forwards an empty prompt instead of treating it as unset", async () => {
+    const onRequest = vi.fn();
+    const oauth2 = fakeOAuth2({ access_token: "tok", scope: SYNC_SCOPE }, () => {}, onRequest);
+    await requestAccessToken("cid", { scope: SYNC_SCOPE, prompt: PROMPT_IF_NEEDED }, oauth2);
+    expect(onRequest).toHaveBeenCalledWith({ prompt: "" });
+  });
+
+  it("leaves the GIS default in place when no prompt is given", async () => {
+    const onRequest = vi.fn();
+    const oauth2 = fakeOAuth2({ access_token: "tok", scope: GRANTED_LOGIN_SCOPE }, () => {}, onRequest);
+    await requestAccessToken("cid", { scope: LOGIN_SCOPE }, oauth2);
+    expect(onRequest).toHaveBeenCalledWith(undefined);
   });
 
   it("rejects a token issued without the Gmail scope the user unchecked", async () => {

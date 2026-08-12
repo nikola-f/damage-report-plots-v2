@@ -52,7 +52,15 @@ Server Ruby logic ported to TypeScript, run on the **main thread** (a Web Worker
 can't be used — the HTML decoder needs `DOMParser` / `document.evaluate` XPath,
 which don't exist in worker scope):
 
-- `auth.ts` — GIS token-model auth (`loadGis`, `requestAccessToken`).
+- `auth.ts` — GIS token-model auth (`loadGis`, `requestAccessToken`), plus
+  `missingScopes` (the granular consent screen can withhold a scope and still
+  issue a token, so a partial grant is rejected rather than cached) and
+  `revokeAccessToken` (logout ends the grant; bounded because a blocked request
+  leaves the GIS callback unfired). `LOGIN_SCOPE` / `SYNC_SCOPE` / `SHEET_SCOPE`
+  are the three needs; `App.acquireToken` reuses one in-memory token whenever it
+  *covers* the need, so Copy never fetches a third. `PROMPT_IF_NEEDED` (empty
+  string) keeps the consent screen on first sign-in and first Gmail request only
+  — login keeps the GIS default so accounts can still be switched.
 - `query.ts` — `buildQuery` (Gmail search query; 30-day windows, day-aligned).
 - `gmail.ts` — batch `threads.get` body builder + multipart response parser.
 - `engine.ts` — `runSync`: windowed scan, quota-paced batches (see below),

@@ -27,6 +27,21 @@ const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
 // exists to avoid.
 export const LOGIN_SCOPE = ["profile", DRIVE_FILE].join(" ");
 export const SYNC_SCOPE = [GMAIL_READONLY, DRIVE_FILE].join(" ");
+// Reading the spreadsheet back (the Copy button) needs nothing but the app's
+// own Drive file. Asking for exactly that — rather than reusing LOGIN_SCOPE —
+// is what lets the caller satisfy it from either of the tokens above instead of
+// fetching a third one.
+export const SHEET_SCOPE = DRIVE_FILE;
+
+// GIS defaults `prompt` to 'select_account', so every token request puts an
+// account chooser in front of the user, even when the scopes are already
+// granted. An empty string means "prompt only the first time this app asks for
+// access", which keeps the consent screen where it is needed — the first sign-in
+// and the first Gmail request — and drops it everywhere else.
+//
+// Login deliberately keeps the default: the chooser is the only way to sign in
+// as a different account.
+export const PROMPT_IF_NEEDED = "";
 
 // Google expands the `email`/`profile` shorthand to these URLs in the granted
 // scope string and adds `openid`, so a requested scope never comes back
@@ -164,7 +179,10 @@ export async function requestAccessToken(
       },
       error_callback: (e) => reject(new Error(e.message ?? e.type ?? "GIS error")),
     });
-    client.requestAccessToken(opts.prompt ? { prompt: opts.prompt } : undefined);
+    // Compared against undefined, not for truthiness: PROMPT_IF_NEEDED is the
+    // empty string, and treating it as "unset" would silently restore the
+    // account chooser it exists to remove.
+    client.requestAccessToken(opts.prompt === undefined ? undefined : { prompt: opts.prompt });
   });
 }
 
