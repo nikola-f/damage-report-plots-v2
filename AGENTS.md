@@ -169,8 +169,9 @@ that runbook exists for: the first apply stops at CloudFront because the ACM
 certificate is still `PENDING_VALIDATION` (there is no
 `aws_acm_certificate_validation` resource, so it is a deliberate two-pass apply
 with a DNS record in between), and `plots.world` is an **apex** domain, so the
-alias record needs Route 53 or a provider with ALIAS/ANAME — a plain `CNAME` is
-illegal there. Dev avoided both by living on `develop.plots.world`.
+CloudFront alias has to be an `ALIAS` record — a plain `CNAME` is illegal at a
+zone apex. DNS is Squarespace, which supports `ALIAS`. Dev met neither problem
+because it lives on `develop.plots.world`.
 
 **Caveat**: Terraform applies via ci-terraform on merge; changes to the CI role's
 own IAM (`iam_cicd.tf`) need a **local targeted apply** (CI can't edit its own

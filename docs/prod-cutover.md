@@ -19,23 +19,24 @@ and `iam_read` — all of them IAM on the CI role's *own* identity, which that r
 is not permitted to change. Run it locally once; CI takes over afterwards and
 finds nothing to do.
 
-**`plots.world` is an apex domain.** CloudFront needs an alias record at the
-apex, and a plain `CNAME` is illegal there (it cannot coexist with the zone's
-SOA/NS). You need Route 53 alias records, or a DNS provider offering
-ALIAS/ANAME/CNAME-flattening. Dev sidestepped this by using the
-`develop.plots.world` subdomain — prod does not get to. **Confirm your DNS
-provider can do this before starting**; there is no point applying otherwise.
-The ACM validation record is a normal `CNAME` on a `_`-prefixed subdomain, so
-only the apex record is affected.
+**`plots.world` is an apex domain, so the alias record must be an `ALIAS`, not a
+`CNAME`.** A `CNAME` at a zone apex is illegal — it cannot coexist with the SOA
+and NS records every zone must have. Dev never met this because it lives on the
+`develop.plots.world` subdomain, where an ordinary `CNAME` is fine.
+
+DNS is Squarespace, which supports `ALIAS` as a web-hosting record type, so this
+is a non-issue here — but it is the reason phase 2 says `ALIAS` and means it.
+The ACM validation record is a normal `CNAME` on a `_`-prefixed subdomain and is
+unaffected.
 
 ---
 
 ## Phase 0 — pre-checks
 
-- [ ] DNS for `plots.world` is under your control and supports an apex alias
-      (see above).
-- [ ] `plots.world` is not already serving something you care about — the apex
-      record gets repointed at CloudFront in phase 2.
+- [ ] `plots.world` is not already serving something you care about — its apex
+      record gets repointed at CloudFront in phase 2. Squarespace installs
+      default records for its own site hosting; those are what the `ALIAS`
+      replaces.
 - [ ] The prod OAuth client exists with **Authorized JavaScript origin
       `https://plots.world`** and no redirect URI (GIS returns the token through
       a popup, so there is no redirect to authorize).
@@ -103,9 +104,11 @@ AWS_PROFILE=drp-prod aws acm describe-certificate --region us-east-1 \
 --query 'Certificate.{Status:Status,Record:DomainValidationOptions[0].ResourceRecord}'
 ```
 
-Create that `CNAME` in DNS exactly as printed. Match your provider's convention
-for the trailing dot — appending one to an already-absolute name, or leaving a
-relative name unqualified, is the usual reason validation hangs.
+Create that `CNAME` in Squarespace's DNS panel. ACM prints the name fully
+qualified (`_329….plots.world.`) but Squarespace's **Host** field appends the
+domain itself, so enter only the label — `_329…` — and paste the value as given.
+Entering the fully qualified name produces `_329….plots.world.plots.world`,
+which is the usual reason validation never completes.
 
 Re-run the same command until `Status` reads `ISSUED` (usually minutes,
 occasionally up to an hour). Once the apply completes, the same records are
@@ -139,8 +142,20 @@ The bucket name is a secret because it embeds the AWS account id; the
 distribution id is a variable. `frontend_bucket_name` prints as `<sensitive>` in
 the summary — read it with `terraform output -raw frontend_bucket_name`.
 
-Then point the apex at the distribution: an alias/ANAME record for
-`plots.world` → the `frontend_cloudfront_domain` value (`d….cloudfront.net`).
+Then point the apex at the distribution. In Squarespace's DNS panel, add a
+record of type **ALIAS** with **Host `@`** and **Data** set to the
+`frontend_cloudfront_domain` value (`d….cloudfront.net`), removing the default
+Squarespace web-hosting records for `@`.
+
+Confirm it resolves to CloudFront rather than to Squarespace before merging:
+
+```bash
+dig +short plots.world
+dig +short plots.world | xargs -I{} dig +short -x {} | head -3
+```
+
+The addresses should reverse-resolve into `cloudfront.net`. Propagation is
+usually quick but the old records' TTL applies.
 
 ---
 
