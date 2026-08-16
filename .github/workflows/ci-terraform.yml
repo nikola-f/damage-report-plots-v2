@@ -105,6 +105,11 @@ jobs:
       - name: Terraform Plan
         id: plan
         working-directory: terraform/environments/${{ matrix.environment }}
+        # `shell: bash` for its `-o pipefail`. The default shell does not set it,
+        # so the pipeline below reported tee's exit status instead of
+        # Terraform's: a plan that errored still produced outcome == success,
+        # the comment below still said ✅, and "Fail if plan failed" never fired.
+        shell: bash
         run: terraform plan -no-color 2>&1 | tee plan.txt
         continue-on-error: true
 
