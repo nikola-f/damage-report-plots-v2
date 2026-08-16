@@ -269,7 +269,21 @@ AWS_PROFILE=drp-prod terraform apply -var="management_account_id=<MGMT_ACCOUNT_I
   デプロイ（develop push）。`ci-iitc.yml` / `release-iitc.yml` は apps/iitc 用
 - AWS: OIDC via management account `github-actions-terraform` role → cross-account AssumeRole to dev/prod
 - GCP: Workload Identity Federation、`terraform-cicd` サービスアカウントに最小権限ロール付与
-- GitHub environments: `dev` / `prod`（apply用）、Secrets: `AWS_OIDC_ROLE_ARN`, `AWS_TERRAFORM_ROLE_ARN`, `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`、Repository secret: `MANAGEMENT_ACCOUNT_ID`、Variable: `VITE_GOOGLE_CLIENT_ID`（環境別）
+- GitHub environments: `dev` / `prod`（apply用）。仕分けの基準は「**認証情報か**」
+  ではなく「**AWS アカウント ID を含むか**」— どれも識別子であってそれ単体では権限を
+  与えないが、アカウント ID は偵察の手掛かりになるので伏せる:
+  - **Environment secrets**: `AWS_OIDC_ROLE_ARN`, `AWS_TERRAFORM_ROLE_ARN`,
+    `FRONTEND_BUCKET_NAME`（`…-frontend-<アカウントID>`）,
+    `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`
+  - **Environment variables**: `VITE_GOOGLE_CLIENT_ID`, `FRONTEND_DOMAIN_NAME`,
+    `FRONTEND_CLOUDFRONT_DISTRIBUTION_ID`
+  - **Repository secret**: `MANAGEMENT_ACCOUNT_ID`
+
+  `FRONTEND_DOMAIN_NAME` を variable にしているのは公開値だからというだけでなく、
+  secret だと terraform 側で `sensitive` にせざるを得ず、**ACM 検証用の DNS レコード
+  （公開して当然のもの）が plan / output から読めなくなる**ため。同じ理由で
+  `frontend_cloudfront_domain` と `frontend_acm_validation_records` の output も
+  非 sensitive にしてある。`frontend_bucket_name` だけは sensitive のまま。
 - WIF attribute_condition: リポジトリ・environment・ref（develop/main またはPR）で制限済み
 
 ### Next Steps

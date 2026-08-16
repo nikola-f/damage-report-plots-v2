@@ -13,9 +13,10 @@ output "frontend_cloudfront_distribution_id" {
   value       = aws_cloudfront_distribution.frontend.id
 }
 
+# Not sensitive: these are records to publish in public DNS. Hiding them only
+# hid them from the operator who has to create them.
 output "frontend_acm_validation_records" {
   description = "DNS CNAME records required to validate the frontend ACM certificate (us-east-1)"
-  sensitive   = true
   value = {
     for dvo in aws_acm_certificate.frontend.domain_validation_options : dvo.domain_name => {
       name  = dvo.resource_record_name
