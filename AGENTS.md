@@ -157,13 +157,21 @@ until prod cutover** because the shared module reconciles prod only on merge to
   CloudFront/CloudTrail/tfstate grants remain.
 
 **Prod status**: prod was **never fully deployed** — its state holds only the
-bootstrap IAM role + tfstate access + GCP WIF (the #358 prod plan is
-`~13 to add, 0 to destroy`). So **prod cutover is a first-time *creation* of the
-prod frontend, not a teardown.** It happens when `develop`→`main` is merged and
-`apply-prod` runs — but because that apply creates IAM policies on the CI's own
-role, the **first prod apply must be a local bootstrap apply** (see Caveat),
-after which CI takes over. Prod cutover also needs a prod `VITE_GOOGLE_CLIENT_ID`
-GitHub var and the prod OAuth client's JS origin.
+bootstrap IAM role + tfstate access + GCP WIF (the current prod plan is
+`16 to add, 2 to change, 0 to destroy`). So **prod cutover is a first-time
+*creation* of the prod frontend, not a teardown.** It happens when
+`develop`→`main` is merged and `apply-prod` runs — but because that apply creates
+IAM policies on the CI's own role, the **first prod apply must be a local
+bootstrap apply** (see Caveat), after which CI takes over.
+
+**Step-by-step: [`docs/prod-cutover.md`](docs/prod-cutover.md)**. Two things
+that runbook exists for: the first apply stops at CloudFront because the ACM
+certificate is still `PENDING_VALIDATION` (there is no
+`aws_acm_certificate_validation` resource, so it is a deliberate two-pass apply
+with a DNS record in between), and `plots.world` is an **apex** domain, so the
+CloudFront alias has to be an `ALIAS` record — a plain `CNAME` is illegal at a
+zone apex. DNS is Squarespace, which supports `ALIAS`. Dev met neither problem
+because it lives on `develop.plots.world`.
 
 **Caveat**: Terraform applies via ci-terraform on merge; changes to the CI role's
 own IAM (`iam_cicd.tf`) need a **local targeted apply** (CI can't edit its own

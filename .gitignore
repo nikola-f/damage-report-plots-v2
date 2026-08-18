@@ -64,3 +64,8 @@ CLAUDE.md
 *.tfstate.backup
 *.tfvars
 *.tfvars.json
+# Saved plans (`terraform plan -out`). The cutover runbook uses one so that what
+# is reviewed is exactly what is applied; it carries resource attributes from
+# state and should never be committed.
+tfplan
+*.tfplan
