@@ -66,14 +66,31 @@ AWS_PROFILE=drp-mgmt terraform init -reconfigure -backend-config="profile=drp-mg
 
 ### 1a. First apply — expect it to stop at CloudFront
 
+Plan to a file and apply that file, so what gets reviewed is exactly what gets
+applied:
+
 ```bash
-AWS_PROFILE=drp-prod terraform apply \
+AWS_PROFILE=drp-prod terraform plan -out=tfplan \
 -var="management_account_id=<MGMT_ACCOUNT_ID>" \
 -var="frontend_domain_name=plots.world"
 ```
 
-Read the plan before approving. It should be **16 to add, 2 to change, 0 to
-destroy**, and every change should be IAM on `github-actions-terraform`.
+Check it before applying: **16 to add, 2 to change, 0 to destroy**, with both
+changes being IAM on `github-actions-terraform` — additive, nothing revoked.
+Those two are the reason this cannot run in CI.
+
+```bash
+terraform show -json tfplan | python3 -c "
+import json,sys
+for c in json.load(sys.stdin)['resource_changes']:
+    a=','.join(c['change']['actions'])
+    if a!='no-op': print(f'{a:10} {c[\"address\"]}')
+"
+```
+
+```bash
+AWS_PROFILE=drp-prod terraform apply "tfplan"
+```
 
 This apply is expected to **fail part-way**, and that is not a mistake:
 
