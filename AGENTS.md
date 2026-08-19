@@ -86,7 +86,7 @@ which don't exist in worker scope):
 
 Both are per user, and the constants live at the top of `engine.ts`:
 
-- **Per-minute quota** — the dev GCP project is still on the pre-May-2026 set:
+- **Per-minute quota** — both GCP projects are on the pre-May-2026 set:
   `Previous quota: Units per minute per user` = **15,000**, `threads.get` = **10
   units** (the console usage graph is the only check; the old cost table is not
   published). `MIN_BATCH_INTERVAL_MS` is *derived* from `BATCH_SIZE ×
@@ -102,9 +102,10 @@ A batch's inner sub-responses carry their own status inside a **200** multipart
 body, so rate limiting is invisible in the browser network panel —
 `parseBatchResponse` reads the inner status and `onRetry` logs the backoff.
 
-**Prod cutover**: the prod project has never called this API, so it may fall
-under the post-May-2026 set instead (6,000 units/min, `threads.get` = 40) —
-10× stricter. Check `Queries per minute per user` in the prod console.
+**Prod is on the same set** — its console also reports 15,000, checked at
+cutover (2026-08-19), so the constants above hold for both projects. The
+post-May-2026 set (6,000 units/min, `threads.get` = 40) would have been 10×
+stricter; a project that lands on it needs those two numbers changed.
 
 ## Development Commands
 
@@ -132,14 +133,15 @@ npm run build        # produces the userscript
 - **No backend / no database**: the SPA talks to Google APIs directly.
 - **Main branch**: `develop` (use this for pull requests). Never push directly.
 - **Deploy**: `ci-web.yml` builds per-environment and deploys `apps/web` to S3 +
-  CloudFront invalidation on push to `develop` (dev). Prod deploy needs a prod
-  `VITE_GOOGLE_CLIENT_ID` var + the prod OAuth client's JS origin.
+  CloudFront invalidation — `develop` → dev, `main` → prod. Each environment
+  builds with its own `VITE_GOOGLE_CLIENT_ID`, so the OAuth client is baked in at
+  build time and dev's can never reach prod.
 
 ## Decommission history (Phase 3 — dev complete)
 
-The server pipeline was removed in staged PRs (dev first; **prod is untouched
-until prod cutover** because the shared module reconciles prod only on merge to
-`main`):
+The server pipeline was removed in staged PRs, dev first — prod stayed untouched
+until cutover, because the shared module reconciles prod only on merge to `main`.
+Prod was therefore never built with a backend to remove:
 
 - **Stage 1** — removed the ALB origin + `/api/*` `/auth/*` behaviors from the
   shared frontend CloudFront; scaled `web`/`worker` ECS to 0.
@@ -156,22 +158,27 @@ until prod cutover** because the shared module reconciles prod only on merge to
   `github-actions-terraform` CI role (`iam_cicd.tf`, dev+prod); only ACM/S3/
   CloudFront/CloudTrail/tfstate grants remain.
 
-**Prod status**: prod was **never fully deployed** — its state holds only the
-bootstrap IAM role + tfstate access + GCP WIF (the current prod plan is
-`16 to add, 2 to change, 0 to destroy`). So **prod cutover is a first-time
-*creation* of the prod frontend, not a teardown.** It happens when
-`develop`→`main` is merged and `apply-prod` runs — but because that apply creates
-IAM policies on the CI's own role, the **first prod apply must be a local
-bootstrap apply** (see Caveat), after which CI takes over.
+**Prod status: cut over 2026-08-19.** `https://plots.world` serves the SPA from
+its own CloudFront distribution (`EF3F8GB6XQMT5`) behind an ACM certificate, and
+`main` now carries the app. CI owns it from here: `apply-prod` and `deploy-prod`
+run on push to `main`.
 
-**Step-by-step: [`docs/prod-cutover.md`](docs/prod-cutover.md)**. Two things
-that runbook exists for: the first apply stops at CloudFront because the ACM
-certificate is still `PENDING_VALIDATION` (there is no
-`aws_acm_certificate_validation` resource, so it is a deliberate two-pass apply
-with a DNS record in between), and `plots.world` is an **apex** domain, so the
-CloudFront alias has to be an `ALIAS` record — a plain `CNAME` is illegal at a
-zone apex. DNS is Squarespace, which supports `ALIAS`. Dev met neither problem
-because it lives on `develop.plots.world`.
+The build-out is recorded in **[`docs/prod-cutover.md`](docs/prod-cutover.md)**,
+which is worth reading before any comparable first-time environment, because
+three things there were not obvious:
+
+- The **first apply had to run locally**. It creates and updates IAM on the CI
+  role's *own* identity, which that role may not change. The proof it worked is
+  that CI's first `apply-prod` reported `0 added, 0 changed, 0 destroyed`.
+- The **first apply stops at CloudFront**, by design rather than by fault. There
+  is no `aws_acm_certificate_validation` resource, so Terraform creates the
+  certificate and goes straight on to CloudFront, which refuses one still in
+  `PENDING_VALIDATION` — and it cannot validate until a DNS record names it. It
+  is a two-pass apply with a CNAME in between.
+- `plots.world` is an **apex** domain, so the CloudFront alias is an `ALIAS`
+  record; a plain `CNAME` is illegal at a zone apex. DNS is Squarespace, which
+  supports `ALIAS`. Dev met neither problem, living on
+  `develop.plots.world`.
 
 **Caveat**: Terraform applies via ci-terraform on merge; changes to the CI role's
 own IAM (`iam_cicd.tf`) need a **local targeted apply** (CI can't edit its own
@@ -189,10 +196,12 @@ don't drive verification. Client-side-only handling keeps us **exempt from the
 CASA security assessment**; standard OAuth verification (brand + scope review +
 demo video) still applies.
 
-**Hard dependency**: the consent screen's homepage & privacy-policy URLs must be
-live on the **verified prod domain**, and the prod OAuth client must exist — so
-**prod cutover (above) must precede the verification submit.** Deliverables D1,
-D2, D5, D6 can be produced in parallel now (recorded/written against dev).
+**Hard dependency — now satisfied**: the consent screen's homepage &
+privacy-policy URLs must be live on the verified prod domain, and the prod OAuth
+client must exist. Both are true since the 2026-08-19 cutover, so the remaining
+deliverables are unblocked. This is also why D4 leaves the homepage and
+privacy-policy URLs blank until D3: filling them makes Google demand the domain
+under Authorized domains, which needs Search Console verification first.
 
 **Deliverables** (owner):
 - **D1 — Privacy policy page** (`/privacy` in `apps/web`): includes the **Limited
@@ -221,9 +230,9 @@ D2, D5, D6 can be produced in parallel now (recorded/written against dev).
 - **D7 — Submit for verification** and set Publishing status to In production.
   *User (Google Console).*
 
-**Sequence**: (1) build D1/D2/D5 + D6 storyboard now (one PR); (2) prod cutover;
-(3) D3 domain verification; (4) record D6; (5) D4 → D7 submit; (6) answer
-Google's review follow-ups.
+**Sequence**: (1) ~~D1/D2/D5 + D6 storyboard~~ done; (2) ~~prod cutover~~ done
+(2026-08-19); (3) **D3 domain verification** ← next; (4) record D6; (5) D4 → D7
+submit; (6) answer Google's review follow-ups.
 
 **Notes**: restricted-scope review can take **weeks** with back-and-forth;
 weak/absent **Limited Use** wording and demo-video gaps are the common rejection
