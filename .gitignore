@@ -54,3 +54,18 @@ build-iPhoneSimulator/
 
 # Used by RuboCop. Remote config files pulled in from inherit_from directive.
 # .rubocop-https?--*
+
+# symlink to AGENTS.md
+CLAUDE.md
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.tfvars.json
+# Saved plans (`terraform plan -out`). The cutover runbook uses one so that what
+# is reviewed is exactly what is applied; it carries resource attributes from
+# state and should never be committed.
+tfplan
+*.tfplan

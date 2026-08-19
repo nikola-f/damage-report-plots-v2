@@ -1,0 +1,152 @@
+name: Web CI
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/ci-web.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/ci-web.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # Validation gate (PRs + pushes). No client id needed: it is only read to
+  # populate a build-time constant, and an unset one just leaves the sign-in
+  # button disabled — nothing this job exercises. The deploy jobs below rebuild
+  # with their environment's value.
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Runs before the build so a test failure is not hidden behind a type
+      # error. The sync engine is only covered here — nothing else in CI
+      # exercises it, and jsdom (the decoder's DOMParser/XPath host) is a
+      # test-only dependency the build cannot reach.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  # dev/prod use separate GCP OAuth clients, so the client id is baked in at
+  # build time per environment. Each deploy job rebuilds with its environment's
+  # VITE_GOOGLE_CLIENT_ID (a public value — stored as an environment variable).
+  deploy-dev:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+
+      - name: Configure AWS credentials (management OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Configure AWS credentials (dev role)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-west-2
+          role-chaining: true
+
+      - name: Deploy to S3
+        run: aws s3 sync dist/ s3://${{ secrets.FRONTEND_BUCKET_NAME }} --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.FRONTEND_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  deploy-prod:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+
+      - name: Configure AWS credentials (management OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Configure AWS credentials (prod role)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-west-2
+          role-chaining: true
+
+      - name: Deploy to S3
+        run: aws s3 sync dist/ s3://${{ secrets.FRONTEND_BUCKET_NAME }} --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.FRONTEND_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"

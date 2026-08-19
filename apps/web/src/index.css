@@ -1,0 +1,314 @@
+:root {
+  --bg: #0f0f0f;
+  --fg: #eef0e3;
+  --muted: #a3a89b;
+  --accent: #5ab5b2;
+  --accent-hover: #6fc3c0;
+  --success: #3fb950;
+  --warning: #d29922;
+  --error: #f85149;
+  --border: #4a4a4a;
+  --track: #2a2a2a;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, sans-serif;
+}
+
+.container {
+  max-width: 480px;
+  margin: 4rem auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.center {
+  text-align: center;
+  margin-top: 4rem;
+  color: var(--muted);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--track);
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.btn {
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn.primary {
+  padding: 0.625rem 1.25rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  font-size: 1rem;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn.secondary {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.btn.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--muted);
+}
+
+/* Pre-login explainer: tagline + Gmail → Parse → Sheets pipeline diagram. */
+.how-it-works {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.pipeline-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 0.375rem;
+  border: 1px solid var(--track);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.pipeline-icon {
+  flex-shrink: 0;
+}
+
+.pipeline-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pipeline-caption {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.pipeline-arrow {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Four steps need ~80px each plus arrows; below this the row gets cramped. */
+@media (max-width: 500px) {
+  .pipeline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pipeline-arrow {
+    transform: rotate(90deg);
+  }
+}
+
+/* Wrapper for the pre-approved Sign in with Google asset; no restyling of the
+   asset itself (Google branding guidelines). */
+.google-signin {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  align-self: flex-start;
+  line-height: 0;
+  border-radius: 4px;
+}
+
+.google-signin:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fixed height so buttons below never shift when a message appears/clears. */
+.message {
+  margin: 0;
+  min-height: 1.25rem;
+}
+
+/* Normal (non-error) messages use the app's accent, not the green success hue. */
+.message.success {
+  color: var(--accent);
+}
+
+.message.error {
+  color: var(--error);
+}
+
+.status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.green {
+  background: var(--success);
+}
+
+.status-dot.yellow {
+  background: var(--warning);
+}
+
+.status-dot.red {
+  background: var(--error);
+}
+
+.status-dot.muted {
+  background: var(--muted);
+}
+
+.status-label {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+}
+
+.progress-row .status-label {
+  white-space: nowrap;
+}
+
+.progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.footer {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+}
+
+.footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}
+
+.summary-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.summary-value {
+  color: var(--accent);
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}

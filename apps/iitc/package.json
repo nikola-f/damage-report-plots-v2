@@ -1,0 +1,17 @@
+{
+  "name": "damage-report-plots-iitc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "IITC plugin: plot Ingress damage report data on the Intel map.",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "leaflet.heat": "^0.2.0",
+    "typescript": "~7.0.0"
+  }
+}

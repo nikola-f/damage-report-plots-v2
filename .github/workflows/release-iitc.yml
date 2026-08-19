@@ -1,0 +1,42 @@
+name: IITC Release
+
+on:
+  push:
+    tags:
+      - 'iitc-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/iitc
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/iitc/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        # Bake the tag (iitc-vX.Y.Z) into the userscript @version.
+        env:
+          PLUGIN_VERSION: ${{ github.ref_name }}
+        run: npm run build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            apps/iitc/dist/damage-report-plots.user.js
+            apps/iitc/dist/damage-report-plots.meta.js
