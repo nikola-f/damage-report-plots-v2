@@ -235,9 +235,11 @@ a test guards the arithmetic. Do not tune the batch size and the interval
 independently.
 
 *Checked 2026-08-19: prod reports 15,000, the same grandfathered set as dev, so
-no change was needed.* Confirm the unit cost the same way dev's was — watch the
-console's usage graph during the first real sync, since the pre-May-2026 cost
-table is not published.
+no change was needed. The first production sync then measured the unit cost —
+zero quota errors and a graph peaking a little over 10,000 units/min, which only
+works out at 10 units a call.* Do the same on any new project: the pre-May-2026
+cost table is not published, so a full sync under the console's usage graph is
+the only way to check.
 
 Then the verification track resumes: **D3** (verify `plots.world` in Search
 Console and add it to Authorized domains) → **D4** (fill in the consent screen,

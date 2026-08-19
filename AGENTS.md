@@ -102,10 +102,15 @@ A batch's inner sub-responses carry their own status inside a **200** multipart
 body, so rate limiting is invisible in the browser network panel —
 `parseBatchResponse` reads the inner status and `onRetry` logs the backoff.
 
-**Prod is on the same set** — its console also reports 15,000, checked at
-cutover (2026-08-19), so the constants above hold for both projects. The
-post-May-2026 set (6,000 units/min, `threads.get` = 40) would have been 10×
-stricter; a project that lands on it needs those two numbers changed.
+**Prod is on the same set**, and the first production sync measured it rather
+than inferring it: zero quota errors, and the console graph peaked a little over
+**10,000** units/min against the 15,000 limit. That figure only works out at 10
+units a call — at 40 the same traffic would have drawn 40,000+ and spent the run
+in backoff. It also confirms the pacer fix that made `MIN_BATCH_INTERVAL_MS`
+subtract each request's own duration: dev peaked at 18,000, *over* the limit,
+before that change. The post-May-2026 set (6,000 units/min, `threads.get` = 40)
+would have been 10× stricter; a project that lands on it needs those two numbers
+changed.
 
 ## Development Commands
 
