@@ -8,6 +8,9 @@ holds only the bootstrap IAM role, tfstate access and GCP WIF, so this is a
 Everything after this unblocks: the OAuth verification submit (D3–D7 in
 `AGENTS.md`) needs the consent screen's URLs live on the verified prod domain.
 
+**Executed 2026-08-19**, and corrected against what actually happened. Kept as
+the reference for the next first-time environment rather than as a to-do.
+
 ---
 
 ## Two things that will bite you
@@ -178,8 +181,10 @@ usually quick but the old records' TTL applies.
 
 ## Phase 3 — hand over to CI
 
-`origin/main` is still at the initial commit, so this is effectively its first
-real merge — ~975 commits.
+`origin/main` was still at the initial commit, so this was effectively its first
+real merge — ~975 commits. A required approving review with `enforce_admins`
+off means the repo admin merges it with `gh pr merge --admin`; nobody can
+approve their own pull request.
 
 ```bash
 gh pr create --base main --head develop --title "Production cutover" --body "..."
@@ -221,13 +226,20 @@ curl -sSI https://plots.world | grep -iE "content-security-policy|strict-transpo
 ## Phase 5 — immediately after
 
 **Check the Gmail quota in the prod project**, under APIs & Services → Gmail API
-→ Quotas. The prod project has never called this API, so it may sit on the
-post-May-2026 limits (**6,000** units/min with `threads.get` at **40**) rather
-than dev's grandfathered 15,000/10 — ten times stricter. If so, change
+→ Quotas. A project that has never called the API may sit on the post-May-2026
+limits (**6,000** units/min with `threads.get` at **40**) rather than dev's
+grandfathered 15,000/10 — ten times stricter. If it does, change
 `QUOTA_UNITS_PER_MINUTE` and `THREADS_GET_UNITS` at the top of
 `apps/web/src/sync/engine.ts`; `MIN_BATCH_INTERVAL_MS` is derived from them and
 a test guards the arithmetic. Do not tune the batch size and the interval
 independently.
+
+*Checked 2026-08-19: prod reports 15,000, the same grandfathered set as dev, so
+no change was needed. The first production sync then measured the unit cost —
+zero quota errors and a graph peaking a little over 10,000 units/min, which only
+works out at 10 units a call.* Do the same on any new project: the pre-May-2026
+cost table is not published, so a full sync under the console's usage graph is
+the only way to check.
 
 Then the verification track resumes: **D3** (verify `plots.world` in Search
 Console and add it to Authorized domains) → **D4** (fill in the consent screen,
