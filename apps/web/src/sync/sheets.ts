@@ -3,6 +3,7 @@
 // for app-created files). `fetchFn` is injectable for tests.
 
 import type { FetchLike } from "./http";
+import { withRetry, apiError, type RetryOptions } from "./retry";
 
 export const SHEETS_BASE = "https://sheets.googleapis.com/v4";
 
@@ -14,9 +15,19 @@ function seg(value: string): string {
 }
 
 async function ok(res: Response, label: string): Promise<Response> {
-  if (!res.ok) throw new Error(`${label} ${res.status}`);
+  if (!res.ok) throw await apiError(res, label);
   return res;
 }
+
+// Which of these may be retried is decided per operation, not centrally:
+//
+// - reads (values.get) and whole-value writes (values.update) are idempotent,
+//   so a transient 429/503 costs nothing to repeat;
+// - spreadsheets.create and values.append are not. A 503 does not promise the
+//   request was rejected, so repeating a create can leave a second spreadsheet
+//   and repeating an append can double a window's report rows — the inflation
+//   this project already tracked down once. Those two stay single-shot and let
+//   the caller decide.
 
 // Create a spreadsheet from a full definition body; returns the new id.
 export async function createSpreadsheet(
@@ -61,17 +72,20 @@ export async function getValues(
   spreadsheetId: string,
   range: string,
   fetchFn: FetchLike,
+  retry: RetryOptions = {},
 ): Promise<unknown[][]> {
   const url =
     `${SHEETS_BASE}/spreadsheets/${seg(spreadsheetId)}/values/${seg(range)}` +
     `?valueRenderOption=UNFORMATTED_VALUE`;
-  const res = await ok(
-    await fetchFn(url, { headers: { Authorization: `Bearer ${token}` } }),
-    "spreadsheets.values.get",
-  );
-  if (res.status === 204) return []; // no content → treat as an empty range
-  const data = (await res.json()) as { values?: unknown[][] };
-  return data.values ?? [];
+  return withRetry(async () => {
+    const res = await ok(
+      await fetchFn(url, { headers: { Authorization: `Bearer ${token}` } }),
+      "spreadsheets.values.get",
+    );
+    if (res.status === 204) return []; // no content → treat as an empty range
+    const data = (await res.json()) as { values?: unknown[][] };
+    return data.values ?? [];
+  }, retry);
 }
 
 // Overwrite an exact range (RAW). Used for single-cell bookkeeping such as the
@@ -82,17 +96,22 @@ export async function updateValues(
   range: string,
   rows: unknown[][],
   fetchFn: FetchLike,
+  retry: RetryOptions = {},
 ): Promise<void> {
   const url =
     `${SHEETS_BASE}/spreadsheets/${seg(spreadsheetId)}/values/${seg(range)}` +
     `?valueInputOption=RAW`;
-  await ok(
-    await fetchFn(url, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ values: rows }),
-    }),
-    "spreadsheets.values.update",
+  await withRetry(
+    async () =>
+      ok(
+        await fetchFn(url, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: rows }),
+        }),
+        "spreadsheets.values.update",
+      ),
+    retry,
   );
 }
 

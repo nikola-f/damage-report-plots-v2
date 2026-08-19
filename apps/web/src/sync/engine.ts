@@ -15,6 +15,8 @@ import {
 import { decodeHtmlBody, extractPortals } from "./decoder";
 import { deduplicate, type DamageReportRecord } from "./record";
 import { defaultFetch, type FetchLike } from "./http";
+import { withRetry, apiError, type RetryInfo, type RetryOptions } from "./retry";
+export type { RetryInfo };
 
 export type { FetchLike };
 
@@ -64,19 +66,10 @@ export const MIN_BATCH_INTERVAL_MS = Math.ceil(
   (BATCH_SIZE * THREADS_GET_UNITS * 60_000) / (QUOTA_UNITS_PER_MINUTE * QUOTA_UTILISATION),
 );
 const HTML_MIME = "text/html";
-const DEFAULT_MAX_RETRIES = 6; // 1+2+4+8+16+32 = 63s, covers one quota window
-const DEFAULT_MAX_BACKOFF = 32; // seconds
 // Cap threads discovered per run so a first-time full-history scan is bounded
 // (keeps a run inside the token lifetime); resume continues next sync. Based on
 // the server's thread_list_worker_thread_id_limit (tuned down to 5000).
 const DEFAULT_THREAD_LIMIT = 5000;
-
-// Mirrors the Ruby GmailThreadBatchFetcher retry trigger. It matches on the
-// message rather than the status because Gmail reports the per-user quota as a
-// **403**, not a 429 ("Quota exceeded for quota metric 'Queries' …"), and a 403
-// is otherwise a permission error that must not be retried — only the body
-// tells them apart. See apiError.
-const RETRYABLE = /429|503|Rate Limit Exceeded|Quota exceeded|Too many concurrent|unavailable/i;
 
 export interface SyncProgress {
   phase: "list" | "fetch" | "done";
@@ -124,59 +117,11 @@ export interface SyncOptions {
   maxThreads?: number; // cap threads discovered per run; default DEFAULT_THREAD_LIMIT
 }
 
-export interface RetryInfo {
-  attempt: number; // 1-based
-  maxRetries: number;
-  waitMs: number;
-  // Status plus Google's error.message — no request body, no user data (see
-  // apiError). Safe to print.
-  reason: string;
-}
-
 interface RequestConfig {
   fetchFn: FetchLike;
   sleep: (ms: number) => Promise<void>;
   clock: () => number;
-  maxRetries: number;
-  maxBackoff: number;
-  onRetry: (info: RetryInfo) => void;
-}
-
-// Build the error for a non-2xx Google response. Google's reason lives in the
-// JSON body, not the status, so it is folded into the message for RETRYABLE to
-// match on. Only `error.message` is used, never the raw body, which can carry
-// user data (the retired GoogleApiClient#error_message did the same).
-async function apiError(res: Response, label: string): Promise<Error> {
-  let detail: string | undefined;
-  try {
-    detail = (JSON.parse(await res.text()) as { error?: { message?: string } }).error?.message;
-  } catch {
-    // non-JSON body — the status alone has to carry the signal
-  }
-  return new Error([label, String(res.status), detail].filter(Boolean).join(" "));
-}
-
-// Retry `fn` with exponential backoff while its error looks rate-related.
-// Shared by threads.list and threads.get: both draw on the same per-user quota,
-// so either can be the one that trips it.
-//
-// Each backoff is reported through cfg.onRetry. Without it a rate-limited run
-// is invisible from the browser: a rejected batch sub-request rides inside a
-// 200 multipart response, so the network panel shows only the outer 200 and
-// the retry looks like an ordinary duplicate request.
-async function withRetry<T>(cfg: RequestConfig, fn: () => Promise<T>, attempt = 0): Promise<T> {
-  try {
-    return await fn();
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    if (attempt < cfg.maxRetries && RETRYABLE.test(message)) {
-      const waitMs = Math.min(2 ** attempt, cfg.maxBackoff) * 1000;
-      cfg.onRetry({ attempt: attempt + 1, maxRetries: cfg.maxRetries, waitMs, reason: message });
-      await cfg.sleep(waitMs);
-      return withRetry(cfg, fn, attempt + 1);
-    }
-    throw e;
-  }
+  retry: RetryOptions;
 }
 
 // `onPage` fires after every threads.list page so the discovered-thread count
@@ -196,14 +141,14 @@ async function listThreadIds(
     url.searchParams.set("fields", "threads/id,nextPageToken");
     if (pageToken) url.searchParams.set("pageToken", pageToken);
 
-    const data = await withRetry(cfg, async () => {
+    const data = await withRetry(async () => {
       const res = await cfg.fetchFn(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw await apiError(res, "threads.list");
       // Gmail returns 204 No Content (empty body) when a window matches no
       // threads — common when scanning history — so there's nothing to parse.
       if (res.status === 204) return null;
       return (await res.json()) as { threads?: { id: string }[]; nextPageToken?: string };
-    });
+    }, cfg.retry);
     if (!data) break;
 
     const page = data.threads ?? [];
@@ -258,7 +203,7 @@ async function batchGetThreads(
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
     await pace();
     const chunk = ids.slice(i, i + BATCH_SIZE);
-    threads.push(...(await withRetry(cfg, () => fetchBatch(token, chunk, cfg))));
+    threads.push(...(await withRetry(() => fetchBatch(token, chunk, cfg), cfg.retry)));
     onBatch?.(chunk.length);
   }
   return threads;
@@ -266,19 +211,17 @@ async function batchGetThreads(
 
 export async function runSync(options: SyncOptions): Promise<SyncResult> {
   const fetchFn = options.fetchFn ?? defaultFetch;
+  const sleep = options.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   const cfg: RequestConfig = {
     fetchFn,
-    sleep: options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
+    sleep,
     clock: options.clock ?? (() => Date.now()),
-    maxRetries: options.maxRetries ?? DEFAULT_MAX_RETRIES,
-    maxBackoff: options.maxBackoff ?? DEFAULT_MAX_BACKOFF,
-    onRetry:
-      options.onRetry ??
-      ((info) =>
-        console.warn(
-          `[sync] rate limited, backing off ${info.waitMs}ms ` +
-            `(attempt ${info.attempt}/${info.maxRetries}): ${info.reason}`,
-        )),
+    retry: {
+      sleep,
+      maxRetries: options.maxRetries,
+      maxBackoff: options.maxBackoff,
+      onRetry: options.onRetry,
+    },
   };
   // threads.list is deliberately not paced: at 10 units a page it is what the
   // QUOTA_UTILISATION headroom covers, and holding it back would stall the

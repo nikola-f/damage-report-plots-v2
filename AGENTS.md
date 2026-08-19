@@ -72,7 +72,16 @@ which don't exist in worker scope):
 - `record.ts` — `DamageReportRecord` + `deduplicate` (per-window) + `portalId`
   (SHA-256 → sqids, array-split).
 - `drive.ts` / `sheets.ts` / `spreadsheet.ts` — Drive discovery (`appProperties`
-  marker) + Sheets create/protect/append/get; `findOrCreateSpreadsheetId`.
+  marker) + Sheets create/protect/append/get; `findOrCreateSpreadsheetId`, which
+  adopts an untagged app-created spreadsheet before making a second one (the
+  marker is written after creation, so a failure in between would otherwise
+  strand the first sheet forever).
+- `retry.ts` — `withRetry` + `apiError` + `RETRYABLE`, shared by the Gmail,
+  Sheets and Drive calls. Applied **per call site**, because only some requests
+  may be repeated: reads and whole-value writes are idempotent, but
+  `spreadsheets.create` and `values.append` are not — a 503 does not promise the
+  request was rejected, so repeating them can leave a second spreadsheet or
+  double a window's report rows.
 - `resume.ts` — `readResumeSince` (`lastReportTime` named range, day-granular)
   plus the precise `stats!A7` pointer (`readSyncPointer`/`writeSyncPointer`),
   the raw `internalDate` high-water mark that stops the resume day being
