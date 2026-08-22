@@ -72,7 +72,16 @@ which don't exist in worker scope):
 - `record.ts` — `DamageReportRecord` + `deduplicate` (per-window) + `portalId`
   (SHA-256 → sqids, array-split).
 - `drive.ts` / `sheets.ts` / `spreadsheet.ts` — Drive discovery (`appProperties`
-  marker) + Sheets create/protect/append/get; `findOrCreateSpreadsheetId`.
+  marker) + Sheets create/protect/append/get; `findOrCreateSpreadsheetId`, which
+  adopts an untagged app-created spreadsheet before making a second one (the
+  marker is written after creation, so a failure in between would otherwise
+  strand the first sheet forever).
+- `retry.ts` — `withRetry` + `apiError` + `RETRYABLE`, shared by the Gmail,
+  Sheets and Drive calls. Applied **per call site**, because only some requests
+  may be repeated: reads and whole-value writes are idempotent, but
+  `spreadsheets.create` and `values.append` are not — a 503 does not promise the
+  request was rejected, so repeating them can leave a second spreadsheet or
+  double a window's report rows.
 - `resume.ts` — `readResumeSince` (`lastReportTime` named range, day-granular)
   plus the precise `stats!A7` pointer (`readSyncPointer`/`writeSyncPointer`),
   the raw `internalDate` high-water mark that stops the resume day being
@@ -86,7 +95,7 @@ which don't exist in worker scope):
 
 Both are per user, and the constants live at the top of `engine.ts`:
 
-- **Per-minute quota** — the dev GCP project is still on the pre-May-2026 set:
+- **Per-minute quota** — both GCP projects are on the pre-May-2026 set:
   `Previous quota: Units per minute per user` = **15,000**, `threads.get` = **10
   units** (the console usage graph is the only check; the old cost table is not
   published). `MIN_BATCH_INTERVAL_MS` is *derived* from `BATCH_SIZE ×
@@ -102,9 +111,15 @@ A batch's inner sub-responses carry their own status inside a **200** multipart
 body, so rate limiting is invisible in the browser network panel —
 `parseBatchResponse` reads the inner status and `onRetry` logs the backoff.
 
-**Prod cutover**: the prod project has never called this API, so it may fall
-under the post-May-2026 set instead (6,000 units/min, `threads.get` = 40) —
-10× stricter. Check `Queries per minute per user` in the prod console.
+**Prod is on the same set**, and the first production sync measured it rather
+than inferring it: zero quota errors, and the console graph peaked a little over
+**10,000** units/min against the 15,000 limit. That figure only works out at 10
+units a call — at 40 the same traffic would have drawn 40,000+ and spent the run
+in backoff. It also confirms the pacer fix that made `MIN_BATCH_INTERVAL_MS`
+subtract each request's own duration: dev peaked at 18,000, *over* the limit,
+before that change. The post-May-2026 set (6,000 units/min, `threads.get` = 40)
+would have been 10× stricter; a project that lands on it needs those two numbers
+changed.
 
 ## Development Commands
 
@@ -132,14 +147,15 @@ npm run build        # produces the userscript
 - **No backend / no database**: the SPA talks to Google APIs directly.
 - **Main branch**: `develop` (use this for pull requests). Never push directly.
 - **Deploy**: `ci-web.yml` builds per-environment and deploys `apps/web` to S3 +
-  CloudFront invalidation on push to `develop` (dev). Prod deploy needs a prod
-  `VITE_GOOGLE_CLIENT_ID` var + the prod OAuth client's JS origin.
+  CloudFront invalidation — `develop` → dev, `main` → prod. Each environment
+  builds with its own `VITE_GOOGLE_CLIENT_ID`, so the OAuth client is baked in at
+  build time and dev's can never reach prod.
 
 ## Decommission history (Phase 3 — dev complete)
 
-The server pipeline was removed in staged PRs (dev first; **prod is untouched
-until prod cutover** because the shared module reconciles prod only on merge to
-`main`):
+The server pipeline was removed in staged PRs, dev first — prod stayed untouched
+until cutover, because the shared module reconciles prod only on merge to `main`.
+Prod was therefore never built with a backend to remove:
 
 - **Stage 1** — removed the ALB origin + `/api/*` `/auth/*` behaviors from the
   shared frontend CloudFront; scaled `web`/`worker` ECS to 0.
@@ -156,22 +172,27 @@ until prod cutover** because the shared module reconciles prod only on merge to
   `github-actions-terraform` CI role (`iam_cicd.tf`, dev+prod); only ACM/S3/
   CloudFront/CloudTrail/tfstate grants remain.
 
-**Prod status**: prod was **never fully deployed** — its state holds only the
-bootstrap IAM role + tfstate access + GCP WIF (the current prod plan is
-`16 to add, 2 to change, 0 to destroy`). So **prod cutover is a first-time
-*creation* of the prod frontend, not a teardown.** It happens when
-`develop`→`main` is merged and `apply-prod` runs — but because that apply creates
-IAM policies on the CI's own role, the **first prod apply must be a local
-bootstrap apply** (see Caveat), after which CI takes over.
+**Prod status: cut over 2026-08-19.** `https://plots.world` serves the SPA from
+its own CloudFront distribution (`EF3F8GB6XQMT5`) behind an ACM certificate, and
+`main` now carries the app. CI owns it from here: `apply-prod` and `deploy-prod`
+run on push to `main`.
 
-**Step-by-step: [`docs/prod-cutover.md`](docs/prod-cutover.md)**. Two things
-that runbook exists for: the first apply stops at CloudFront because the ACM
-certificate is still `PENDING_VALIDATION` (there is no
-`aws_acm_certificate_validation` resource, so it is a deliberate two-pass apply
-with a DNS record in between), and `plots.world` is an **apex** domain, so the
-CloudFront alias has to be an `ALIAS` record — a plain `CNAME` is illegal at a
-zone apex. DNS is Squarespace, which supports `ALIAS`. Dev met neither problem
-because it lives on `develop.plots.world`.
+The build-out is recorded in **[`docs/prod-cutover.md`](docs/prod-cutover.md)**,
+which is worth reading before any comparable first-time environment, because
+three things there were not obvious:
+
+- The **first apply had to run locally**. It creates and updates IAM on the CI
+  role's *own* identity, which that role may not change. The proof it worked is
+  that CI's first `apply-prod` reported `0 added, 0 changed, 0 destroyed`.
+- The **first apply stops at CloudFront**, by design rather than by fault. There
+  is no `aws_acm_certificate_validation` resource, so Terraform creates the
+  certificate and goes straight on to CloudFront, which refuses one still in
+  `PENDING_VALIDATION` — and it cannot validate until a DNS record names it. It
+  is a two-pass apply with a CNAME in between.
+- `plots.world` is an **apex** domain, so the CloudFront alias is an `ALIAS`
+  record; a plain `CNAME` is illegal at a zone apex. DNS is Squarespace, which
+  supports `ALIAS`. Dev met neither problem, living on
+  `develop.plots.world`.
 
 **Caveat**: Terraform applies via ci-terraform on merge; changes to the CI role's
 own IAM (`iam_cicd.tf`) need a **local targeted apply** (CI can't edit its own
@@ -189,24 +210,58 @@ don't drive verification. Client-side-only handling keeps us **exempt from the
 CASA security assessment**; standard OAuth verification (brand + scope review +
 demo video) still applies.
 
-**Hard dependency**: the consent screen's homepage & privacy-policy URLs must be
-live on the **verified prod domain**, and the prod OAuth client must exist — so
-**prod cutover (above) must precede the verification submit.** Deliverables D1,
-D2, D5, D6 can be produced in parallel now (recorded/written against dev).
+**Hard dependency — satisfied**: the consent screen's homepage &
+privacy-policy URLs must be live on the verified prod domain, and the prod OAuth
+client must exist. Both are true since the 2026-08-19 cutover.
+
+### Google account topology (prod)
+
+None of this is derivable from the repo, and it decides what D4 *can* be set to:
+
+- The prod GCP project is owned by a **Cloud Identity user on the apex domain**,
+  not by a personal Gmail account. `plots.world` carries a **Cloud Identity
+  Free** organisation — no Workspace subscription, so no Gmail licence and no
+  mailbox of its own. (Addresses are deliberately not written down here: this
+  repo is public, and naming the owner of the prod project is a reconnaissance
+  hint in the same way an AWS account id is. The values are in the console.)
+- That organisation enforces `constraints/iam.allowedPolicyMemberDomains`
+  (*domain restricted sharing*), so an outside Gmail account **cannot** be added
+  as a project principal; granting one Owner fails with a policy error. Do not
+  reach for a Workspace subscription or an org-policy override to work around
+  this — neither is needed, see the next two points.
+- The consent screen's **User support email** offers only the signed-in user's
+  own address, which makes that domain user the only selectable value.
+  **Developer contact information** is free-form and holds a **dedicated role
+  Gmail account**; that is where Google's review correspondence actually lands,
+  which is what matters during a weeks-long review.
+- The domain user had no mailbox, so **ImprovMX** forwards mail for the domain
+  to that role account. Four DNS records hold this together — `MX` ×2,
+  the ImprovMX `SPF`, the `google-site-verification` `TXT`, and `_dmarc` — and
+  all four must survive any future DNS edit. Deleting the site-verification
+  token would fail the Search Console ownership and take Authorized domains
+  down with it.
 
 **Deliverables** (owner):
-- **D1 — Privacy policy page** (`/privacy` in `apps/web`): includes the **Limited
-  Use disclosure** (compliance with the Google API Services User Data Policy;
-  restricted data stays in the browser, is never sent to a server or shared).
+- **D1 — Privacy policy page** (`apps/web/public/privacy.html`): includes the
+  **Limited Use disclosure** (compliance with the Google API Services User Data
+  Policy; restricted data stays in the browser, is never sent to a server or
+  shared). The URL is `/privacy.html`, **with the extension** — the CloudFront
+  SPA function rewrites extensionless paths to `index.html`, so `/privacy`
+  serves the app itself and a reviewer following it never sees the policy.
   *Code — drafted in-repo.*
 - **D2 — Homepage/landing**: extend the `HowItWorks` explainer with a clear app
   description, a screenshot, and a link to the privacy policy. *Code.*
-- **D3 — Domain ownership verification**: verify the prod frontend domain in
-  Google Search Console; add it to the consent screen's Authorized domains.
-  *User (Google Console).*
-- **D4 — Consent screen config (prod project)**: app name, logo, support email,
-  developer contact, authorized domains, scopes, homepage + privacy URLs. *User;
-  copy drafted in-repo.*
+- **D3 — Domain ownership verification** — **done 2026-08-22**. `plots.world` is
+  verified in Google Search Console as a **Domain** property (covering
+  `develop.plots.world` too) and is listed under the consent screen's Authorized
+  domains. Search Console **auto-verified** it from the
+  `google-site-verification` TXT already present on the apex, so no new record
+  was added.
+- **D4 — Consent screen config (prod project)** — **done 2026-08-22**. App name
+  `Damage Report Plots`, home page `https://plots.world/`, privacy policy
+  `https://plots.world/privacy.html`, authorized domain `plots.world`, plus the
+  support email and developer contact described above. No logo uploaded — it is optional, and uploading one triggers a separate brand
+  review. Copy drafted in `docs/oauth-consent-verification.md`.
 - **D5 — Per-scope justification**: English text explaining `gmail.readonly` is
   used only to parse "Ingress Damage Report" email bodies, plus Limited-Use and
   client-side-only statements. *Drafted in-repo.*
@@ -221,9 +276,9 @@ D2, D5, D6 can be produced in parallel now (recorded/written against dev).
 - **D7 — Submit for verification** and set Publishing status to In production.
   *User (Google Console).*
 
-**Sequence**: (1) build D1/D2/D5 + D6 storyboard now (one PR); (2) prod cutover;
-(3) D3 domain verification; (4) record D6; (5) D4 → D7 submit; (6) answer
-Google's review follow-ups.
+**Sequence**: (1) ~~D1/D2/D5 + D6 storyboard~~ done; (2) ~~prod cutover~~ done
+(2026-08-19); (3) ~~D3 + D4~~ done (2026-08-22); (4) **record D6** ← next;
+(5) D7 submit; (6) answer Google's review follow-ups.
 
 **Notes**: restricted-scope review can take **weeks** with back-and-forth;
 weak/absent **Limited Use** wording and demo-video gaps are the common rejection
