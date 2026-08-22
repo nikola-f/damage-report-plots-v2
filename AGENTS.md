@@ -210,26 +210,58 @@ don't drive verification. Client-side-only handling keeps us **exempt from the
 CASA security assessment**; standard OAuth verification (brand + scope review +
 demo video) still applies.
 
-**Hard dependency — now satisfied**: the consent screen's homepage &
+**Hard dependency — satisfied**: the consent screen's homepage &
 privacy-policy URLs must be live on the verified prod domain, and the prod OAuth
-client must exist. Both are true since the 2026-08-19 cutover, so the remaining
-deliverables are unblocked. This is also why D4 leaves the homepage and
-privacy-policy URLs blank until D3: filling them makes Google demand the domain
-under Authorized domains, which needs Search Console verification first.
+client must exist. Both are true since the 2026-08-19 cutover.
+
+### Google account topology (prod)
+
+None of this is derivable from the repo, and it decides what D4 *can* be set to:
+
+- The prod GCP project is owned by a **Cloud Identity user on the apex domain**,
+  not by a personal Gmail account. `plots.world` carries a **Cloud Identity
+  Free** organisation — no Workspace subscription, so no Gmail licence and no
+  mailbox of its own. (Addresses are deliberately not written down here: this
+  repo is public, and naming the owner of the prod project is a reconnaissance
+  hint in the same way an AWS account id is. The values are in the console.)
+- That organisation enforces `constraints/iam.allowedPolicyMemberDomains`
+  (*domain restricted sharing*), so an outside Gmail account **cannot** be added
+  as a project principal; granting one Owner fails with a policy error. Do not
+  reach for a Workspace subscription or an org-policy override to work around
+  this — neither is needed, see the next two points.
+- The consent screen's **User support email** offers only the signed-in user's
+  own address, which makes that domain user the only selectable value.
+  **Developer contact information** is free-form and holds a **dedicated role
+  Gmail account**; that is where Google's review correspondence actually lands,
+  which is what matters during a weeks-long review.
+- The domain user had no mailbox, so **ImprovMX** forwards mail for the domain
+  to that role account. Four DNS records hold this together — `MX` ×2,
+  the ImprovMX `SPF`, the `google-site-verification` `TXT`, and `_dmarc` — and
+  all four must survive any future DNS edit. Deleting the site-verification
+  token would fail the Search Console ownership and take Authorized domains
+  down with it.
 
 **Deliverables** (owner):
-- **D1 — Privacy policy page** (`/privacy` in `apps/web`): includes the **Limited
-  Use disclosure** (compliance with the Google API Services User Data Policy;
-  restricted data stays in the browser, is never sent to a server or shared).
+- **D1 — Privacy policy page** (`apps/web/public/privacy.html`): includes the
+  **Limited Use disclosure** (compliance with the Google API Services User Data
+  Policy; restricted data stays in the browser, is never sent to a server or
+  shared). The URL is `/privacy.html`, **with the extension** — the CloudFront
+  SPA function rewrites extensionless paths to `index.html`, so `/privacy`
+  serves the app itself and a reviewer following it never sees the policy.
   *Code — drafted in-repo.*
 - **D2 — Homepage/landing**: extend the `HowItWorks` explainer with a clear app
   description, a screenshot, and a link to the privacy policy. *Code.*
-- **D3 — Domain ownership verification**: verify the prod frontend domain in
-  Google Search Console; add it to the consent screen's Authorized domains.
-  *User (Google Console).*
-- **D4 — Consent screen config (prod project)**: app name, logo, support email,
-  developer contact, authorized domains, scopes, homepage + privacy URLs. *User;
-  copy drafted in-repo.*
+- **D3 — Domain ownership verification** — **done 2026-08-22**. `plots.world` is
+  verified in Google Search Console as a **Domain** property (covering
+  `develop.plots.world` too) and is listed under the consent screen's Authorized
+  domains. Search Console **auto-verified** it from the
+  `google-site-verification` TXT already present on the apex, so no new record
+  was added.
+- **D4 — Consent screen config (prod project)** — **done 2026-08-22**. App name
+  `Damage Report Plots`, home page `https://plots.world/`, privacy policy
+  `https://plots.world/privacy.html`, authorized domain `plots.world`, plus the
+  support email and developer contact described above. No logo uploaded — it is optional, and uploading one triggers a separate brand
+  review. Copy drafted in `docs/oauth-consent-verification.md`.
 - **D5 — Per-scope justification**: English text explaining `gmail.readonly` is
   used only to parse "Ingress Damage Report" email bodies, plus Limited-Use and
   client-side-only statements. *Drafted in-repo.*
@@ -245,8 +277,8 @@ under Authorized domains, which needs Search Console verification first.
   *User (Google Console).*
 
 **Sequence**: (1) ~~D1/D2/D5 + D6 storyboard~~ done; (2) ~~prod cutover~~ done
-(2026-08-19); (3) **D3 domain verification** ← next; (4) record D6; (5) D4 → D7
-submit; (6) answer Google's review follow-ups.
+(2026-08-19); (3) ~~D3 + D4~~ done (2026-08-22); (4) **record D6** ← next;
+(5) D7 submit; (6) answer Google's review follow-ups.
 
 **Notes**: restricted-scope review can take **weeks** with back-and-forth;
 weak/absent **Limited Use** wording and demo-video gaps are the common rejection
