@@ -11,7 +11,7 @@ truth for what we submit. Keep it in sync with the actual request in
 
 | Scope | Sensitivity | Needs justification |
 |-------|-------------|---------------------|
-| `openid` / `profile` | Non-sensitive | No |
+| `openid` / `userinfo.profile` | Non-sensitive | No |
 | `https://www.googleapis.com/auth/drive.file` | Non-sensitive (recommended) | Light |
 | `https://www.googleapis.com/auth/gmail.readonly` | **Restricted** | **Yes — main review** |
 
@@ -38,26 +38,35 @@ all Gmail access and parsing happen in the user's browser.
 
 ### `gmail.readonly` (restricted) — primary
 
-> Damage Report Plots uses `gmail.readonly` for one user-facing feature: reading
-> the user's own "Ingress Damage Report" emails to extract the list of attacked
-> in-game portals and their coordinates.
+**This is the text submitted on 2026-08-30**, after review round 1 rejected the
+first attempt. The console's justification field caps at **1,000 characters**, so
+this is written to that budget rather than trimmed from something longer.
+
+> Our users play the game Ingress. When another player attacks one of their
+> portals, Ingress emails them a "Damage Report". The user wants to see which of
+> their portals are attacked, how often and how recently, as a heatmap on the
+> Ingress Intel map.
 >
-> The Gmail query is tightly scoped to these emails only — subject
-> "Ingress Damage Report: Entities attacked by" from the official Ingress senders
-> `ingress-support@google.com`, `ingress-support@nianticlabs.com`, and
-> `ingress-support@nianticspatial.com` — so the app reads no other mail.
+> That information exists only inside the message body: an HTML table listing
+> each attacked portal's name, latitude and longitude. It is not in the subject,
+> headers or metadata. Reading the body is the feature itself; without it the app
+> has nothing to show.
 >
-> The app needs the **message body** (the HTML table listing the portals), which
-> requires read access to message content. `gmail.metadata` is insufficient
-> because it cannot return the body, and there is no read-only Gmail scope
-> narrower than `gmail.readonly` that returns message bodies. Access is strictly
-> read-only: the app never sends, modifies, labels, or deletes any email.
+> The user clicks "Sync Gmail -> Sheet". The app finds these reports, parses each
+> body, writes one row per attacked portal into a Google Sheet in the user's own
+> Drive, and copies the list for the user to paste into our IITC map plugin.
 >
-> All reading and parsing happen in the user's browser. Message content and
-> anything derived from it are never transmitted to, stored on, or logged by any
-> server operated by us — the only destination for the extracted data is a Google
-> Sheet in the user's own Google Drive. Use of this data complies with the Google
-> API Services User Data Policy, including the Limited Use requirements.
+> We search only for the subject "Ingress Damage Report: Entities attacked by"
+> from the three official ingress-support addresses, so no other mail is fetched.
+> gmail.metadata cannot return bodies, and no read-only Gmail scope is narrower
+> than gmail.readonly.
+
+**What the first version got wrong**: it opened with the API constraint — the
+body is needed, `gmail.metadata` cannot return it — and never said what the user
+gets. The reviewer's words were *"your justification should bridge the gap
+between backend operations and the user experience"*. Everything factual in the
+old text is still here; the order changed, and the user's goal now comes first.
+The sentence carrying the argument is *"Reading the body is the feature itself"*.
 
 **Why not a narrower scope**: the feature requires the email body, which only
 `gmail.readonly` (or broader) can return. We request the narrowest read scope and
@@ -72,11 +81,13 @@ constrain it further with a sender+subject query.
 > sheet again when the user signs in from another device, keeping one continuous
 > record. This replaces the broader, sensitive `spreadsheets` scope.
 
-### `profile` (non-sensitive)
+### `openid` / `userinfo.profile` (non-sensitive)
 
 > Used only to display the signed-in user's name and profile picture in the app
 > UI, so they can see which account is connected. The app does not request the
-> `email` scope.
+> `email` scope, and does not use an ID token — `openid` is requested because
+> Google adds it to the grant regardless, and the request has to match the
+> console registration.
 
 ---
 
@@ -108,7 +119,73 @@ constrain it further with a sender+subject query.
 
 ## Supporting links to provide on the consent screen
 
-- **Homepage**: the app root on the verified prod domain (`https://<prod-domain>/`).
-- **App description**: `https://<prod-domain>/about.html` (D2).
-- **Privacy policy**: `https://<prod-domain>/privacy.html` (D1).
-- **Demo video**: unlisted YouTube URL (D6).
+- **Homepage**: `https://plots.world/`
+- **App description**: `https://plots.world/about.html` (D2).
+- **Privacy policy**: `https://plots.world/privacy.html` (D1) — **with the
+  extension**. The CloudFront SPA function rewrites extensionless paths to
+  `index.html`, so `/privacy` serves the app and a reviewer following it never
+  reaches the policy.
+- **Demo video**: unlisted YouTube URL (D6). **Deliberately not recorded here** —
+  this repo is public and the video is unlisted, so writing the link down would
+  publish it. It is in the submission and in the reply thread.
+
+---
+
+## Review round 1 — rejected 2026-08-29, answered 2026-08-30
+
+Submitted 2026-08-23; the reply came back nine days later. Worth keeping because
+none of the three findings was about whether the app deserves the scope.
+
+### Scope Discrepancy — the one that was a real defect
+
+> ensuring that the scopes requested in your codebase or manifest exactly match
+> your Google Cloud Console configuration
+
+They did not. Sign-in asked for the `profile` shorthand while the console held
+`https://www.googleapis.com/auth/userinfo.profile`, and `openid` was registered
+but never requested — Google adds it when granting, *after* the authorization
+request is built. So the grant always looked right and the app worked, while the
+request could never match the registration. Fixed in #409/#410, and
+`REGISTERED_SCOPES` in `auth.ts` now pins the four strings with a test.
+
+The lesson generalises: **a scope that Google normalises on its side still has to
+be spelled the console's way in the request.** Nothing in the running app reveals
+the mismatch.
+
+### Scope Justification — see the rewrite above
+
+### Demo Video
+
+> if the scopes are obscured, click "Show all services"
+
+Take 2 holds both consent screens open and readable, and adds a segment showing a
+real Damage Report email beside the spreadsheet row it produces — evidence for
+the claim that the coordinates exist nowhere but the body. `docs/oauth-demo-video.md`
+carries the shot list and the chapter marks.
+
+Two things worth knowing for any future recording:
+
+- The `gmail.readonly` screen is now preceded by Google's **"unverified app"
+  interstitial**, because the app is In Production and under review. It has to be
+  dismissed on camera to reach the consent screen; do not cut it.
+- **No "Show all services" control appears** on either screen. With this few
+  scopes nothing is collapsed, so there is nothing to expand — the requirement is
+  conditional and is already satisfied. The reply says so explicitly, to
+  forestall the assumption that it was skipped.
+
+### Test Credentials
+
+Answered **not applicable**: the app issues no credentials, has no local login,
+no paywall and no phone verification — a reviewer signs in with their own Google
+account. The reply states plainly that an account with no Ingress Damage Report
+mail syncs successfully to an **empty** result, since otherwise a reviewer testing
+with their own mailbox would read that as a broken app. It offers a seeded
+account on request rather than building one up front.
+
+### Field limits
+
+Every free-text field in the verification form caps at **1,000 characters**. The
+long-form copy in this document does not fit; the versions above are written to
+that budget. When trimming, the two things to keep are the **CASA exemption
+claim** and the **denial of third-party sharing, advertising and sale** — both
+are load-bearing and neither is recoverable from the rest of the text.
