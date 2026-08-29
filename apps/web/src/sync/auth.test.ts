@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   LOGIN_SCOPE,
+  REGISTERED_SCOPES,
   SYNC_SCOPE,
   missingScopes,
   SHEET_SCOPE,
@@ -49,9 +50,26 @@ function fakeOAuth2(
 
 describe("scopes (incremental authorization)", () => {
   it("login asks for identity + drive.file but not the restricted gmail scope", () => {
-    expect(LOGIN_SCOPE).toContain("profile");
+    expect(LOGIN_SCOPE).toContain("userinfo.profile");
     expect(LOGIN_SCOPE).toContain("drive.file");
     expect(LOGIN_SCOPE).not.toContain("gmail.readonly");
+  });
+
+  // OAuth verification requires a strict string match between the authorization
+  // request and the console's Data Access registration. The first submission was
+  // rejected for asking `profile` while the console held the expanded URL, so
+  // this guards the union rather than any single set.
+  it("asks for exactly the scopes registered in the Cloud Console", () => {
+    const requested = new Set([...LOGIN_SCOPE.split(" "), ...SYNC_SCOPE.split(" "), ...SHEET_SCOPE.split(" ")]);
+    expect([...requested].sort()).toEqual([...REGISTERED_SCOPES].sort());
+  });
+
+  // The shorthand is what Google expands on its side; asking with it is what
+  // produced the mismatch.
+  it("never asks with the `profile` shorthand", () => {
+    for (const scope of [LOGIN_SCOPE, SYNC_SCOPE, SHEET_SCOPE]) {
+      expect(scope.split(" ")).not.toContain("profile");
+    }
   });
 
   it("login does not ask for the address: the UI shows only a name and picture", () => {
