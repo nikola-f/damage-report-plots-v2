@@ -5,11 +5,18 @@ on:
     branches: [develop, main]
     paths:
       - 'terraform/**'
+      # Every job below resolves its Terraform version from .tool-versions, so a
+      # change to that file changes what CI runs — but without this line it does
+      # not run at all. Renovate bumps it on its own schedule, and #405 went in
+      # with no job having ever executed the new version; the first exercise of
+      # it would have been whichever unrelated PR next touched terraform/.
+      - '.tool-versions'
       - '.github/workflows/ci-terraform.yml'
   push:
     branches: [develop, main]
     paths:
       - 'terraform/**'
+      - '.tool-versions'
       - '.github/workflows/ci-terraform.yml'
 
 permissions:
