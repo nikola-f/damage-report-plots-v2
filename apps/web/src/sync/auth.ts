@@ -9,6 +9,16 @@
 // devices (see drive.ts).
 const GMAIL_READONLY = "https://www.googleapis.com/auth/gmail.readonly";
 const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
+const USERINFO_PROFILE = "https://www.googleapis.com/auth/userinfo.profile";
+const OPENID = "openid";
+
+// The Data Access screen of the prod Cloud Console holds exactly these four
+// strings. OAuth verification requires a *strict string match* between what the
+// authorization request asks for and what is registered there, so the union of
+// the three scope sets below must equal this list, character for character.
+// A test asserts it — the first submission was rejected for asking `profile`
+// (the shorthand) against a console registered with the expanded URL.
+export const REGISTERED_SCOPES = [OPENID, USERINFO_PROFILE, DRIVE_FILE, GMAIL_READONLY];
 
 // Incremental authorization. At login we ask only for identity + the app's own
 // Drive file; the restricted gmail.readonly scope is deferred to the start of a
@@ -17,7 +27,12 @@ const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
 // SYNC_SCOPE also includes drive.file — a sync both reads Gmail and writes the
 // spreadsheet.
 // `email` is not requested: the UI shows the signed-in user's name and picture,
-// both of which come from `profile`, and the address was never displayed.
+// both of which come from the profile scope, and the address was never displayed.
+//
+// The identity scopes are spelled out in full rather than as the `profile`
+// shorthand. Google expands the shorthand and adds `openid` when it grants the
+// token, so the shorthand can never match the console's registration — which is
+// what the verification review flagged as a scope discrepancy.
 //
 // drive.file stays even though login only reads (find the spreadsheet, read the
 // plots): Drive has no read-only equivalent scoped to the app's own files. The
@@ -25,7 +40,7 @@ const DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
 // user's entire Drive and are *restricted* scopes, so swapping one in would
 // both widen the access and pull the app into the CASA assessment this design
 // exists to avoid.
-export const LOGIN_SCOPE = ["profile", DRIVE_FILE].join(" ");
+export const LOGIN_SCOPE = [OPENID, USERINFO_PROFILE, DRIVE_FILE].join(" ");
 export const SYNC_SCOPE = [GMAIL_READONLY, DRIVE_FILE].join(" ");
 // Reading the spreadsheet back (the Copy button) needs nothing but the app's
 // own Drive file. Asking for exactly that — rather than reusing LOGIN_SCOPE —

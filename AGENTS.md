@@ -35,11 +35,18 @@ verification is needed for production). Original PoC that proved feasibility:
 - `apps/web`'s clipboard output MUST stay the same `Plot[]` shape
   `{lat, lng, count, latest}` that `apps/iitc/src/plots.ts` expects.
 
-**Scopes**: `profile https://www.googleapis.com/auth/gmail.readonly
-https://www.googleapis.com/auth/drive.file`. `drive.file` (non-sensitive)
-replaces the sensitive `spreadsheets` scope and lets the app discover its **own**
-single spreadsheet across devices via a Drive `appProperties` marker. `email` is
-not requested — the UI shows a name and picture, both from `profile`.
+**Scopes**: `openid https://www.googleapis.com/auth/userinfo.profile
+https://www.googleapis.com/auth/drive.file
+https://www.googleapis.com/auth/gmail.readonly` — the four in
+`REGISTERED_SCOPES` (`auth.ts`), which must stay a **strict string match** with
+the prod console's Data Access screen; a test asserts it. The identity scopes
+are spelled out rather than sent as the `profile` shorthand, because Google
+expands the shorthand and adds `openid` when granting, so the shorthand can
+never match the registration — OAuth verification rejected the first submission
+over exactly that. `drive.file` (non-sensitive) replaces the sensitive
+`spreadsheets` scope and lets the app discover its **own** single spreadsheet
+across devices via a Drive `appProperties` marker. `email` is not requested —
+the UI shows a name and picture, both from the profile scope.
 
 `drive.file` stays even on the login token, which only reads: Drive has **no
 read-only scope limited to the app's own files**. `drive.readonly` and
