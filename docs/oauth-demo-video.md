@@ -131,6 +131,37 @@ Limited Use wording, and it must match
 [`oauth-consent-verification.md`](./oauth-consent-verification.md) and
 `/privacy.html` word for word.
 
+## Take 2 chapter marks (recorded 2026-08-30)
+
+Paste into the YouTube description — starting at `0:00` turns them into
+chapters — and repeat them in the reply to the reviewer. The review asked for
+*"clear, step-by-step navigation instructions"*, and pointing straight at the
+consent screens is the most useful form that can take when the recording runs
+past seven minutes.
+
+```
+0:00 App overview at the verified domain
+0:33 Privacy policy and Limited Use disclosure
+0:56 Sign-in consent screen (openid, userinfo.profile, drive.file)
+1:28 Unverified-app notice, then the gmail.readonly consent screen
+2:55 Sync: reading Ingress Damage Report emails
+4:17 Source email and the spreadsheet row it produces
+5:22 Spreadsheet in the user's own Drive
+5:51 Copy plots and render the heatmap in IITC
+6:28 No backend: all requests go to Google or our own origin
+7:00 Limited Use statement
+```
+
+The **URL is deliberately not recorded** in this repo: it is public and the video
+is unlisted, so writing the link down would publish it.
+
+Length is not a constraint Google places on the video — completeness is. Take 2
+runs about 7:30 against the 4–5 minutes this shot list originally targeted,
+because the review asked to see the *maximum extent* of the feature. Speed up the
+sync if it needs shortening; leave the consent screens and shot 6b at real time.
+
+---
+
 ## Before uploading
 
 - [ ] Both consent screens are **expanded** — no "Show all services" left unclicked — and every scope is legible at 1080p
