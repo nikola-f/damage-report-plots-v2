@@ -8,9 +8,16 @@
 
 The pipeline runs **entirely in the browser**: the SPA talks to Google directly
 (GIS token model, PKCE, no client secret) and no Gmail data ever reaches a
-server. This avoids the CASA restricted-scope security assessment — the backend
-that formerly ran the sync (ALB / ECS / Sidekiq / SQS / ElastiCache) has been
-decommissioned, and only static hosting (S3 + CloudFront) remains.
+server. The backend that formerly ran the sync (ALB / ECS / Sidekiq / SQS /
+ElastiCache) has been decommissioned, and only static hosting (S3 + CloudFront)
+remains.
+
+This was built to avoid Google's CASA restricted-scope security assessment.
+**It did not** — Google required the assessment regardless, and the app now runs
+unverified under a 100 new-user cap by choice. The architecture stays because
+its privacy properties are real on their own: there is no server holding Gmail
+data, no credentials at rest, and nothing to breach. See "Phase 5" in
+`AGENTS.md`.
 
 ### System Overview
 
