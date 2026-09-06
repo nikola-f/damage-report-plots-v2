@@ -18,16 +18,27 @@ The `apps/` directory contains independent applications:
   heatmap. Ingests via paste only (dialog in `apps/iitc/src/plugin.ts`,
   `parsePlots` in `apps/iitc/src/plots.ts`).
 
-## Client-Side Architecture (CASA Avoidance)
+## Client-Side Architecture
 
-**Why**: `gmail.readonly` is a Google *restricted* scope; serving external users
-would normally require a CASA Tier 2 security assessment (paid, annual renewal).
-Google exempts apps that never store or transmit restricted-scope data on a
-server. Handling the whole flow in the browser keeps us exempt (only brand
-verification is needed for production). Original PoC that proved feasibility:
-`apps/poc/DESIGN.md` and `apps/poc/RESULTS.md` (GO verdict).
+**This did not avoid CASA.** Google required the assessment anyway — see
+"CASA: what actually happened" below. The architecture is worth keeping on its
+own merits, but do not describe it as an exemption.
 
-**Invariants** (breaking any one re-triggers CASA):
+**Why it was built**: `gmail.readonly` is a Google *restricted* scope, and
+serving external users normally requires a paid, annually renewed security
+assessment. At design time Google's own documentation said *"If you store or
+transmit restricted scope data on servers, then you need to complete a security
+assessment"* and recommended *"architecting your app such that the Google user
+data is only ever stored client-side on the user's device"*. The PoC
+(`apps/poc/DESIGN.md`, deleted; commit `69c90ed`) took that at face value.
+
+**What it still buys**, exemption or not: Gmail data never touches a server we
+operate, there is no backend to breach, no credentials at rest, and the whole
+AWS estate is a static bucket. That is a real privacy property and the reason
+not to undo any of it.
+
+**Invariants** (all still hold, and breaking one would make the privacy claim
+false — they no longer control whether CASA applies):
 - Gmail access token / message bodies / derived data are **never** sent to,
   stored on, or logged by any server.
 - OAuth uses the **GIS token model only** (PKCE, no client secret, no
@@ -51,7 +62,7 @@ the UI shows a name and picture, both from the profile scope.
 `drive.file` stays even on the login token, which only reads: Drive has **no
 read-only scope limited to the app's own files**. `drive.readonly` and
 `drive.metadata.readonly` cover the user's whole Drive and are **restricted**,
-so either would widen access *and* trigger CASA.
+so either would widen access for no gain.
 
 ### apps/web sync engine (`apps/web/src/sync/`)
 
@@ -205,25 +216,21 @@ three things there were not obvious:
 own IAM (`iam_cicd.tf`) need a **local targeted apply** (CI can't edit its own
 policy).
 
-## Phase 5 — production readiness (OAuth verification, no CASA)
+## Phase 5 — OAuth verification: abandoned 2026-09 (running unverified)
 
-Publish the **prod** GCP OAuth consent screen (Testing → In production) and pass
-Google's OAuth verification so external users can use the app without the
-"unverified app" warning / 100-test-user cap.
+**Outcome: the app runs In Production, unverified, under the 100 new-user cap.**
+Verification was pursued to completion and then withdrawn, because the last
+requirement was a paid annual security assessment.
 
-**What actually needs verification**: only **`gmail.readonly`** (restricted).
-`profile` (non-sensitive) and `drive.file` (non-sensitive, recommended)
-don't drive verification. Client-side-only handling keeps us **exempt from the
-CASA security assessment**; standard OAuth verification (brand + scope review +
-demo video) still applies.
-
-**Hard dependency — satisfied**: the consent screen's homepage &
-privacy-policy URLs must be live on the verified prod domain, and the prod OAuth
-client must exist. Both are true since the 2026-08-19 cutover.
+Everything built for it is still in place and still correct — privacy policy,
+about page, domain verification, consent screen, demo video, scope
+justifications. None of it was wasted if the decision is ever revisited, and the
+brand-level requirements all passed. Only the assessment was refused.
 
 ### Google account topology (prod)
 
-None of this is derivable from the repo, and it decides what D4 *can* be set to:
+Still true, still not derivable from the repo, and it constrains anything that
+touches the consent screen:
 
 - The prod GCP project is owned by a **Cloud Identity user on the apex domain**,
   not by a personal Gmail account. `plots.world` carries a **Cloud Identity
@@ -239,58 +246,89 @@ None of this is derivable from the repo, and it decides what D4 *can* be set to:
 - The consent screen's **User support email** offers only the signed-in user's
   own address, which makes that domain user the only selectable value.
   **Developer contact information** is free-form and holds a **dedicated role
-  Gmail account**; that is where Google's review correspondence actually lands,
-  which is what matters during a weeks-long review.
+  Gmail account**; that is where Google's review correspondence lands.
 - The domain user had no mailbox, so **ImprovMX** forwards mail for the domain
-  to that role account. Four DNS records hold this together — `MX` ×2,
-  the ImprovMX `SPF`, the `google-site-verification` `TXT`, and `_dmarc` — and
-  all four must survive any future DNS edit. Deleting the site-verification
-  token would fail the Search Console ownership and take Authorized domains
-  down with it.
+  to that role account. Four DNS records hold this together — `MX` ×2, the
+  ImprovMX `SPF`, the `google-site-verification` `TXT`, and `_dmarc` — and all
+  four must survive any future DNS edit. Deleting the site-verification token
+  would fail the Search Console ownership and take Authorized domains down with
+  it.
 
-**Deliverables** (owner):
-- **D1 — Privacy policy page** (`apps/web/public/privacy.html`): includes the
-  **Limited Use disclosure** (compliance with the Google API Services User Data
-  Policy; restricted data stays in the browser, is never sent to a server or
-  shared). The URL is `/privacy.html`, **with the extension** — the CloudFront
-  SPA function rewrites extensionless paths to `index.html`, so `/privacy`
-  serves the app itself and a reviewer following it never sees the policy.
-  *Code — drafted in-repo.*
-- **D2 — Homepage/landing**: extend the `HowItWorks` explainer with a clear app
-  description, a screenshot, and a link to the privacy policy. *Code.*
-- **D3 — Domain ownership verification** — **done 2026-08-22**. `plots.world` is
-  verified in Google Search Console as a **Domain** property (covering
-  `develop.plots.world` too) and is listed under the consent screen's Authorized
-  domains. Search Console **auto-verified** it from the
-  `google-site-verification` TXT already present on the apex, so no new record
-  was added.
-- **D4 — Consent screen config (prod project)** — **done 2026-08-22**. App name
-  `Damage Report Plots`, home page `https://plots.world/`, privacy policy
-  `https://plots.world/privacy.html`, authorized domain `plots.world`, plus the
-  support email and developer contact described above. No logo uploaded — it is optional, and uploading one triggers a separate brand
-  review. Copy drafted in `docs/oauth-consent-verification.md`.
-- **D5 — Per-scope justification**: English text explaining `gmail.readonly` is
-  used only to parse "Ingress Damage Report" email bodies, plus Limited-Use and
-  client-side-only statements. *Drafted in-repo.*
-- **D6 — Demo video** (unlisted YouTube): the OAuth consent flow then the
-  gmail.readonly usage (sync → Sheet → Copy → IITC), noting restricted data never
-  leaves the browser. Shot list, narration and setup checklist in
-  `docs/oauth-demo-video.md`. *User records, after prod cutover* — the consent
-  screen must be the prod client on the verified domain. Note that incremental
-  auth puts `gmail.readonly` on a **second** consent screen reached only by
-  clicking Sync, and that the recording account's grant must be revoked first or
-  neither screen appears.
-- **D7 — Submit for verification** and set Publishing status to In production.
-  *User (Google Console).*
+### Consent screen configuration (left in place)
 
-**Sequence**: (1) ~~D1/D2/D5 + D6 storyboard~~ done; (2) ~~prod cutover~~ done
-(2026-08-19); (3) ~~D3 + D4~~ done (2026-08-22); (4) **record D6** ← next;
-(5) D7 submit; (6) answer Google's review follow-ups.
+App name `Damage Report Plots`, home page `https://plots.world/`, privacy policy
+**`https://plots.world/privacy.html`** — with the extension, because the
+CloudFront SPA function rewrites extensionless paths to `index.html` and
+`/privacy` serves the app itself. Authorized domain `plots.world`, verified in
+Search Console as a **Domain** property. Registered scopes are the four in
+`REGISTERED_SCOPES` (`auth.ts`); the Data Access screen is a separate
+registration from what the code requests, and the two must match exactly.
 
-**Notes**: restricted-scope review can take **weeks** with back-and-forth;
-weak/absent **Limited Use** wording and demo-video gaps are the common rejection
-reasons. The app remains usable during review (unverified warning + 100-user
-cap); approval clears both.
+### CASA: what actually happened
+
+The premise of the whole client-side design was that handling restricted-scope
+data only in the browser exempts the app from the security assessment. **It does
+not.** Timeline:
+
+- **2026-08-23** submitted; **2026-08-29** rejected on three points (scope
+  string mismatch, a justification written about the API rather than the user,
+  and a demo video that never expanded the consent screens). All three were
+  fixed and resubmitted 2026-08-30 — see
+  `docs/oauth-consent-verification.md`.
+- **2026-09** Google replied requiring an **ADA-CASA AL1** assessment (formerly
+  Tier 2) by 2026-11-28, annually thereafter.
+
+The sentence the PoC relied on is still in Google's docs, but the same page
+carries the qualifier that decides it: *"Every app that requests access to
+Google users' restricted data **and has the ability to access data from or
+through a third-party server** must go through a security assessment."* A SPA we
+host could be redeployed at any time to POST the data to us, so the ability
+exists whatever the current code does. On that reading no hosted web app is ever
+exempt.
+
+Google's own CASA email links to the exemption list, and it contains **five**
+entries — personal use, development/testing, service-owned data, internal
+Workspace use, admin-trusted domain-wide install. **Client-side architecture is
+not among them.** The wording the PoC quoted, recommending client-side storage,
+is no longer on the page.
+
+### The three options, and why A
+
+Removing the unverified-app warning, passing verification and doing CASA are the
+same act; there is no path to one without the others.
+
+| | Warning | User cap | Cost | Work |
+|---|---|---|---|---|
+| **A — stay unverified** ← chosen | shown once | **100 new users** | none | none |
+| B — ADA-CASA AL1 | gone | none | ~$540/yr, annual renewal | none |
+| C — move Gmail reads into a user-owned Apps Script | **still shown** | none | none | 1–2 weeks |
+
+**C does not remove the warning**, which is the thing most likely to be assumed
+about it. Each user would run their own copy of the script, so each project has
+one user and the cap never binds — but a personal script requesting a restricted
+scope shows the same "unverified" interstitial, plus a "make a copy" step before
+it. It buys the cap and nothing else. (If it is ever built: declare
+`oauthScopes` explicitly and use the advanced Gmail service, because `GmailApp`
+can pull in `https://mail.google.com/`, whose consent line reads "permanently
+delete all your email".)
+
+**A was chosen** because 100 users is enough for the audience. The verification
+request was withdrawn by replying to the review thread, stating explicitly that
+the scopes stay and that the cap and the warning are accepted — the email's
+"cancel" wording is phrased as *no longer needing the scopes*, which is not what
+was meant.
+
+### What to watch
+
+The cap counts **new users** and does not reset. Exhausting it does not merely
+show a warning — **Google sign-in stops working for new users**, with no
+click-through. Check occasionally at
+`console.cloud.google.com/auth/audience?project=damage-report-plots-prod`; when
+it gets close, the decision reopens as B (pay) or C (rebuild).
+
+Do not change the publishing status to Testing. The cap and the warning are the
+same either way, and Testing additionally requires adding every user's address
+by hand.
 
 ## Infrastructure Setup Status
 

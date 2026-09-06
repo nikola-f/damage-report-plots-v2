@@ -15,10 +15,15 @@ truth for what we submit. Keep it in sync with the actual request in
 | `https://www.googleapis.com/auth/drive.file` | Non-sensitive (recommended) | Light |
 | `https://www.googleapis.com/auth/gmail.readonly` | **Restricted** | **Yes — main review** |
 
-Only **`gmail.readonly`** drives the restricted-scope review. Because the app
-handles restricted data **entirely client-side** and never sends or stores it on
-a server, it qualifies for the **CASA security-assessment exemption**; standard
-OAuth verification (brand + scope review + demo video) still applies.
+Only **`gmail.readonly`** drives the restricted-scope review.
+
+> **Outcome (2026-09): verification was abandoned.** The client-side
+> architecture did **not** exempt the app from the security assessment — Google
+> required ADA-CASA AL1 regardless, and the request was withdrawn. The app runs
+> unverified under the 100 new-user cap. The copy below is kept as the record of
+> what was submitted and would be reused if the decision is revisited; the
+> CASA-exemption claims in it are what Google rejected. See "Phase 5" in
+> `AGENTS.md`.
 
 ---
 
@@ -131,6 +136,18 @@ constrain it further with a sender+subject query.
 
 ---
 
+## Review round 2 — CASA required, 2026-09
+
+The reply to round 1 was accepted on its own terms: none of the three findings
+came back. What came back instead was the security assessment — **ADA-CASA AL1,
+due 2026-11-28, annually thereafter**. That ended the verification track; see
+"Phase 5" in `AGENTS.md` for the decision and the reasoning.
+
+Nothing in this document needs to change to resume: if the assessment is ever
+completed, the submitted copy above is what goes back in.
+
+---
+
 ## Review round 1 — rejected 2026-08-29, answered 2026-08-30
 
 Submitted 2026-08-23; the reply came back nine days later. Worth keeping because
@@ -186,6 +203,11 @@ account on request rather than building one up front.
 
 Every free-text field in the verification form caps at **1,000 characters**. The
 long-form copy in this document does not fit; the versions above are written to
-that budget. When trimming, the two things to keep are the **CASA exemption
-claim** and the **denial of third-party sharing, advertising and sale** — both
-are load-bearing and neither is recoverable from the rest of the text.
+that budget.
+
+When trimming, keep the **denial of third-party sharing, advertising and sale** —
+it is load-bearing and not recoverable from the rest of the text. The **CASA
+exemption claim** was also treated as load-bearing at the time, and space was
+spent on it twice; it earned nothing. Google required the assessment anyway.
+Asserting the exemption is not harmful, but do not sacrifice anything else to
+fit it in.
